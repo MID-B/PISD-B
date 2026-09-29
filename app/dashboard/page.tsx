@@ -1,14 +1,121 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, type ReactNode } from 'react';
+import Link from 'next/link';
 import { 
   ResponsiveContainer, Tooltip, 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
-  LineChart, Line
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, LineChart, Line
 } from 'recharts';
 import { 
-  Building2, LogOut, Search, Filter, ChevronRight 
+  Search, Filter, Building2, ChartNoAxesCombined, ChevronRight, LogOut
 } from 'lucide-react';
+
+
+const lineData = [
+  { month: 'Jan', CCR: 30, HRM: 20, CRM: 15, MID: 10 },
+  { month: 'Feb', CCR: 40, HRM: 25, CRM: 22, MID: 12 },
+  { month: 'Mar', CCR: 35, HRM: 30, CRM: 28, MID: 15 },
+  { month: 'Apr', CCR: 50, HRM: 35, CRM: 32, MID: 18 },
+  { month: 'May', CCR: 45, HRM: 40, CRM: 38, MID: 22 },
+  { month: 'Jun', CCR: 60, HRM: 48, CRM: 42, MID: 25 },
+];
+
+type DashboardShellProps = {
+  activePage: 'dashboard' | 'sales-performance';
+  headerActions?: ReactNode;
+  children: ReactNode;
+};
+
+const navigation = [
+  { href: '/dashboard', label: 'Dashboard', key: 'dashboard', icon: Building2 },
+  { href: '/dashboard/sales-performance', label: 'Sales Performance', key: 'sales-performance', icon: ChartNoAxesCombined },
+];
+
+function DashboardShell({ activePage, headerActions, children }: DashboardShellProps) {
+  return (
+    <div className="flex h-dvh w-full overflow-hidden bg-[#F4F5F9] font-sans">
+      <aside className="w-20 md:w-64 flex flex-col justify-between p-3 md:p-4 flex-shrink-0 text-white bg-[#0B0F19]">
+        <div>
+          <div className="flex items-center justify-center md:justify-start gap-3 md:p-3 mb-6 bg-slate-900/60 rounded-xl">
+            <div className="w-12 h-12 shrink-0 rounded-full flex items-center justify-center font-bold text-lg bg-indigo-600 text-white">AN</div>
+            <div className="hidden md:block">
+              <h4 className="font-semibold text-sm leading-tight">ANDIMA</h4>
+              <p className="text-xs text-slate-400">Director of Board</p>
+              <p className="text-[10px] text-slate-500">Username</p>
+            </div>
+            <ChevronRight className="hidden md:block w-4 h-4 ml-auto text-slate-500" />
+          </div>
+          <nav className="space-y-2" aria-label="Main navigation">
+            {navigation.map(({ href, label, key, icon: Icon }) => (
+              <Link key={key} href={href} aria-label={label} title={label}
+                aria-current={activePage === key ? 'page' : undefined}
+                className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 md:px-4 py-3 rounded-xl text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 ${activePage === key ? 'bg-[#7C3AED] text-white shadow-lg shadow-purple-900/40' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}>
+                <Icon className="w-5 h-5 shrink-0" />
+                <span className="hidden md:inline">{label}</span>
+              </Link>
+            ))}
+          </nav>
+        </div>
+        <div className="border-t border-slate-800 pt-4 flex items-center justify-center md:justify-between px-2 text-slate-400 text-sm">
+          <div className="hidden md:flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-xs">N</div>
+            <span>Logout</span>
+          </div>
+          <LogOut className="w-4 h-4 text-rose-500" />
+        </div>
+      </aside>
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <header className="px-4 md:px-8 py-4 flex justify-between items-center gap-3 text-white flex-shrink-0 bg-[#111827]">
+          <div>
+            <h1 className="text-xl font-bold tracking-wide">ANDIMA MID</h1>
+            <p className="text-xs text-slate-400">{activePage === 'dashboard' ? 'Dashboard Executive Overview' : 'Sales Performance'}</p>
+          </div>
+          {headerActions}
+        </header>
+        <main className="p-4 md:p-6 space-y-6">{children}</main>
+      </div>
+    </div>
+  );
+}
+
+type SalesPoint = { month: string; CCR: number; HRM: number; CRM: number; MID: number };
+
+const series = [
+  { key: 'CCR', color: '#06B6D4' },
+  { key: 'HRM', color: '#7C3AED' },
+  { key: 'CRM', color: '#EC4899' },
+  { key: 'MID', color: '#F59E0B' },
+] as const;
+
+function SalesLegend() {
+  return (
+    <div className="flex flex-wrap gap-4 text-xs font-medium" aria-label="Chart legend">
+      {series.map(({ key, color }) => (
+        <div key={key} className="flex items-center gap-1.5 text-slate-600">
+          <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
+          <span>{key}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SalesTrendChart({ data, currency = false }: { data: SalesPoint[]; currency?: boolean }) {
+  return (
+    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+      <LineChart data={data} margin={{ top: 10, right: 20, left: currency ? 0 : -10, bottom: 0 }} accessibilityLayer>
+        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+        <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#64748B' }} tickMargin={8} />
+        <YAxis width={currency ? 74 : 60} tick={{ fontSize: 12, fill: '#64748B' }}
+          tickFormatter={currency ? (value: number) => `Rp${value}M` : undefined} />
+        <Tooltip formatter={currency ? (value, name) => [`Rp ${Number(value).toLocaleString('id-ID')} juta`, name] : undefined} />
+        {series.map(({ key, color }) => (
+          <Line key={key} type="monotone" dataKey={key} stroke={color} strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
 
 // Color Palette dari Sampel Gambar
 const COLORS = {
@@ -27,16 +134,6 @@ const COLORS = {
   statusProgressBg: '#EFF6FF',
   statusProgressText: '#1D4ED8',
 };
-
-// Data Dummy Line Chart untuk Sales Performance
-const lineData = [
-  { month: 'Jan', CCR: 30, HRM: 20, CRM: 15, MID: 10 },
-  { month: 'Feb', CCR: 40, HRM: 25, CRM: 22, MID: 12 },
-  { month: 'Mar', CCR: 35, HRM: 30, CRM: 28, MID: 15 },
-  { month: 'Apr', CCR: 50, HRM: 35, CRM: 32, MID: 18 },
-  { month: 'May', CCR: 45, HRM: 40, CRM: 38, MID: 22 },
-  { month: 'Jun', CCR: 60, HRM: 48, CRM: 42, MID: 25 },
-];
 
 const initialIssues = [
   { id: 'MB-1019', dept: 'Maju Bersama', issue: 'Send quotation update', date: '16 Sep 2026', pic: 'Yamina', status: 'Completed' },
@@ -65,71 +162,19 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden font-sans" style={{ backgroundColor: COLORS.bgApp }}>
-      
-      {/* 1. SIDEBAR KIRI */}
-      <aside className="w-64 flex flex-col justify-between p-4 flex-shrink-0 text-white" style={{ backgroundColor: COLORS.bgSidebar }}>
-        <div>
-          {/* User Profile Info */}
-          <div className="flex items-center gap-3 p-3 mb-6 bg-slate-900/60 rounded-xl">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg bg-indigo-600 text-white">
-              AN
-            </div>
-            <div>
-              <h4 className="font-semibold text-sm leading-tight">ANDIMA</h4>
-              <p className="text-xs text-slate-400">Director of Board</p>
-              <p className="text-[10px] text-slate-500">Username</p>
-            </div>
-            <ChevronRight className="w-4 h-4 ml-auto text-slate-500" />
-          </div>
-
-          {/* Navigation - Cuma Dashboard */}
-          <nav className="space-y-1">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-lg shadow-purple-900/40 cursor-pointer"
-                    style={{ backgroundColor: COLORS.accentPurple }}>
-              <Building2 className="w-5 h-5" />
-              <span>Dashboard</span>
-            </button>
-          </nav>
-        </div>
-
-        {/* Footer Logout */}
-        <div className="border-t border-slate-800 pt-4 flex items-center justify-between px-2 text-slate-400 text-sm hover:text-white cursor-pointer transition">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-xs">N</div>
-            <span>Logout</span>
-          </div>
-          <LogOut className="w-4 h-4 text-rose-500" />
-        </div>
-      </aside>
-
-      {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        
-        {/* 2. TOP BAR HEADER */}
-        <header className="px-8 py-4 flex justify-between items-center text-white flex-shrink-0" style={{ backgroundColor: COLORS.bgHeader }}>
-          <div>
-            <h1 className="text-xl font-bold tracking-wide">ANDIMA MID</h1>
-            <p className="text-xs text-slate-400">Dashboard Executive Overview</p>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <select 
-              value={selectedPeriod} 
-              onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="bg-slate-800 text-slate-200 text-xs px-3 py-1.5 rounded-lg border border-slate-700 outline-none cursor-pointer"
-            >
-              <option>Q1 2026</option>
-              <option>Q2 2026</option>
-              <option>Q3 2026</option>
-              <option>YTD 2026</option>
-            </select>
-          </div>
-        </header>
-
-        {/* DASHBOARD BODY CONTENT */}
-        <main className="p-6 space-y-6">
-          
+    <DashboardShell activePage="dashboard" headerActions={
+      <select
+        aria-label="Dashboard period"
+        value={selectedPeriod}
+        onChange={(e) => setSelectedPeriod(e.target.value)}
+        className="bg-slate-800 text-slate-200 text-xs px-3 py-1.5 rounded-lg border border-slate-700 outline-none cursor-pointer"
+      >
+        <option>Q1 2026</option>
+        <option>Q2 2026</option>
+        <option>Q3 2026</option>
+        <option>YTD 2026</option>
+      </select>
+    }>
           {/* Executive KPI Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="p-4 bg-white rounded-xl shadow-sm border border-slate-200/80">
@@ -172,39 +217,10 @@ export default function Dashboard() {
                 <h3 className="font-bold text-slate-800 text-base">Sales Performance Trend</h3>
                 <p className="text-[11px] text-slate-400">Last Update by CRM — September 27, 2026 - 23:14 PM</p>
               </div>
-              <div className="flex gap-4 text-xs font-medium">
-                <div className="flex items-center gap-1.5 text-slate-600">
-                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: COLORS.accentCyan }}></span>
-                  <span>CCR</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-slate-600">
-                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: COLORS.accentPurple }}></span>
-                  <span>HRM</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-slate-600">
-                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: COLORS.accentPink }}></span>
-                  <span>CRM</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-slate-600">
-                  <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: COLORS.accentYellow }}></span>
-                  <span>MID</span>
-                </div>
-              </div>
+              <SalesLegend />
             </div>
-            
             <div className="h-64 my-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={lineData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#64748B' }} />
-                  <YAxis tick={{ fontSize: 12, fill: '#64748B' }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="CCR" stroke={COLORS.accentCyan} strokeWidth={3} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="HRM" stroke={COLORS.accentPurple} strokeWidth={3} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="CRM" stroke={COLORS.accentPink} strokeWidth={3} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="MID" stroke={COLORS.accentYellow} strokeWidth={3} dot={{ r: 4 }} />
-                </LineChart>
-              </ResponsiveContainer>
+              <SalesTrendChart data={lineData} />
             </div>
 
             <div className="border-t border-slate-100 pt-3 mt-2">
@@ -335,9 +351,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-        </main>
-      </div>
-
-    </div>
+    </DashboardShell>
   );
 }
