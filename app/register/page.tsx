@@ -141,27 +141,26 @@ export default function RegisterPage() {
         return;
       }
 
-      // Step 3: Insert data ke b2_register
-      if (authData.user) {
-        const { error: dbError } = await supabase
-          .from('b2_register')
-          .insert([
-            {
-              employee_id: autoEmployeeId,
-              full_name: fullName.trim(),
-              email: emailLower,
-              phone: phone.trim(),
-              employment_status: employmentStatus,
-              position_id: positionId,
-              departement_id: departementId,
-            },
-          ]);
+      // Step 3: Insert data ke b2_register (Langsung dipanggil tanpa memblokir dari authData.user)
+      const { error: dbError } = await supabase
+        .from('b2_register')
+        .insert([
+          {
+            employee_id: autoEmployeeId,
+            full_name: fullName.trim(),
+            email: emailLower,
+            phone: phone.trim(),
+            employment_status: employmentStatus,
+            position_id: positionId,
+            departement_id: departementId,
+          },
+        ]);
 
-        if (dbError) {
-          setGeneralError('Failed to save register record: ' + dbError.message);
-          setIsLoading(false);
-          return;
-        }
+      if (dbError) {
+        console.error('Database Error:', dbError);
+        setGeneralError('Gagal menyimpan ke b2_register: ' + dbError.message);
+        setIsLoading(false);
+        return;
       }
 
       setSuccessMessage(`Registration successful! Your ID is ${autoEmployeeId}. Redirecting to login page...`);
@@ -339,8 +338,9 @@ export default function RegisterPage() {
                   }`}
                 >
                   <option value="">Select Position</option>
-                  <option value="freight-forwarding-specialist">Freight Forwarding Specialist</option>
-                  <option value="hr-administrator">HR Administrator</option>
+                  {/* GANTI DENGAN UUID ASLI DARI TABEL POSISI KAMU */}
+                  <option value="40a8e1f1-0713-4e5d-a7af-061b6e5f495c">Freight Forwarding Specialist</option>
+                  <option value="96c66ea1-44b6-474f-9410-ad992dd14b93">HR Administrator</option>
                 </select>
                 {fieldErrors.positionId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.positionId}</p>}
               </div>
@@ -361,8 +361,9 @@ export default function RegisterPage() {
                   }`}
                 >
                   <option value="">Select Department</option>
-                  <option value="human-resources">Human Resources</option>
-                  <option value="logistics-shipment-operations">Logistics & Shipment Operations</option>
+                  {/* GANTI DENGAN UUID ASLI DARI TABEL DEPARTEMEN KAMU */}
+                  <option value="72cd470d-216c-48b6-abd9-0cd05a4d8974">Human Resources</option>
+                  <option value="d38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc">Logistics & Shipment Operations</option>
                 </select>
                 {fieldErrors.departementId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.departementId}</p>}
               </div>
