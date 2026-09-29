@@ -133,6 +133,12 @@ export default function RegisterPage() {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: emailLower,
         password: password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+            position_id: positionId,
+          }
+        }
       });
 
       if (authError) {
