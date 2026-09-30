@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
 
 const REGISTERED_USERS = {
   'manajemen@andima.co.id': {
@@ -11,11 +14,13 @@ const REGISTERED_USERS = {
 };
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
+  const [isSigningIn, setIsSigningIn] = useState<boolean>(false);
   const [loginAttempts, setLoginAttempts] = useState<number>(0);
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [isPermanentlyBlocked, setIsPermanentlyBlocked] = useState<boolean>(false);
@@ -77,7 +82,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
@@ -102,26 +107,34 @@ export default function LoginPage() {
     }
 
     const userAccount = REGISTERED_USERS[email.toLowerCase() as keyof typeof REGISTERED_USERS];
-    if (!userAccount) {
-      handleFailedAttempt('Email address is not registered in the system.');
+    if (userAccount && userAccount.passwordRole === password) {
+      setLoginAttempts(0);
+      setSuccessMessage(`Login successful! Redirecting to ${userAccount.role} Dashboard...`);
+      window.setTimeout(() => { router.push(userAccount.redirectTo); }, 1500);
       return;
     }
 
-    if (userAccount.passwordRole !== password) {
-      handleFailedAttempt('Incorrect password.');
-      return;
-    }
+    setIsSigningIn(true);
+    void supabase.auth.signInWithPassword({ email: email.toLowerCase().trim(), password })
+      .then(({ error }) => {
+        if (error) {
+          const message = error.message.toLowerCase().includes('email not confirmed')
+            ? 'Email belum dikonfirmasi. Selesaikan konfirmasi melalui email terlebih dahulu.'
+            : 'Email atau password salah.';
+          handleFailedAttempt(message);
+          return;
+        }
 
-    setLoginAttempts(0);
-    setSuccessMessage(`Login successful! Redirecting to ${userAccount.role} Dashboard...`);
-
-    setTimeout(() => {
-      window.location.href = userAccount.redirectTo;
-    }, 1500);
+        setLoginAttempts(0);
+        setSuccessMessage('Login berhasil! Mengalihkan ke dashboard...');
+        window.setTimeout(() => { router.push('/dashboard'); }, 1200);
+      })
+      .catch(() => setErrorMessage('Tidak dapat menghubungi server login. Silakan coba lagi.'))
+      .finally(() => setIsSigningIn(false));
   };
 
   return (
-    <main className="relative h-screen w-screen overflow-hidden bg-[#07111F] text-[#0D1B2A] selection:bg-[#3B6FF5] selection:text-white font-[family-name:var(--font-montserrat)]">
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-[#07111F] text-[#0D1B2A] selection:bg-[#3B6FF5] selection:text-white font-[family-name:var(--font-montserrat)]">
       {/* 1. BACKGROUND GAMBAR LOGISTIK FULL SCREEN */}
       <div className="absolute inset-0 z-0">
         <img
@@ -152,7 +165,7 @@ export default function LoginPage() {
       </div>
 
       {/* 3. FORM LOGIN CONTAINER */}
-      <div className="relative z-10 h-full w-full flex items-center justify-start px-6 sm:px-12 lg:px-20">
+      <div className="relative z-10 min-h-screen w-full flex items-center justify-start px-6 py-8 sm:px-12 lg:px-20">
         <div className="w-full max-w-xl">
 
           {/* FRAME LIQUID GLASS (GLASSMORPHISM ADVANCED) */}
@@ -247,16 +260,21 @@ export default function LoginPage() {
               {/* Tombol Login Solid Blue #3B6FF5 dengan Hover #2B5CE5 */}
               <button
                 type="submit"
-                disabled={isLocked || isPermanentlyBlocked}
+                disabled={isLocked || isPermanentlyBlocked || isSigningIn}
                 className="w-full py-4 px-5 text-white font-extrabold rounded-xl text-sm tracking-wider uppercase transition-all mt-2 disabled:opacity-50 bg-[#3B6FF5] hover:bg-[#2B5CE5] shadow-[0_8px_25px_rgba(59,111,245,0.4)] active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed font-[family-name:var(--font-montserrat)]"
               >
                 {isPermanentlyBlocked
                   ? 'ACCOUNT BLOCKED'
                   : isLocked
                   ? `Please wait ${countdown}s`
-                  : 'LOGIN'}
+                  : isSigningIn ? 'SIGNING IN…' : 'LOGIN'}
               </button>
             </form>
+
+            <p className="relative z-10 mt-4 text-center text-sm text-[#334155]">
+              Not login ?{' '}
+              <Link href="/register" className="font-bold text-[#3B6FF5] hover:underline">Register</Link>
+            </p>
 
             {/* Info Demo Credentials */}
             <div className="mt-7 p-4 rounded-xl bg-white/60 backdrop-blur-md border border-white/80 text-xs text-[#334155] space-y-1 font-[family-name:var(--font-montserrat)] shadow-sm relative z-10">
