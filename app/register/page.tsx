@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, FormEvent, ChangeEvent } from 'react';
+import React, { useState, useRef, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
 interface FieldErrors {
@@ -15,16 +16,19 @@ interface FieldErrors {
 }
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [fullName, setFullName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [phone, setPhone] = useState<string>('');
   const [employmentStatus, setEmploymentStatus] = useState<string>('');
   const [positionId, setPositionId] = useState<string>('');
   const [departementId, setDepartementId] = useState<string>('');
 
-  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const submitting = useRef(false);
 
   // States Error UI
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -33,30 +37,22 @@ export default function RegisterPage() {
 
   // Fungsi untuk Generate Employee ID otomatis (EMP-001, EMP-002, dst.)
   const generateNextEmployeeId = async (): Promise<string> => {
-    try {
-      const { data, error } = await supabase
-        .from('b2_register')
-        .select('employee_id')
-        .order('created_at', { ascending: false })
-        .limit(1);
+    const { data, error } = await supabase
+      .from('b2_register')
+      .select('employee_id')
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-      if (error || !data || data.length === 0 || !data[0].employee_id) {
-        return 'EMP-001';
-      }
-
-      const lastId = data[0].employee_id; // e.g. "EMP-005"
-      const numberPart = lastId.replace(/[^0-9]/g, '');
-      const nextNumber = parseInt(numberPart, 10) + 1;
-
-      return `EMP-${String(nextNumber).padStart(3, '0')}`;
-    } catch (err) {
-      console.error('Error generating employee ID:', err);
-      return `EMP-${Date.now().toString().slice(-3)}`;
-    }
+    if (error) throw new Error('Gagal menyiapkan ID registrasi: ' + error.message);
+    if (!data?.length) return 'EMP-001';
+    const match = /^EMP-(\d+)$/.exec(data[0].employee_id ?? '');
+    if (!match) throw new Error('Format ID registrasi terakhir tidak valid. Hubungi administrator.');
+    return `EMP-${String(Number(match[1]) + 1).padStart(3, '0')}`;
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (submitting.current || successMessage) return;
     setFieldErrors({});
     setGeneralError('');
     setSuccessMessage('');
@@ -75,7 +71,7 @@ export default function RegisterPage() {
     const emailLower = email.trim().toLowerCase();
     if (!email.trim()) {
       errors.email = 'Email address is required.';
-    } else if (!emailLower.endsWith('@andima.co.id') || emailLower === '@andima.co.id') {
+    } else if (!/^[^\s@]+@andima\.co\.id$/.test(emailLower)) {
       errors.email = 'Email address must use the domain @andima.co.id';
     }
 
@@ -123,31 +119,14 @@ export default function RegisterPage() {
       return;
     }
 
+    submitting.current = true;
     setIsLoading(true);
 
     try {
       // Step 1: Generate Employee ID Otomatis
       const autoEmployeeId = await generateNextEmployeeId();
 
-      // Step 2: Auth Sign Up
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: emailLower,
-        password: password,
-        options: {
-          data: {
-            full_name: fullName.trim(),
-            position_id: positionId,
-          }
-        }
-      });
-
-      if (authError) {
-        setGeneralError('Registration failed: ' + authError.message);
-        setIsLoading(false);
-        return;
-      }
-
-      // Step 3: Insert data ke b2_register (Langsung dipanggil tanpa memblokir dari authData.user)
+      // Save the registration profile in b2_register; authentication and verification are handled later.
       const { error: dbError } = await supabase
         .from('b2_register')
         .insert([
@@ -163,30 +142,30 @@ export default function RegisterPage() {
         ]);
 
       if (dbError) {
-        console.error('Database Error:', dbError);
         setGeneralError('Gagal menyimpan ke b2_register: ' + dbError.message);
         setIsLoading(false);
         return;
       }
 
-      setSuccessMessage(`Registration successful! Your ID is ${autoEmployeeId}. Redirecting to login page...`);
+      setSuccessMessage(`Data registrasi ${autoEmployeeId} berhasil disimpan. Kembali ke login...`);
 
       setTimeout(() => {
-        window.location.href = '/login';
+        router.replace('/login');
       }, 1500);
 
-    } catch (err: any) {
-      setGeneralError('An unexpected error occurred: ' + (err.message || err));
+    } catch (err: unknown) {
+      setGeneralError(err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan. Silakan coba lagi.');
     } finally {
+      submitting.current = false;
       setIsLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen w-screen bg-[#07111F] text-[#172033] flex overflow-hidden">
+    <main className="relative h-dvh w-full overflow-x-hidden overflow-y-auto bg-[#07111F] text-[#172033] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {/* CONTAINER FORM REGISTRASI */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center p-4 sm:p-8 lg:p-10 relative z-10 overflow-y-auto max-h-screen">
-        <div className="w-full max-w-2xl mx-auto lg:ml-auto lg:mr-8 my-auto p-6 sm:p-9 rounded-3xl bg-gradient-to-b from-white/85 via-white/70 to-white/60 backdrop-blur-2xl border border-white/80 shadow-[0_20px_50px_rgba(7,17,31,0.5),inset_0_2px_4px_rgba(255,255,255,0.9)] relative overflow-hidden">
+      <div className="w-full min-h-full lg:w-1/2 min-w-0 flex flex-col justify-center p-4 sm:p-8 lg:p-10 relative z-10">
+        <div className="w-full max-w-2xl shrink-0 mx-auto p-6 sm:p-9 rounded-3xl bg-gradient-to-b from-white/85 via-white/70 to-white/60 backdrop-blur-2xl border border-white/80 shadow-[0_20px_50px_rgba(7,17,31,0.5),inset_0_2px_4px_rgba(255,255,255,0.9)] relative overflow-hidden">
           
           {/* Header */}
           <div className="mb-5 sm:mb-6 relative z-10">
@@ -377,13 +356,13 @@ export default function RegisterPage() {
 
             {/* Error / Success Banner */}
             {generalError && (
-              <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 text-xs sm:text-sm font-semibold">
+              <div role="alert" className="p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 text-xs sm:text-sm font-semibold">
                 {generalError}
               </div>
             )}
 
             {successMessage && (
-              <div className="p-3 rounded-2xl bg-[#16A37A]/15 border border-[#16A37A]/30 text-[#16A37A] text-xs sm:text-sm font-semibold">
+              <div role="status" className="p-3 rounded-2xl bg-[#16A37A]/15 border border-[#16A37A]/30 text-[#16A37A] text-xs sm:text-sm font-semibold">
                 {successMessage}
               </div>
             )}
@@ -391,14 +370,14 @@ export default function RegisterPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || Boolean(successMessage)}
               className={`w-full py-3.5 px-6 text-[#172033] font-extrabold rounded-2xl text-sm sm:text-base tracking-wider uppercase transition-all mt-4 shadow-[0_6px_24px_rgba(59,111,245,0.4)] ${
                 isLoading
                   ? 'bg-gray-400 cursor-not-allowed opacity-70'
                   : 'bg-[#3B6FF5] hover:bg-[#2B5CE5] active:scale-[0.99] cursor-pointer'
               }`}
             >
-              {isLoading ? 'Processing...' : 'Register'}
+              {successMessage ? 'Tersimpan' : isLoading ? 'Processing...' : 'Register'}
             </button>
           </form>
 
@@ -416,7 +395,7 @@ export default function RegisterPage() {
       </div>
 
       {/* BACKGROUND IMAGE LOGISTICS */}
-      <div className="absolute inset-0 z-0">
+      <div className="fixed inset-0 z-0 pointer-events-none">
         <img
           src="https://images.unsplash.com/photo-1578575437130-527eed3abbec?q=80&w=1600&auto=format&fit=crop"
           alt="Cargo Ship Logistics"
