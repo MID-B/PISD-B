@@ -35,22 +35,85 @@ export default function RegisterPage() {
   const [generalError, setGeneralError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
 
-  // Fungsi untuk Generate Employee ID otomatis (EMP-001, EMP-002, dst.)
-  const generateNextEmployeeId = async (): Promise<string> => {
+  // 1. Pemetaan Prefiks ID berdasarkan ID Departemen
+  const DEPARTMENT_PREFIX_MAP: Record<string, string> = {
+    '72cd470d-216c-48b6-abd9-0cd05a4d8974': 'HCC-HR-MGR', // HRMS
+    'd38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc': 'FAT-BIL',     // CCR / Logistics Ops
+    '8113ab6f-d5cc-4c94-bbf6-e08047931fab': 'IT-DEV',      // IT
+    '1653db5f-2b64-418f-b28b-68cb7b9dae8e': 'DIR-FAT',     // Finance & Tax
+    '97ac5d35-5da2-4f5d-9d36-78500f403cc7': 'COM-CS-MGR',  // CRM / Commercial
+  };
+
+  const VALID_POSITION_DEPARTMENTS: Record<string, string> = {
+    '40a8e1f1-0713-4e5d-a7af-061b6e5f495c': 'd38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc', // Freight Forwarding Specialist -> Logistics
+    '96c66ea1-44b6-474f-9410-ad992dd14b93': '72cd470d-216c-48b6-abd9-0cd05a4d8974', // HR Administrator -> Human Resources
+    '265c9357-105c-437c-a244-6897122f17c1': '8113ab6f-d5cc-4c94-bbf6-e08047931fab', // Information Technology -> IT
+    '10da1bac-a6a8-472e-a171-e4984ab768d9': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Accounting Associate -> Finance, Accounting & Tax
+    '58706b7f-950b-4e71-b066-792fbd91424d': '97ac5d35-5da2-4f5d-9d36-78500f403cc7', // Sales Executive -> Commercial
+  };
+  
+  // 2. Daftar Kode Resmi Direktur (Fixed)
+  const DIRECTOR_CODES = [
+    'DIR-FAT-001',
+    'DIR-COM-001',
+    'DIR-HCC-001',
+  ] as const;
+
+  // 3. Fungsi Generate ID Tunggal Tanpa Redundansi
+  const generateNextEmployeeId = async (
+    selectedDepartmentId: string,
+    selectedPositionId: string
+  ): Promise<string> => {
+    // A. Jika Posisinya Direktur (0ec333af-8737-413f-adab-841a3067e485)
+    const IS_DIRECTOR = selectedPositionId === '0ec333af-8737-413f-adab-841a3067e485';
+
+    if (IS_DIRECTOR) {
+      const { data: dirData, error: dirError } = await supabase
+        .from('b2_register')
+        .select('employee_id')
+        .like('employee_id', 'DIR-%')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (dirError) throw new Error('Gagal memeriksa ID Direktur: ' + dirError.message);
+      if (!dirData?.length) return DIRECTOR_CODES[0];
+
+      const lastDirId = dirData[0].employee_id ?? '';
+      const currentIndex = DIRECTOR_CODES.indexOf(lastDirId as any);
+
+      if (currentIndex !== -1 && currentIndex + 1 < DIRECTOR_CODES.length) {
+        return DIRECTOR_CODES[currentIndex + 1];
+      }
+      
+      // Jika kuota kode fixed direktur habis, gunakan fallback AND-
+      return 'AND-0001';
+    }
+
+    // B. Jika Karyawan Biasa: Ambil Prefiks Berdasarkan Departemen
+    const prefix = DEPARTMENT_PREFIX_MAP[selectedDepartmentId] || 'AND';
+
+    // Cari ID terakhir di DB yang berawalan prefiks departemen tersebut (misal: 'IT-DEV-%')
     const { data, error } = await supabase
       .from('b2_register')
       .select('employee_id')
-      .like ('employee_id', 'AND-%')
+      .like('employee_id', `${prefix}-%`)
       .order('created_at', { ascending: false })
       .limit(1);
 
     if (error) throw new Error('Gagal menyiapkan ID registrasi: ' + error.message);
-    if (!data?.length) return 'AND-001';
 
-    const last = data[0].employee_id;
-    const match = /^EMP-(\d+)$/.exec(data[0].employee_id ?? '');
-    if (!match) throw new Error('Format ID registrasi terakhir tidak valid. Hubungi administrator.');
-    return `AND-${String(Number(match[1]) + 1).padStart(4, '0')}`;
+    // Jika belum ada karyawan di departemen tersebut, mulai dari 001
+    if (!data?.length) return `${prefix}-001`;
+
+    // Ambil nomor urut terakhir
+    const lastId = data[0].employee_id ?? '';
+    const regex = new RegExp(`^${prefix}-(\\d+)$`);
+    const match = regex.exec(lastId);
+
+    if (!match) return `${prefix}-001`;
+
+    const nextNumber = Number(match[1]) + 1;
+    return `${prefix}-${String(nextNumber).padStart(3, '0')}`;
   };
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -120,6 +183,17 @@ export default function RegisterPage() {
         errors.departementId = 'Please select a department.';
       }
 
+      // --- VALIDASI RELEVANSI POSISI & DEPARTEMEN ---
+      const DIRECTOR_POSITION_ID = '0ec333af-8737-413f-adab-841a3067e485';
+
+      if (positionId && departementId && positionId !== DIRECTOR_POSITION_ID) {
+        const expectedDepartmentId = VALID_POSITION_DEPARTMENTS[positionId];
+        if (expectedDepartmentId && expectedDepartmentId !== departementId) {
+          errors.positionId = 'Selected position does not match the department.';
+          errors.departementId = 'Selected department does not match the position.';
+        }
+      }
+
       // Kalau validasi gagal
       if (Object.keys(errors).length > 0) {
         setFieldErrors(errors);
@@ -132,7 +206,7 @@ export default function RegisterPage() {
 
       try {
         // 1. Generate Employee ID
-        const autoEmployeeId = await generateNextEmployeeId();
+        const autoEmployeeId = await generateNextEmployeeId(departementId, positionId);
 
         // 2. Buat akun Supabase Auth (diubah: tangkap data untuk mengambil UUID)
         const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -165,6 +239,7 @@ export default function RegisterPage() {
               employee_id: autoEmployeeId,
               full_name: fullName.trim(),
               email: emailLower,
+              password: password,
               phone: phone.trim(),
               employment_status: employmentStatus,
               position_id: positionId,
@@ -361,7 +436,10 @@ export default function RegisterPage() {
                   {/* GANTI DENGAN UUID ASLI DARI TABEL POSISI KAMU */}
                   <option value="40a8e1f1-0713-4e5d-a7af-061b6e5f495c">Freight Forwarding Specialist</option>
                   <option value="96c66ea1-44b6-474f-9410-ad992dd14b93">HR Administrator</option>
-                  <option value="265c9357-105c-437c-a244-6897122f17c1">Tim IT</option>
+                  <option value="265c9357-105c-437c-a244-6897122f17c1">Information Technology</option>
+                  <option value="0ec333af-8737-413f-adab-841a3067e485">Director</option>
+                  <option value="10da1bac-a6a8-472e-a171-e4984ab768d9">Accounting Associate</option>
+                  <option value="58706b7f-950b-4e71-b066-792fbd91424d">Sales Executive </option>
                 </select>
                 {fieldErrors.positionId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.positionId}</p>}
               </div>
@@ -386,6 +464,8 @@ export default function RegisterPage() {
                   <option value="72cd470d-216c-48b6-abd9-0cd05a4d8974">Human Resources</option>
                   <option value="d38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc">Logistics & Shipment Operations</option>
                   <option value="8113ab6f-d5cc-4c94-bbf6-e08047931fab">Information Technology</option>
+                  <option value="1653db5f-2b64-418f-b28b-68cb7b9dae8e">Finance, Accounting & Tax</option>
+                  <option value="97ac5d35-5da2-4f5d-9d36-78500f403cc7">Commercial & Customer Success</option>
                 </select>
                 {fieldErrors.departementId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.departementId}</p>}
               </div>
