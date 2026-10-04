@@ -40,127 +40,162 @@ export default function RegisterPage() {
     const { data, error } = await supabase
       .from('b2_register')
       .select('employee_id')
+      .like ('employee_id', 'AND-%')
       .order('created_at', { ascending: false })
       .limit(1);
 
     if (error) throw new Error('Gagal menyiapkan ID registrasi: ' + error.message);
-    if (!data?.length) return 'EMP-001';
+    if (!data?.length) return 'AND-001';
+
+    const last = data[0].employee_id;
     const match = /^EMP-(\d+)$/.exec(data[0].employee_id ?? '');
     if (!match) throw new Error('Format ID registrasi terakhir tidak valid. Hubungi administrator.');
-    return `EMP-${String(Number(match[1]) + 1).padStart(3, '0')}`;
+    return `AND-${String(Number(match[1]) + 1).padStart(4, '0')}`;
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (submitting.current || successMessage) return;
-    setFieldErrors({});
-    setGeneralError('');
-    setSuccessMessage('');
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
 
-    const errors: FieldErrors = {};
+      if (submitting.current || successMessage) return;
 
-    // 1. Validate Full Name
-    const nameRegex = /^[a-zA-Z\s]+$/;
-    if (!fullName.trim()) {
-      errors.fullName = 'Full name is required.';
-    } else if (!nameRegex.test(fullName.trim())) {
-      errors.fullName = 'Full name must contain letters and spaces only.';
-    }
+      setFieldErrors({});
+      setGeneralError('');
+      setSuccessMessage('');
 
-    // 2. Validate Email (@andima.co.id)
-    const emailLower = email.trim().toLowerCase();
-    if (!email.trim()) {
-      errors.email = 'Email address is required.';
-    } else if (!/^[^\s@]+@andima\.co\.id$/.test(emailLower)) {
-      errors.email = 'Email address must use the domain @andima.co.id';
-    }
+      const errors: FieldErrors = {};
 
-    // 3. Validate Password
-    const hasLetter = /[a-zA-Z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+      // Validasi Full Name
+      const nameRegex = /^[a-zA-Z\s]+$/;
+      if (!fullName.trim()) {
+        errors.fullName = 'Full name is required.';
+      } else if (!nameRegex.test(fullName.trim())) {
+        errors.fullName = 'Full name must contain letters and spaces only.';
+      }
 
-    if (!password) {
-      errors.password = 'Password is required.';
-    } else if (password.length < 10) {
-      errors.password = 'Password must be at least 10 characters long.';
-    } else if (!hasLetter || !hasNumber || !hasSpecialChar) {
-      errors.password = 'Password must include letters, numbers, and special characters.';
-    }
+      // Validasi Email
+      const emailLower = email.trim().toLowerCase();
+      if (!email.trim()) {
+        errors.email = 'Email address is required.';
+      } else if (!/^[^\s@]+@andima\.co\.id$/.test(emailLower)) {
+        errors.email = 'Email address must use the domain @andima.co.id';
+      }
 
-    // 4. Validate Phone Number
-    const phoneDigitsOnly = /^\d+$/;
-    if (!phone.trim()) {
-      errors.phone = 'Phone number is required.';
-    } else if (!phoneDigitsOnly.test(phone.trim())) {
-      errors.phone = 'Phone number must contain numbers only.';
-    } else if (phone.trim().length > 12) {
-      errors.phone = 'Phone number cannot exceed 12 digits.';
-    }
+      // Validasi Password
+      const hasLetter = /[a-zA-Z]/.test(password);
+      const hasNumber = /[0-9]/.test(password);
+      const hasSpecialChar =
+        /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
 
-    // 5. Validate Employment Status
-    if (!employmentStatus) {
-      errors.employmentStatus = 'Please select employment status.';
-    }
+      if (!password) {
+        errors.password = 'Password is required.';
+      } else if (password.length < 10) {
+        errors.password = 'Password must be at least 10 characters long.';
+      } else if (!hasLetter || !hasNumber || !hasSpecialChar) {
+        errors.password =
+          'Password must include letters, numbers, and special characters.';
+      }
 
-    // 6. Validate Position
-    if (!positionId) {
-      errors.positionId = 'Please select a position.';
-    }
+      // Validasi Phone
+      const phoneDigitsOnly = /^\d+$/;
+      if (!phone.trim()) {
+        errors.phone = 'Phone number is required.';
+      } else if (!phoneDigitsOnly.test(phone.trim())) {
+        errors.phone = 'Phone number must contain numbers only.';
+      } else if (phone.trim().length > 12) {
+        errors.phone = 'Phone number cannot exceed 12 digits.';
+      }
 
-    // 7. Validate Department
-    if (!departementId) {
-      errors.departementId = 'Please select a department.';
-    }
+      // Validasi Employment Status
+      if (!employmentStatus) {
+        errors.employmentStatus = 'Please select employment status.';
+      }
 
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      setGeneralError('Please fix the errors below before submitting.');
-      return;
-    }
+      // Validasi Position
+      if (!positionId) {
+        errors.positionId = 'Please select a position.';
+      }
 
-    submitting.current = true;
-    setIsLoading(true);
+      // Validasi Department
+      if (!departementId) {
+        errors.departementId = 'Please select a department.';
+      }
 
-    try {
-      // Step 1: Generate Employee ID Otomatis
-      const autoEmployeeId = await generateNextEmployeeId();
-
-      // Save the registration profile in b2_register; authentication and verification are handled later.
-      const { error: dbError } = await supabase
-        .from('b2_register')
-        .insert([
-          {
-            employee_id: autoEmployeeId,
-            full_name: fullName.trim(),
-            email: emailLower,
-            phone: phone.trim(),
-            employment_status: employmentStatus,
-            position_id: positionId,
-            departement_id: departementId,
-          },
-        ]);
-
-      if (dbError) {
-        setGeneralError('Gagal menyimpan ke b2_register: ' + dbError.message);
-        setIsLoading(false);
+      // Kalau validasi gagal
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        setGeneralError('Please fix the errors below before submitting.');
         return;
       }
 
-      setSuccessMessage(`Data registrasi ${autoEmployeeId} berhasil disimpan. Kembali ke login...`);
+      submitting.current = true;
+      setIsLoading(true);
 
-      setTimeout(() => {
-        router.replace('/login');
-      }, 1500);
+      try {
+        // 1. Generate Employee ID
+        const autoEmployeeId = await generateNextEmployeeId();
 
-    } catch (err: unknown) {
-      setGeneralError(err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan. Silakan coba lagi.');
-    } finally {
-      submitting.current = false;
-      setIsLoading(false);
-    }
-  };
+        // 2. Buat akun Supabase Auth (diubah: tangkap data untuk mengambil UUID)
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: emailLower,
+          password: password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+              position_id: positionId,
+            },
+          },
+        });
 
+        if (authError) {
+          throw new Error('Registration failed: ' + authError.message);
+        }
+
+        // Ambil ID user dari auth
+        const userId = authData?.user?.id;
+        if (!userId) {
+          throw new Error('User ID tidak ditemukan setelah pendaftaran auth.');
+        }
+
+        // 3. Simpan data ke b2_register (diubah: tambahkan id: userId bertipe UUID)
+        const { error: dbError } = await supabase
+          .from('b2_register')
+          .insert([
+            {
+              id: userId,
+              employee_id: autoEmployeeId,
+              full_name: fullName.trim(),
+              email: emailLower,
+              phone: phone.trim(),
+              employment_status: employmentStatus,
+              position_id: positionId,
+              departement_id: departementId,
+            },
+          ]);
+
+        if (dbError) {
+          throw new Error('Gagal menyimpan ke b2_register: ' + dbError.message);
+        }
+
+        // 4. Berhasil
+        setSuccessMessage(
+          `Registration successful! Your ID is ${autoEmployeeId}. Redirecting to login page...`
+        );
+
+        setTimeout(() => {
+          router.replace('/login');
+        }, 1500);
+
+      } catch (err: unknown) {
+        setGeneralError(
+          err instanceof Error
+            ? err.message
+            : 'Terjadi kesalahan saat menyimpan. Silakan coba lagi.'
+        );
+      } finally {
+        submitting.current = false;
+        setIsLoading(false);
+      }
+    };
   return (
     <main className="relative h-dvh w-full overflow-x-hidden overflow-y-auto bg-[#07111F] text-[#172033] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {/* CONTAINER FORM REGISTRASI */}
@@ -326,6 +361,7 @@ export default function RegisterPage() {
                   {/* GANTI DENGAN UUID ASLI DARI TABEL POSISI KAMU */}
                   <option value="40a8e1f1-0713-4e5d-a7af-061b6e5f495c">Freight Forwarding Specialist</option>
                   <option value="96c66ea1-44b6-474f-9410-ad992dd14b93">HR Administrator</option>
+                  <option value="265c9357-105c-437c-a244-6897122f17c1">Tim IT</option>
                 </select>
                 {fieldErrors.positionId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.positionId}</p>}
               </div>
@@ -349,6 +385,7 @@ export default function RegisterPage() {
                   {/* GANTI DENGAN UUID ASLI DARI TABEL DEPARTEMEN KAMU */}
                   <option value="72cd470d-216c-48b6-abd9-0cd05a4d8974">Human Resources</option>
                   <option value="d38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc">Logistics & Shipment Operations</option>
+                  <option value="8113ab6f-d5cc-4c94-bbf6-e08047931fab">Information Technology</option>
                 </select>
                 {fieldErrors.departementId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.departementId}</p>}
               </div>
