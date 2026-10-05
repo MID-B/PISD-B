@@ -22,9 +22,47 @@ const POSITION_OPTIONS = [
   "Sales Executive",
 ];
 
+/* PEMETAAN NAMA DEPARTEMEN KE UUID SUPABASE */
+const DEPARTMENT_UUID_MAP: Record<string, string> = {
+  "Human Resources": "72cd470d-216c-48b6-abd9-0cd05a4d8974",
+  "Logistics & Shipment Operations": "d38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc",
+  "Information Technology": "8113ab6f-d5cc-4c94-bbf6-e08047931fab",
+  "Finance, Accounting & Tax": "1653db5f-2b64-418f-b28b-68cb7b9dae8e",
+  "Commercial & Customer Success": "97ac5d35-5da2-4f5d-9d36-78500f403cc7",
+};
+
+/* PEMETAAN UUID DEPARTEMEN KE NAMA TAMPILAN */
+const UUID_DEPARTMENT_MAP: Record<string, string> = {
+  "72cd470d-216c-48b6-abd9-0cd05a4d8974": "Human Resources",
+  "d38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc": "Logistics & Shipment Operations",
+  "8113ab6f-d5cc-4c94-bbf6-e08047931fab": "Information Technology",
+  "1653db5f-2b64-418f-b28b-68cb7b9dae8e": "Finance, Accounting & Tax",
+  "97ac5d35-5da2-4f5d-9d36-78500f403cc7": "Commercial & Customer Success",
+};
+
+/* PEMETAAN NAMA JABATAN KE UUID SUPABASE */
+const POSITION_UUID_MAP: Record<string, string> = {
+  "Freight Forwarding Specialist": "40a8e1f1-0713-4e5d-a7af-061b6e5f495c",
+  "HR Administrator": "96c66ea1-44b6-474f-9410-ad992dd14b93",
+  "Information Technology": "265c9357-105c-437c-a244-6897122f17c1",
+  "Accounting Associate": "10da1bac-a6a8-472e-a171-e4984ab768d9",
+  "Sales Executive": "58706b7f-950b-4e71-b066-792fbd91424d",
+  "Director": "0ec333af-8737-413f-adab-841a3067e485",
+};
+
+/* PEMETAAN UUID JABATAN KE NAMA TAMPILAN */
+const UUID_POSITION_MAP: Record<string, string> = {
+  "40a8e1f1-0713-4e5d-a7af-061b6e5f495c": "Freight Forwarding Specialist",
+  "96c66ea1-44b6-474f-9410-ad992dd14b93": "HR Administrator",
+  "265c9357-105c-437c-a244-6897122f17c1": "Information Technology",
+  "10da1bac-a6a8-472e-a171-e4984ab768d9": "Accounting Associate",
+  "58706b7f-950b-4e71-b066-792fbd91424d": "Sales Executive",
+  "0ec333af-8737-413f-adab-841a3067e485": "Director",
+};
+
 /* TYPES */
 type Employee = {
-  id: number;
+  id: string;
   employeeId: string;
   initial: string;
   name: string;
@@ -35,16 +73,6 @@ type Employee = {
   employmentStatus: "Probation" | "Permanent";
   isActive: boolean;
 };
-
-/* INITIAL DUMMY DATA */
-const initialEmployees: Employee[] = [
-  { id: 1, employeeId: "EMP-001", initial: "J", name: "Jovan Juan", email: "JovanJJ@andima.co.id", phone: "081234567890", department: "Human Resources", position: "HR Administrator", employmentStatus: "Permanent", isActive: true },
-  { id: 2, employeeId: "EMP-002", initial: "H", name: "Hendro Saputra", email: "HendroSapt67@andima.co.id", phone: "081298765432", department: "Human Resources", position: "HR Administrator", employmentStatus: "Probation", isActive: true },
-  { id: 3, employeeId: "EMP-003", initial: "A", name: "Ahmad Syahreza", email: "RezaAhmad@andima.co.id", phone: "081311223344", department: "Commercial & Customer Success", position: "Sales Executive", employmentStatus: "Permanent", isActive: true },
-  { id: 4, employeeId: "EMP-004", initial: "K", name: "Kresna Made", email: "Made12Kresna@andima.co.id", phone: "081255667788", department: "Logistics & Shipment Operations", position: "Freight Forwarding Specialist", employmentStatus: "Permanent", isActive: false },
-  { id: 5, employeeId: "EMP-005", initial: "G", name: "Genaro Arya", email: "Genaro16@andima.co.id", phone: "081399887766", department: "Information Technology", position: "Information Technology", employmentStatus: "Probation", isActive: true },
-  { id: 6, employeeId: "EMP-006", initial: "D", name: "Dimas Wibowo", email: "DimasWibo45@andima.co.id", phone: "081244556677", department: "Finance, Accounting & Tax", position: "Accounting Associate", employmentStatus: "Permanent", isActive: true },
-];
 
 /* SVG ICONS */
 function AccountIcon() {
@@ -123,12 +151,54 @@ function ChevronDownIcon() {
   );
 }
 
+{/* PROFILE */}
+        function CompanyLogo() {
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "10px",
+                  background: "#3B6FF5",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 4px 12px rgba(59,111,245,0.3)",
+                  flexShrink: 0,
+                }}
+              >
+                <svg
+                  style={{ width: "20px", height: "20px", color: "#ffffff" }}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457-.39-2.823-1.07-4"
+                  />
+                </svg>
+              </div>
+              <div>
+                <div style={{ color: "#ffffff", fontSize: "14px", fontWeight: 800, letterSpacing: "0.5px" }}>
+                  ANDIMA
+                </div>
+                <div style={{ color: "#B0C6D4", fontSize: "10px", marginTop: "1px" }}>
+                  Logistics Suite
+                </div>
+              </div>
+            </div>
+          );
+        }
+
 /* SMKI PAGE MAIN COMPONENT */
 export default function SmkiPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string>("All");
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
 
@@ -152,45 +222,78 @@ export default function SmkiPage() {
     newPassword: "",
   });
 
-  // State untuk Modal Konfirmasi Toggle Status
+  // State untuk Modal Konfirmasi Status
   const [statusConfirmEmployee, setStatusConfirmEmployee] = useState<Employee | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
 
-  /* =========================================================
-     PROTEKSI HALAMAN: Verifikasi UUID IT secara Otomatis
-  ========================================================= */
+  /* 1. FETCH DATA KARYAWAN DARI TABEL SUPABASE b2_register */
+  const fetchEmployeesFromSupabase = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("b2_register")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Gagal mengambil data karyawan:", error.message);
+        return;
+      }
+
+      if (data) {
+        const mappedData: Employee[] = data.map((item: any) => {
+          const name = item.full_name || "Karyawan";
+          const firstChar = name.trim().charAt(0).toUpperCase();
+
+          return {
+            id: item.id || item.employee_id,
+            employeeId: item.employee_id || "EMP-000",
+            initial: firstChar || "A",
+            name: item.full_name || "Karyawan",
+            email: item.email || "",
+            phone: item.phone || item.phone || "-",
+            department: UUID_DEPARTMENT_MAP[item.departement_id] || "Information Technology",
+            position: UUID_POSITION_MAP[item.position_id] || "Information Technology",
+            employmentStatus: item.employment_status || "Permanent",
+            isActive: item.is_active !== false,
+          };
+        });
+
+        setEmployees(mappedData);
+      }
+    } catch (err) {
+      console.error("Error Fetching Data:", err);
+    }
+  };
+
+  /* 2. PROTEKSI HAK AKSES DEPARTEMEN IT */
   useEffect(() => {
-    const checkITUser = async () => {
-      // 1. Cek session user yang sedang login
+    const checkITUserAndFetchData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
-        // Jika belum login, lempar ke halaman login
         router.push("/login");
         return;
       }
 
-      // 2. Ambil departement_id milik user yang sedang aktif
       const { data: userData, error } = await supabase
         .from("b2_register")
         .select("departement_id")
-        .eq("email", session.user.email)
+        .ilike("email", session.user.email || "")
         .maybeSingle();
 
-      // UUID Departemen IT
       const IT_DEPARTMENT_UUID = "8113ab6f-d5cc-4c94-bbf6-e08047931fab";
 
-      // 3. Jika BUKAN tim IT, lempar balik ke login
       if (error || !userData || userData.departement_id !== IT_DEPARTMENT_UUID) {
         alert("Akses ditolak. Halaman ini khusus untuk Tim IT / Security Admin.");
         router.push("/login");
         return;
       }
 
+      await fetchEmployeesFromSupabase();
       setIsLoading(false);
     };
 
-    checkITUser();
+    checkITUserAndFetchData();
   }, [router]);
 
   // Handler Logout
@@ -210,23 +313,37 @@ export default function SmkiPage() {
     setStatusConfirmEmployee(emp);
   };
 
-  // Eksekusi Ubah Status setelah Dikonfirmasi
-  const handleConfirmToggleStatus = () => {
+  /* 3. UPDATE STATUS KEAKTIFAN AKUN DI SUPABASE */
+  const handleConfirmToggleStatus = async () => {
     if (!statusConfirmEmployee) return;
 
     const targetId = statusConfirmEmployee.id;
     const willBeActive = !statusConfirmEmployee.isActive;
 
-    setEmployees((prev) =>
-      prev.map((emp) => {
-        if (emp.id === targetId) {
-          return { ...emp, isActive: willBeActive };
-        }
-        return emp;
-      })
-    );
+    try {
+      const { error } = await supabase
+        .from("b2_register")
+        .update({ is_active: willBeActive })
+        .eq("email", statusConfirmEmployee.email);
 
-    setStatusConfirmEmployee(null);
+      if (error) {
+        alert("Gagal memperbarui status keaktifan di database: " + error.message);
+        return;
+      }
+
+      setEmployees((prev) =>
+        prev.map((emp) => {
+          if (emp.id === targetId) {
+            return { ...emp, isActive: willBeActive };
+          }
+          return emp;
+        })
+      );
+    } catch (err) {
+      alert("Terjadi kesalahan sistem saat memperbarui status.");
+    } finally {
+      setStatusConfirmEmployee(null);
+    }
   };
 
   // Handler Buka Modal Edit
@@ -244,8 +361,8 @@ export default function SmkiPage() {
     setErrorMessage("");
   };
 
-  // Handler Simpan Perubahan Modal Edit
-  const handleSaveEdit = (e: React.FormEvent) => {
+  /* 4. UPDATE DATA EDIT KARYAWAN KE SUPABASE */
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage("");
 
@@ -264,34 +381,46 @@ export default function SmkiPage() {
       return;
     }
 
-    if (editForm.newPassword && editForm.newPassword.length < 6) {
-      setErrorMessage("New password must be at least 6 characters.");
-      return;
+    try {
+      const selectedDeptUuid = DEPARTMENT_UUID_MAP[editForm.department];
+      const selectedPosUuid = POSITION_UUID_MAP[editForm.position];
+
+      let query = supabase
+        .from("b2_register")
+        .update({
+          full_name: editForm.name.trim(),
+          email: editForm.email.trim(),
+          phone: editForm.phone.trim(),
+          departement_id: selectedDeptUuid,
+          position_id: selectedPosUuid,
+          employment_status: editForm.employmentStatus,
+        });
+      if (editingEmployee?.id) {
+        query = query.eq("id", editingEmployee.id);
+      } else {
+        query = query.ilike("email", editingEmployee?.email.trim() || "");
+      }
+
+      const { data, error } = await query.select();
+
+      if (error) {
+        setErrorMessage("Gagal memperbarui data di Supabase: " + error.message);
+        return;
+      }
+
+      // Cek apakah ada baris yang benar-benar ter-update
+      if (!data || data.length === 0) {
+        setErrorMessage("Data tidak ditemukan di Supabase. Periksa izin RLS UPDATE tabel b2_register.");
+        return;
+      }
+
+      await fetchEmployeesFromSupabase();
+      setEditingEmployee(null);
+    } catch (err) {
+      setErrorMessage("Terjadi kesalahan sistem saat menyimpan data.");
     }
-
-    setEmployees((prev) =>
-      prev.map((emp) => {
-        if (emp.id === editingEmployee?.id) {
-          const firstChar = editForm.name.trim().charAt(0).toUpperCase();
-          return {
-            ...emp,
-            name: editForm.name.trim(),
-            email: editForm.email.trim(),
-            phone: editForm.phone.trim(),
-            department: editForm.department,
-            position: editForm.position,
-            employmentStatus: editForm.employmentStatus,
-            initial: firstChar || emp.initial,
-          };
-        }
-        return emp;
-      })
-    );
-
-    setEditingEmployee(null);
   };
 
-  // Tampilkan layar loading saat pengecekan hak akses
   if (isLoading) {
     return (
       <div style={{ background: "#07111f", color: "#fff", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif" }}>
@@ -304,18 +433,9 @@ export default function SmkiPage() {
     <main style={{ width: "100vw", height: "100vh", display: "flex", background: "#000", overflow: "hidden", fontFamily: "Arial, Helvetica, sans-serif", margin: 0, padding: 0, boxSizing: "border-box" }}>
 
       {/* SIDEBAR */}
-      <aside style={{ width: "240px", height: "100vh", flexShrink: 0, position: "relative", padding: "25px 16px", background: "#07111f", color: "#fff", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+      <aside style={{ width: "250px", height: "100vh", flexShrink: 0, position: "relative", padding: "24px 16px", background: "#0f2038", color: "#fff", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
         
-        {/* PROFILE */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
-          <div style={{ width: "45px", height: "45px", borderRadius: "50%", background: "#8057e8", flexShrink: 0 }} />
-          <div>
-            <div style={{ color: "#fff", fontSize: "15px", fontWeight: 800, letterSpacing: "0.2px" }}>ANDIMA</div>
-            <div style={{ color: "#b9c1ca", fontSize: "11px", marginTop: "2px" }}>IT & Security Admin</div>
-            <div style={{ color: "#b9c1ca", fontSize: "11px", marginTop: "1px" }}>@admin_smki</div>
-          </div>
-        </div>
-
+        
         {/* COLLAPSE BUTTON */}
         <button style={{ position: "absolute", top: "28px", right: "-12px", width: "26px", height: "26px", borderRadius: "50%", background: "#8057e8", border: 0, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10, boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
           <ChevronLeftIcon />
@@ -340,143 +460,119 @@ export default function SmkiPage() {
         </nav>
 
         {/* LOGOUT */}
-        <button onClick={handleLogout} style={{ width: "100%", height: "40px", padding: "0 12px", border: 0, background: "transparent", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontSize: "14px", fontWeight: 600, marginTop: "auto" }}>
-          <span>Logout</span>
-          <LogoutIcon />
+        <button
+          onClick={handleLogout}
+          style={{width: "100%", height: "44px", borderRadius: "22px", border: "2px solid #f43f5e", background: "transparent", color: "#f43f5e", display: "flex",
+            alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "15px", fontWeight: 700, marginTop: "auto", transition: "all 0.2s ease",
+          }}
+        >
+          Logout
         </button>
       </aside>
 
-      {/* MAIN CONTENT */}
-      <section style={{ flex: 1, height: "100vh", background: "#f8f9fc", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" }}>
+      {/* MAIN CONTENT AREA */}
+        <section style={{ flex: 1, height: "100vh", background: "#ffffff", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" }}>
 
-        {/* HEADER */}
-        <header style={{ width: "100%", height: "72px", minHeight: "72px", padding: "0 28px", background: "#0d1b2a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxSizing: "border-box", position: "relative" }}>
-          <div>
-            <div style={{ fontSize: "12px", fontWeight: 800, color: "#8057e8", letterSpacing: "1px" }}>ANDIMA MID</div>
-            <div style={{ fontSize: "18px", fontWeight: 700, marginTop: "2px" }}>SMKI Employee Dashboard</div>
-          </div>
-
-          {/* FILTER DROPDOWN */}
-          <div style={{ position: "relative" }}>
-            <button
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              style={{ padding: "8px 16px", border: "1px solid #202d3d", borderRadius: "8px", background: "#172536", color: "#fff", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
-            >
-              <span>Filter Department: {selectedDepartment}</span>
-              <ChevronDownIcon />
-            </button>
-
-            {isFilterOpen && (
-              <div style={{ position: "absolute", right: 0, top: "45px", background: "#172536", border: "1px solid #202d3d", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.3)", zIndex: 30, width: "240px", overflow: "hidden" }}>
-                <button
-                  onClick={() => {
-                    setSelectedDepartment("All");
-                    setIsFilterOpen(false);
-                  }}
-                  style={{ width: "100%", padding: "10px 16px", background: selectedDepartment === "All" ? "#8057e8" : "transparent", color: "#fff", border: 0, textAlign: "left", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
-                >
-                  All
-                </button>
-                {DEPARTMENT_OPTIONS.map((dept) => (
-                  <button
-                    key={dept}
-                    onClick={() => {
-                      setSelectedDepartment(dept);
-                      setIsFilterOpen(false);
-                    }}
-                    style={{ width: "100%", padding: "10px 16px", background: selectedDepartment === dept ? "#8057e8" : "transparent", color: "#fff", border: 0, textAlign: "left", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
-                  >
-                    {dept}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </header>
-
-        {/* CONTENT & TABLE */}
-        <div style={{ flex: 1, padding: "28px", background: "#f8f9fc", overflowY: "auto", boxSizing: "border-box" }}>
-          <div style={{ background: "#ffffff", borderRadius: "12px", border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)", overflow: "hidden", width: "100%" }}>
-
-            {/* TABLE HEADER - 5 COLUMNS */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.2fr 1.2fr 0.6fr", alignItems: "center", padding: "14px 20px", background: "#f1f5f9", color: "#475569", fontSize: "11px", fontWeight: 800, letterSpacing: "0.5px", boxSizing: "border-box" }}>
-              <div>EMPLOYEE'S NAME</div>
-              <div>E-MAIL</div>
-              <div>DEPARTMENT</div>
-              <div>POSITION</div>
-              <div style={{ textAlign: "center" }}>ACTION</div>
+          {/* 1. TOP BAR / HEADER (PROFIL DI KANAN) */}
+          <header style={{ width: "100%", height: "56px", padding: "0 24px", background: "#ffffff", borderBottom: "1px solid #e2e8f0", color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxSizing: "border-box" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>ANDIMA SMKI</span>
+              <span style={{ color: "#cbd5e1" }}>|</span>
+              <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748b" }}>Account Maintains</span>
             </div>
 
-            {/* TABLE ROWS */}
-            {filteredEmployees.length > 0 ? (
-              filteredEmployees.map((employee) => {
-                const isInactive = !employee.isActive;
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              {/* Badge Notifikasi Red */}
+              <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#ef4444", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700 }}>
+                3
+              </div>
 
-                return (
-                  <div
-                    key={employee.id}
-                    style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.2fr 1.2fr 0.6fr", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid #f1f5f9", fontSize: "13px", color: isInactive ? "#94a3b8" : "#1e293b", background: isInactive ? "#f8fafc" : "#ffffff", transition: "all 0.2s ease", boxSizing: "border-box" }}
+              {/* Profil Guest */}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#bbf7d0", color: "#166534", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800 }}>
+                  A
+                </div>
+                <div>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color: "#0f172a", lineHeight: "1.2" }}>Joko Rusdi</div>
+                  <div style={{ fontSize: "9px", color: "#64748b" }}>Guest</div>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* AREA KONTEN (FILTER + TABEL) */}
+          <div style={{ flex: 1, padding: "20px 24px", overflowY: "auto", boxSizing: "border-box" }}>
+            
+            {/* 2. TOMBOL FILTER (DI BAWAH TOP BAR, DI ATAS TABEL) */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "14px", position: "relative" }}>
+              <button
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                style={{ padding: "6px 16px", border: "1px solid #cbd5e1", borderRadius: "16px", background: "#475569", color: "#fff", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+              >
+                <span>Filter</span>
+                <ChevronDownIcon />
+              </button>
+
+              {isFilterOpen && (
+                <div style={{ position: "absolute", right: 0, top: "36px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", zIndex: 30, width: "220px", overflow: "hidden" }}>
+                  <button
+                    onClick={() => { setSelectedDepartment("All"); setIsFilterOpen(false); }}
+                    style={{ width: "100%", padding: "10px 16px", background: selectedDepartment === "All" ? "#0550D7" : "transparent", color: selectedDepartment === "All" ? "#fff" : "#1e293b", border: 0, textAlign: "left", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
                   >
-                    {/* Name & ID */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", fontWeight: 700 }}>
-                      <span
-                        style={{ width: "28px", height: "28px", borderRadius: "50%", background: isInactive ? "#cbd5e1" : "#e2e8f0", color: isInactive ? "#64748b" : "#475569", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, flexShrink: 0 }}
-                      >
+                    All
+                  </button>
+                  {DEPARTMENT_OPTIONS.map((dept) => (
+                    <button
+                      key={dept}
+                      onClick={() => { setSelectedDepartment(dept); setIsFilterOpen(false); }}
+                      style={{ width: "100%", padding: "10px 16px", background: selectedDepartment === dept ? "#0550D7" : "transparent", color: selectedDepartment === dept ? "#fff" : "#1e293b", border: 0, textAlign: "left", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                    >
+                      {dept}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 3. TABEL DATA (DI BAWAH FILTER) */}
+            <div style={{ background: "#ffffff", borderRadius: "6px", border: "1px solid #e2e8f0", overflow: "hidden", width: "100%" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1.5fr 1fr 0.8fr", alignItems: "center", padding: "10px 16px", background: "#f8fafc", color: "#64748b", fontSize: "11px", fontWeight: 800, letterSpacing: "0.5px", borderBottom: "1px solid #e2e8f0" }}>
+                <div>EMPLOYEE'S NAME</div>
+                <div>E-MAIL</div>
+                <div>ROLE</div>
+                <div style={{ textAlign: "center" }}>ACTION</div>
+              </div>
+
+              {filteredEmployees.length > 0 ? (
+                filteredEmployees.map((employee) => (
+                  <div key={employee.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 1.5fr 1fr 0.8fr", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #f1f5f9", fontSize: "12px", color: !employee.isActive ? "#94a3b8" : "#1e293b", background: "#ffffff" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 700 }}>
+                      <span style={{ width: "26px", height: "26px", borderRadius: "50%", background: "#cbd5e1", color: "#334155", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, flexShrink: 0 }}>
                         {employee.initial}
                       </span>
-                      <div>
-                        <div>{employee.name}</div>
-                        <div style={{ fontSize: "10px", color: "#94a3b8", fontWeight: 500 }}>{employee.employeeId} • {employee.employmentStatus}</div>
-                      </div>
+                      <span>{employee.name}</span>
                     </div>
-
-                    {/* Email */}
-                    <div style={{ color: isInactive ? "#cbd5e1" : "#64748b" }}>
-                      {employee.email}
-                    </div>
-
-                    {/* Department */}
-                    <div style={{ fontWeight: 600, color: isInactive ? "#94a3b8" : "#334155" }}>
-                      {employee.department}
-                    </div>
-
-                    {/* Position */}
-                    <div style={{ fontWeight: 600, color: isInactive ? "#94a3b8" : "#334155" }}>
-                      {employee.position}
-                    </div>
-
-                    {/* Actions */}
+                    <div style={{ color: "#64748b" }}>{employee.email}</div>
+                    <div style={{ fontWeight: 600, color: "#334155" }}>HRMS</div>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "16px" }}>
-                      {/* Edit Button */}
-                      <button
-                        onClick={() => handleOpenEdit(employee)}
-                        title="Edit Employee Data"
-                        style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0, opacity: isInactive ? 0.4 : 1 }}
-                      >
+                      <button onClick={() => handleOpenEdit(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }}>
                         <EditIcon />
                       </button>
-
-                      {/* Disable/Enable Button */}
-                      <button
-                        onClick={() => handleOpenStatusConfirm(employee)}
-                        title={employee.isActive ? "Deactivate Employee" : "Reactivate Employee"}
-                        style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }}
-                      >
+                      <button onClick={() => handleOpenStatusConfirm(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }}>
                         <DisableIcon active={employee.isActive} />
                       </button>
                     </div>
                   </div>
-                );
-              })
-            ) : (
-              <div style={{ padding: "30px", textAlign: "center", color: "#94a3b8", fontSize: "13px" }}>
-                No employees found for department <b>{selectedDepartment}</b>.
-              </div>
-            )}
+                ))
+              ) : (
+                <div style={{ padding: "24px", textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
+                  No employees found.
+                </div>
+              )}
+            </div>
 
           </div>
-        </div>
-      </section>
+        </section>
 
       {/* EDIT KARYAWAN */}
       {editingEmployee && (
@@ -576,20 +672,6 @@ export default function SmkiPage() {
                     ))}
                   </select>
                 </div>
-              </div>
-
-              {/* Reset Password Optional */}
-              <div style={{ marginTop: "6px", paddingTop: "12px", borderTop: "1px solid #e2e8f0" }}>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>
-                  Reset Password <span style={{ color: "#94a3b8", fontWeight: 400 }}>(Optional)</span>
-                </label>
-                <input
-                  type="password"
-                  placeholder="Enter new password to reset"
-                  value={editForm.newPassword}
-                  onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", boxSizing: "border-box" }}
-                />
               </div>
 
               {/* Action Buttons */}
