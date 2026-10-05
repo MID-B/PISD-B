@@ -143,56 +143,67 @@ function ChevronLeftIcon() {
   );
 }
 
-function ChevronDownIcon() {
+function ChevronDownIcon({ isOpen }: { isOpen?: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" style={{ width: "14px", height: "14px", fill: "none", stroke: "#fff", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}>
+    <svg 
+      viewBox="0 0 24 24" 
+      style={{ 
+        width: "14px", 
+        height: "14px", 
+        fill: "none", 
+        stroke: "currentColor", 
+        strokeWidth: 2, 
+        strokeLinecap: "round", 
+        strokeLinejoin: "round",
+        transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+        transition: "transform 0.2s ease"
+      }}
+    >
       <path d="M6 9l6 6 6-6" />
     </svg>
   );
 }
 
-{/* PROFILE */}
-        function CompanyLogo() {
-          return (
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <div
-                style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "10px",
-                  background: "#3B6FF5",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 4px 12px rgba(59,111,245,0.3)",
-                  flexShrink: 0,
-                }}
-              >
-                <svg
-                  style={{ width: "20px", height: "20px", color: "#ffffff" }}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457-.39-2.823-1.07-4"
-                  />
-                </svg>
-              </div>
-              <div>
-                <div style={{ color: "#ffffff", fontSize: "14px", fontWeight: 800, letterSpacing: "0.5px" }}>
-                  ANDIMA
-                </div>
-                <div style={{ color: "#B0C6D4", fontSize: "10px", marginTop: "1px" }}>
-                  Logistics Suite
-                </div>
-              </div>
-            </div>
-          );
-        }
+function SmkiIcon() {
+  return (
+    <svg viewBox="0 0 24 24" style={{ width: "20px", height: "20px", flexShrink: 0, fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
+{/* HEADER LOGO SIDEBAR */}
+function CompanyLogo() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "12px", paddingBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+      <div
+        style={{
+          width: "40px",
+          height: "40px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          background: "transparent", // Diubah ke transparent
+        }}
+      >
+        <img 
+          src="/Logo-ANDIMA.png" 
+          alt="Logo ANDIMA AT" 
+          style={{ width: "100%", height: "100%", objectFit: "contain" }} 
+        />
+      </div>
+      <div>
+        <div style={{ color: "#ffffff", fontSize: "16px", fontWeight: 800, letterSpacing: "0.5px" }}>
+          ANDIMA
+        </div>
+        <div style={{ color: "#94a3b8", fontSize: "11px", marginTop: "1px" }}>
+          Logistics Suite
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* SMKI PAGE MAIN COMPONENT */
 export default function SmkiPage() {
@@ -201,6 +212,9 @@ export default function SmkiPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string>("All");
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  // State untuk Dropdown Sidebar SMKI & Navigasi Tab
+  const [isSmkiOpen, setIsSmkiOpen] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<string>("account-maintains");
 
   // State untuk Modal Edit
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -381,20 +395,58 @@ export default function SmkiPage() {
       return;
     }
 
+    if (editForm.newPassword && editForm.newPassword.trim() !== "") {
+    const newPass = editForm.newPassword.trim();
+
+    // 1. Cek Minimal Panjang Password (misal: 8 karakter)
+    if (newPass.length < 8) {
+      setErrorMessage("Password minimal harus 8 karakter.");
+      return;
+    }
+
+    // 2. Cek kombinasi Huruf, Angka, dan Karakter Spesial (misal: &*^ dll)
+    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).+$/;
+    if (!passwordRegex.test(newPass)) {
+      setErrorMessage("Password harus mengandung kombinasi huruf, angka, dan karakter spesial (seperti &*^).");
+      return;
+    }
+
+    // 3. Cek agar tidak sama dengan password saat ini di database
+    const { data: currentData, error: fetchErr } = await supabase
+      .from("b2_register")
+      .select("password")
+      .eq("id", editingEmployee?.id)
+      .single();
+
+    if (!fetchErr && currentData) {
+      if (currentData.password === newPass) {
+        setErrorMessage("Password baru tidak boleh sama dengan password saat ini!");
+        return;
+      }
+    }
+  }
+
     try {
       const selectedDeptUuid = DEPARTMENT_UUID_MAP[editForm.department];
       const selectedPosUuid = POSITION_UUID_MAP[editForm.position];
 
+      const updateData: Record<string, any> = {
+      full_name: editForm.name.trim(),
+      email: editForm.email.trim(),
+      phone: editForm.phone.trim(),
+      departement_id: selectedDeptUuid,
+      position_id: selectedPosUuid,
+      employment_status: editForm.employmentStatus,
+      };
+
+      // Sertakan password jika diisi pengguna
+      if (editForm.newPassword && editForm.newPassword.trim() !== "") {
+        updateData.password = editForm.newPassword.trim(); 
+      }
+
       let query = supabase
         .from("b2_register")
-        .update({
-          full_name: editForm.name.trim(),
-          email: editForm.email.trim(),
-          phone: editForm.phone.trim(),
-          departement_id: selectedDeptUuid,
-          position_id: selectedPosUuid,
-          employment_status: editForm.employmentStatus,
-        });
+        .update(updateData);
       if (editingEmployee?.id) {
         query = query.eq("id", editingEmployee.id);
       } else {
@@ -435,28 +487,133 @@ export default function SmkiPage() {
       {/* SIDEBAR */}
       <aside style={{ width: "250px", height: "100vh", flexShrink: 0, position: "relative", padding: "24px 16px", background: "#0f2038", color: "#fff", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
         
-        
-        {/* COLLAPSE BUTTON */}
+        {/* 1. LOGO & TITLE */}
+        <CompanyLogo />
+
+        {/* BUTTON COLLAPSE */}
         <button style={{ position: "absolute", top: "28px", right: "-12px", width: "26px", height: "26px", borderRadius: "50%", background: "#8057e8", border: 0, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10, boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
           <ChevronLeftIcon />
         </button>
 
-        {/* NAVIGATION */}
-        <nav style={{ display: "flex", flexDirection: "column", gap: "12px", flex: 1, marginTop: "15px" }}>
-          <button style={{ width: "100%", height: "42px", padding: "0 16px", border: 0, borderRadius: "10px", background: "#8057e8", color: "#fff", display: "flex", alignItems: "center", gap: "12px", fontSize: "13px", fontWeight: 700, cursor: "pointer", textAlign: "left" }}>
-            <AccountIcon />
-            <span>Account Maintains</span>
-          </button>
+        {/* 2. NAVIGATION WITH DROPDOWN */}
+        <nav style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1, marginTop: "20px" }}>
+          <div>
+            {/* BUTTON SMKI DROPDOWN HEADER */}
+            <button
+              onClick={() => setIsSmkiOpen(!isSmkiOpen)}
+              style={{
+                width: "100%",
+                height: "44px",
+                padding: "0 16px",
+                border: 0,
+                borderRadius: "10px",
+                background: "#055be5", // Warna Biru Sesuai Desain
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                fontSize: "15px",
+                fontWeight: 700,
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <span>SMKI</span>
+              <ChevronDownIcon isOpen={isSmkiOpen} />
+            </button>
 
-          <button style={{ width: "100%", height: "42px", padding: "0 16px", border: 0, borderRadius: "10px", background: "transparent", color: "#94a3b8", display: "flex", alignItems: "center", gap: "12px", fontSize: "13px", fontWeight: 700, cursor: "pointer", textAlign: "left" }}>
-            <ActivityIcon />
-            <span>Log Activity</span>
-          </button>
+            {/* SUBMENU ITEM SMKI */}
+            {isSmkiOpen && (
+              <div style={{ position: "relative", marginTop: "12px", paddingLeft: "24px" }}>
+                {/* Garis Vertikal Indikator Kiri */}
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "10px",
+                    top: "0",
+                    bottom: "8px",
+                    width: "1px",
+                    backgroundColor: "rgba(255, 255, 255, 0.2)",
+                  }}
+                />
+                
+                {/* Submenu 1: Account Maintains */}
+                <button
+                  onClick={() => setActiveTab("account-maintains")}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    border: 0,
+                    borderRadius: "10px",
+                    // Ubah di sini: putih agak transparan jika aktif, transparan jika tidak
+                    backgroundColor: activeTab === "account-maintains" ? "rgba(255, 255, 255, 0.15)" : "transparent",
+                    // Teks putih solid jika aktif, abu-abu jika tidak
+                    color: activeTab === "account-maintains" ? "#ffffff" : "#94a3b8",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    fontSize: "13px",
+                    fontWeight: activeTab === "account-maintains" ? 700 : 500, // Cetak tebal saat aktif agar makin jelas
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <AccountIcon />
+                  <span>Account Maintains</span>
+                </button>
 
-          <button style={{ width: "100%", height: "42px", padding: "0 16px", border: 0, borderRadius: "10px", background: "transparent", color: "#94a3b8", display: "flex", alignItems: "center", gap: "12px", fontSize: "13px", fontWeight: 700, cursor: "pointer", textAlign: "left" }}>
-            <LoginIcon />
-            <span>Log Login</span>
-          </button>
+                {/* Submenu 2: Log Activity */}
+                <button
+                  onClick={() => setActiveTab("log-activity")}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    border: 0,
+                    borderRadius: "10px",
+                    backgroundColor: activeTab === "log-activity" ? "rgba(255, 255, 255, 0.15)" : "transparent",
+                    color: activeTab === "log-activity" ? "#ffffff" : "#94a3b8",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    fontSize: "13px",
+                    fontWeight: activeTab === "log-activity" ? 700 : 500,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <ActivityIcon />
+                  <span>Log Activity</span>
+                </button>
+
+                {/* Submenu 3: Log Login */}
+                <button
+                  onClick={() => setActiveTab("log-login")}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    border: 0,
+                    borderRadius: "10px",
+                    backgroundColor: activeTab === "log-login" ? "rgba(255, 255, 255, 0.15)" : "transparent",
+                    color: activeTab === "log-login" ? "#ffffff" : "#94a3b8",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    fontSize: "13px",
+                    fontWeight: activeTab === "log-login" ? 700 : 500,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <LoginIcon />
+                  <span>Log Login</span>
+                </button>
+
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* LOGOUT */}
@@ -482,19 +639,14 @@ export default function SmkiPage() {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              {/* Badge Notifikasi Red */}
-              <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#ef4444", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: 700 }}>
-                3
-              </div>
-
               {/* Profil Guest */}
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#bbf7d0", color: "#166534", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800 }}>
-                  A
+                  IT
                 </div>
                 <div>
                   <div style={{ fontSize: "11px", fontWeight: 700, color: "#0f172a", lineHeight: "1.2" }}>Joko Rusdi</div>
-                  <div style={{ fontSize: "9px", color: "#64748b" }}>Guest</div>
+                  <div style={{ fontSize: "9px", color: "#64748b" }}>Information Technology</div>
                 </div>
               </div>
             </div>
@@ -503,21 +655,37 @@ export default function SmkiPage() {
           {/* AREA KONTEN (FILTER + TABEL) */}
           <div style={{ flex: 1, padding: "20px 24px", overflowY: "auto", boxSizing: "border-box" }}>
             
-            {/* 2. TOMBOL FILTER (DI BAWAH TOP BAR, DI ATAS TABEL) */}
+            {/* 2. TOMBOL FILTER (STYLE KAPSUL / OUTLINE SESUAI GAMBAR) */}
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "14px", position: "relative" }}>
               <button
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
-                style={{ padding: "6px 16px", border: "1px solid #cbd5e1", borderRadius: "16px", background: "#475569", color: "#fff", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                style={{
+                  width: "300px",
+                  height: "36px",
+                  padding: "0 16px",
+                  border: "1px solid #94a3b8",
+                  borderRadius: "20px",
+                  background: "#ffffff",
+                  color: "#64748b",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  boxSizing: "border-box",
+                  outline: "none",
+                }}
               >
-                <span>Filter</span>
+                <span>{selectedDepartment === "All" ? "Select Status" : selectedDepartment}</span>
                 <ChevronDownIcon />
               </button>
 
               {isFilterOpen && (
-                <div style={{ position: "absolute", right: 0, top: "36px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", zIndex: 30, width: "220px", overflow: "hidden" }}>
+                <div style={{ position: "absolute", right: 0, top: "42px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", zIndex: 30, width: "220px", overflow: "hidden" }}>
                   <button
                     onClick={() => { setSelectedDepartment("All"); setIsFilterOpen(false); }}
-                    style={{ width: "100%", padding: "10px 16px", background: selectedDepartment === "All" ? "#0550D7" : "transparent", color: selectedDepartment === "All" ? "#fff" : "#1e293b", border: 0, textAlign: "left", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                    style={{ width: "100%", padding: "10px 16px", background: selectedDepartment === "All" ? "#f1f5f9" : "transparent", color: selectedDepartment === "All" ? "#0f172a" : "#475569", border: 0, textAlign: "left", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
                   >
                     All
                   </button>
@@ -525,7 +693,7 @@ export default function SmkiPage() {
                     <button
                       key={dept}
                       onClick={() => { setSelectedDepartment(dept); setIsFilterOpen(false); }}
-                      style={{ width: "100%", padding: "10px 16px", background: selectedDepartment === dept ? "#0550D7" : "transparent", color: selectedDepartment === dept ? "#fff" : "#1e293b", border: 0, textAlign: "left", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                      style={{ width: "100%", padding: "10px 16px", background: selectedDepartment === dept ? "#f1f5f9" : "transparent", color: selectedDepartment === dept ? "#0f172a" : "#475569", border: 0, textAlign: "left", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
                     >
                       {dept}
                     </button>
@@ -672,6 +840,20 @@ export default function SmkiPage() {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* New Password (Optional) */}
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>
+                  RESET PASSWORD (Optional)
+                </label>
+                <input
+                  type="password"
+                  placeholder="Enter new password"
+                  value={editForm.newPassword || ""}
+                  onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", boxSizing: "border-box" }}
+                />
               </div>
 
               {/* Action Buttons */}
