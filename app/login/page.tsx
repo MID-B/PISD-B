@@ -5,6 +5,17 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
+/* =========================
+   PEMETAAN ROUTE DEPARTEMEN
+========================= */
+const DEPARTMENT_ROUTE_MAP: Record<string, string> = {
+  '72cd470d-216c-48b6-abd9-0cd05a4d8974': '/dashboard/hrms', // Human Resources
+  'd38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc': '/dashboard/ccr',  // Logistics Ops / CCR
+  '8113ab6f-d5cc-4c94-bbf6-e08047931fab': '/dashboard',      // IT / SMKI Dashboard
+  '1653db5f-2b64-418f-b28b-68cb7b9dae8e': '/dashboard/fat',  // Finance & Tax
+  '97ac5d35-5da2-4f5d-9d36-78500f403cc7': '/dashboard/crm',  // Commercial / CRM
+};
+
 const REGISTERED_USERS = {
   'manajemen@andima.co.id': {
     passwordRole: 'Manajemen123!@#',
@@ -106,6 +117,7 @@ export default function LoginPage() {
       return;
     }
 
+    // A. Akun Hardcoded Demo (Manajemen)
     const userAccount = REGISTERED_USERS[email.toLowerCase() as keyof typeof REGISTERED_USERS];
     if (userAccount && userAccount.passwordRole === password) {
       setLoginAttempts(0);
@@ -114,23 +126,64 @@ export default function LoginPage() {
       return;
     }
 
+    // B. Login Supabase Auth & Routing Berdasarkan UUID Departemen
     setIsSigningIn(true);
-    void supabase.auth.signInWithPassword({ email: email.toLowerCase().trim(), password })
-      .then(({ error }) => {
-        if (error) {
-          const message = error.message.toLowerCase().includes('email not confirmed')
-            ? 'Email belum dikonfirmasi. Selesaikan konfirmasi melalui email terlebih dahulu.'
-            : 'Email atau password salah.';
-          handleFailedAttempt(message);
-          return;
-        }
+    try {
+      // 1. Autentikasi dengan Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password,
+      });
 
-        setLoginAttempts(0);
-        setSuccessMessage('Login berhasil! Mengalihkan ke dashboard...');
-        window.setTimeout(() => { router.push('/dashboard'); }, 1200);
-      })
-      .catch(() => setErrorMessage('Tidak dapat menghubungi server login. Silakan coba lagi.'))
-      .finally(() => setIsSigningIn(false));
+      if (authError) {
+        const message = authError.message.toLowerCase().includes('email not confirmed')
+          ? 'Email belum dikonfirmasi. Selesaikan konfirmasi melalui email terlebih dahulu.'
+          : 'Email atau password salah.';
+        handleFailedAttempt(message);
+        return;
+      }
+
+      // 2. Ambil Profil User dari b2_register
+      const { data: profileData, error: profileError } = await supabase
+        .from('b2_register')
+        .select('departement_id, full_name, is_active')
+        .ilike('email', email.trim())
+        .maybeSingle();
+
+      // Jika ada error dari Supabase (misal masalah RLS / query)
+      if (profileError) {
+        console.error('Error Database Supabase:', profileError.message);
+        setErrorMessage('Gagal mengambil data profil dari server.');
+        return;
+      }
+
+      // Jika query sukses tapi datanya tidak ditemukan di tabel b2_register
+      if (!profileData) {
+        setErrorMessage('Email Anda terautentikasi, namun data profil belum terdaftar di database.');
+        return;
+      }
+
+      // 3. Cek apakah akun dinonaktifkan oleh Admin
+      if (profileData.is_active === false) {
+        setErrorMessage('Akun Anda telah dinonaktifkan. Silakan hubungi IT / HR Admin.');
+        return;
+      }
+
+      // 4. Tentukan Route Dashboard Berdasarkan departement_id (UUID)
+      const targetRoute = DEPARTMENT_ROUTE_MAP[profileData.departement_id] || '/dashboard';
+
+      setLoginAttempts(0);
+      setSuccessMessage(`Login berhasil! Selamat datang, ${profileData.full_name || 'User'}. Mengalihkan...`);
+
+      window.setTimeout(() => {
+        router.push(targetRoute);
+      }, 1200);
+
+    } catch (err) {
+      setErrorMessage('Tidak dapat menghubungi server login. Silakan coba lagi.');
+    } finally {
+      setIsSigningIn(false);
+    }
   };
 
   return (
@@ -188,11 +241,11 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} className="space-y-6 font-[family-name:var(--font-montserrat)] relative z-10" noValidate>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#0F172A] mb-2.5">
-                  Username
+                  Username / Email
                 </label>
                 <input
                   type="email"
-                  placeholder="manajemen@andima.co.id"
+                  placeholder="name@andima.co.id"
                   value={email}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                   disabled={isLocked || isPermanentlyBlocked}
@@ -257,7 +310,7 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Tombol Login Solid Blue #3B6FF5 dengan Hover #2B5CE5 */}
+              {/* Tombol Login */}
               <button
                 type="submit"
                 disabled={isLocked || isPermanentlyBlocked || isSigningIn}
@@ -272,7 +325,7 @@ export default function LoginPage() {
             </form>
 
             <p className="relative z-10 mt-4 text-center text-sm text-[#334155]">
-              Not login ?{' '}
+              Not registered?{' '}
               <Link href="/register" className="font-bold text-[#3B6FF5] hover:underline">Register</Link>
             </p>
 
