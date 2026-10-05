@@ -704,24 +704,40 @@ export default function SmkiPage() {
 
             {/* 3. TABEL DATA (DI BAWAH FILTER) */}
             <div style={{ background: "#ffffff", borderRadius: "6px", border: "1px solid #e2e8f0", overflow: "hidden", width: "100%" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1.5fr 1fr 0.8fr", alignItems: "center", padding: "10px 16px", background: "#f8fafc", color: "#64748b", fontSize: "11px", fontWeight: 800, letterSpacing: "0.5px", borderBottom: "1px solid #e2e8f0" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.2fr 1.2fr 0.6fr", alignItems: "center", padding: "10px 16px", background: "#f8fafc", color: "#64748b", fontSize: "11px", fontWeight: 800, letterSpacing: "0.5px", borderBottom: "1px solid #e2e8f0" }}>
                 <div>EMPLOYEE'S NAME</div>
                 <div>E-MAIL</div>
-                <div>ROLE</div>
+                <div>DEPARTMENT</div>
+                <div>POSITION</div>
                 <div style={{ textAlign: "center" }}>ACTION</div>
               </div>
 
               {filteredEmployees.length > 0 ? (
                 filteredEmployees.map((employee) => (
-                  <div key={employee.id} style={{ display: "grid", gridTemplateColumns: "1.5fr 1.5fr 1fr 0.8fr", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #f1f5f9", fontSize: "12px", color: !employee.isActive ? "#94a3b8" : "#1e293b", background: "#ffffff" }}>
+                  <div key={employee.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.2fr 1.2fr 0.6fr", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #f1f5f9", fontSize: "12px", color: !employee.isActive ? "#94a3b8" : "#1e293b", background: "#ffffff" }}>
+                    
+                    {/* Nama & Initial Karyawan */}
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 700 }}>
                       <span style={{ width: "26px", height: "26px", borderRadius: "50%", background: "#cbd5e1", color: "#334155", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, flexShrink: 0 }}>
                         {employee.initial}
                       </span>
                       <span>{employee.name}</span>
                     </div>
+
+                    {/* Email */}
                     <div style={{ color: "#64748b" }}>{employee.email}</div>
-                    <div style={{ fontWeight: 600, color: "#334155" }}>HRMS</div>
+
+                    {/* Department (Sambung ke Supabase) */}
+                    <div style={{ fontWeight: 600, color: "#334155" }}>
+                      {employee.department}
+                    </div>
+
+                    {/* Position (Sambung ke Supabase) */}
+                    <div style={{ fontWeight: 600, color: "#334155" }}>
+                      {employee.position}
+                    </div>
+
+                    {/* Action Buttons */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "16px" }}>
                       <button onClick={() => handleOpenEdit(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }}>
                         <EditIcon />
@@ -730,6 +746,7 @@ export default function SmkiPage() {
                         <DisableIcon active={employee.isActive} />
                       </button>
                     </div>
+
                   </div>
                 ))
               ) : (
