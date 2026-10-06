@@ -1,9 +1,21 @@
 'use client';
 
-import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import React, { useState, useEffect, FormEvent, ChangeEvent, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+
+
+/* =========================
+   PEMETAAN ROUTE DEPARTEMEN
+========================= */
+const DEPARTMENT_ROUTE_MAP: Record<string, string> = {
+  '72cd470d-216c-48b6-abd9-0cd05a4d8974': '/dashboard/hrms', // Human Resources
+  'd38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc': '/dashboard/ccr',  // Logistics Ops / CCR
+  '8113ab6f-d5cc-4c94-bbf6-e08047931fab': '/dashboard',      // IT / SMKI Dashboard
+  '1653db5f-2b64-418f-b28b-68cb7b9dae8e': '/dashboard/fat',  // Finance & Tax
+  '97ac5d35-5da2-4f5d-9d36-78500f403cc7': '/dashboard/crm',  // Commercial / CRM
+};
 
 const REGISTERED_USERS = {
   'manajemen@andima.co.id': {
@@ -13,8 +25,9 @@ const REGISTERED_USERS = {
   },
 };
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -33,6 +46,13 @@ export default function LoginPage() {
     else if (hour >= 12 && hour < 17) setGreeting('Good Afternoon');
     else setGreeting('Good Evening');
   }, []);
+
+  useEffect(() => {
+    const reason = searchParams.get('reason');
+    if (reason === 'day_changed') {
+      alert('Hari telah berganti. Sesi Anda telah berakhir, silakan login kembali.');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | undefined;
@@ -56,7 +76,7 @@ export default function LoginPage() {
     const hasLetter = /[a-zA-Z]/.test(passVal);
     const hasDigit = /\d/.test(passVal);
     const hasSpecial = /[^a-zA-Z0-9]/.test(passVal);
-    return passVal.length >= 10 && hasLetter && hasDigit && hasSpecial;
+    return passVal.length >= 8 && hasLetter && hasDigit && hasSpecial;
   };
 
   const handleFailedAttempt = (customMessage: string) => {
@@ -106,6 +126,7 @@ export default function LoginPage() {
       return;
     }
 
+    // A. Akun Hardcoded Demo (Manajemen)
     const userAccount = REGISTERED_USERS[email.toLowerCase() as keyof typeof REGISTERED_USERS];
     if (userAccount && userAccount.passwordRole === password) {
       setLoginAttempts(0);
@@ -114,23 +135,64 @@ export default function LoginPage() {
       return;
     }
 
+    // B. Login Supabase Auth & Routing Berdasarkan UUID Departemen
     setIsSigningIn(true);
-    void supabase.auth.signInWithPassword({ email: email.toLowerCase().trim(), password })
-      .then(({ error }) => {
-        if (error) {
-          const message = error.message.toLowerCase().includes('email not confirmed')
-            ? 'Email belum dikonfirmasi. Selesaikan konfirmasi melalui email terlebih dahulu.'
-            : 'Email atau password salah.';
-          handleFailedAttempt(message);
-          return;
-        }
+    try {
+      // 1. Autentikasi dengan Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password,
+      });
 
-        setLoginAttempts(0);
-        setSuccessMessage('Login berhasil! Mengalihkan ke dashboard...');
-        window.setTimeout(() => { router.push('/dashboard'); }, 1200);
-      })
-      .catch(() => setErrorMessage('Tidak dapat menghubungi server login. Silakan coba lagi.'))
-      .finally(() => setIsSigningIn(false));
+      if (authError) {
+        const message = authError.message.toLowerCase().includes('email not confirmed')
+          ? 'Email belum dikonfirmasi. Selesaikan konfirmasi melalui email terlebih dahulu.'
+          : 'Email atau password salah.';
+        handleFailedAttempt(message);
+        return;
+      }
+
+      // 2. Ambil Profil User dari b2_register
+      const { data: profileData, error: profileError } = await supabase
+        .from('b2_register')
+        .select('departement_id, full_name, is_active')
+        .ilike('email', email.trim())
+        .maybeSingle();
+
+      // Jika ada error dari Supabase (misal masalah RLS / query)
+      if (profileError) {
+        console.error('Error Database Supabase:', profileError.message);
+        setErrorMessage('Gagal mengambil data profil dari server.');
+        return;
+      }
+
+      // Jika query sukses tapi datanya tidak ditemukan di tabel b2_register
+      if (!profileData) {
+        setErrorMessage('Email Anda terautentikasi, namun data profil belum terdaftar di database.');
+        return;
+      }
+
+      // 3. Cek apakah akun dinonaktifkan oleh Admin
+      if (profileData.is_active === false) {
+        setErrorMessage('Akun Anda telah dinonaktifkan. Silakan hubungi IT / HR Admin.');
+        return;
+      }
+
+      // 4. Tentukan Route Dashboard Berdasarkan departement_id (UUID)
+      const targetRoute = DEPARTMENT_ROUTE_MAP[profileData.departement_id] || '/dashboard';
+
+      setLoginAttempts(0);
+      setSuccessMessage(`Login berhasil! Selamat datang, ${profileData.full_name || 'User'}. Mengalihkan...`);
+
+      window.setTimeout(() => {
+        router.push(targetRoute);
+      }, 1200);
+
+    } catch (err) {
+      setErrorMessage('Tidak dapat menghubungi server login. Silakan coba lagi.');
+    } finally {
+      setIsSigningIn(false);
+    }
   };
 
   return (
@@ -153,15 +215,24 @@ export default function LoginPage() {
 
       {/* 2. BRAND TEXT (TITLE) MENGGUNAKAN FONT SYNE */}
       <div className="hidden md:flex absolute top-1/2 -translate-y-1/2 right-8 lg:right-16 xl:right-24 z-20 pointer-events-none flex-col items-end text-right max-w-lg">
-        <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl flex items-center justify-center text-white font-bold shadow-xl shadow-[#3B6FF5]/30 bg-[#3B6FF5] shrink-0 mb-4">
-          <svg className="w-8 h-8 lg:w-9 lg:h-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457-.39-2.823-1.07-4" />
-          </svg>
+        
+        {/* Logo ANDIMA di Luar Frame */}
+        <div className="w-32 sm:w-40 lg:w-48 mb-4">
+          <img
+            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png"
+            alt="Logo ANDIMA"
+            width={400}
+            height={246}
+            className="w-full h-auto object-contain drop-shadow-lg"
+          />
         </div>
-        <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)] leading-tight">
-          PT. ANDIMA<br />
-          <span className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)] leading-tight">TRANSPORTINDO</span>
-        </h1>
+        {/* Frame Transparan dengan Warna #0F2342 */}
+          <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
+            PT. ANDIMA<br />
+            <span className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
+              TRANSPORTINDO
+            </span>
+          </h1>
       </div>
 
       {/* 3. FORM LOGIN CONTAINER */}
@@ -188,11 +259,11 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} className="space-y-6 font-[family-name:var(--font-montserrat)] relative z-10" noValidate>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#0F172A] mb-2.5">
-                  Username
+                  Username / Email
                 </label>
                 <input
                   type="email"
-                  placeholder="manajemen@andima.co.id"
+                  placeholder="name@andima.co.id"
                   value={email}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                   disabled={isLocked || isPermanentlyBlocked}
@@ -257,7 +328,7 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Tombol Login Solid Blue #3B6FF5 dengan Hover #2B5CE5 */}
+              {/* Tombol Login */}
               <button
                 type="submit"
                 disabled={isLocked || isPermanentlyBlocked || isSigningIn}
@@ -272,7 +343,7 @@ export default function LoginPage() {
             </form>
 
             <p className="relative z-10 mt-4 text-center text-sm text-[#334155]">
-              Not login ?{' '}
+              Not registered?{' '}
               <Link href="/register" className="font-bold text-[#3B6FF5] hover:underline">Register</Link>
             </p>
 
@@ -286,5 +357,13 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#07111F]" />}>
+      <LoginContent />
+    </Suspense>
   );
 }
