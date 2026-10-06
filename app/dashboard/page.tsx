@@ -1,90 +1,8 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
-import Link from 'next/link';
-import { Building2, ChartNoAxesCombined, LogOut } from 'lucide-react';
+import { useState } from 'react';
+import DashboardShell from './dashboard-shell';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
-
-type DashboardShellProps = {
-  activePage: 'dashboard' | 'sales-performance';
-  headerActions?: ReactNode;
-  children: ReactNode;
-};
-
-const navigation = [
-  { href: '/dashboard', label: 'Dashboard', key: 'dashboard', icon: Building2 },
-  { href: '/dashboard/sales-performance', label: 'Sales Performance', key: 'sales-performance', icon: ChartNoAxesCombined },
-];
-
-function DashboardShell({ activePage, headerActions, children }: DashboardShellProps) {
-  return (
-    <div className="flex h-dvh w-full overflow-hidden bg-[#F4F5F9] font-sans">
-      <aside className="w-[148px] flex flex-col justify-between px-3 py-3 flex-shrink-0 text-white bg-[#102748]">
-        <div>
-          {/* Brand: logo di kiri + nama perusahaan di kanan */}
-          <div className="flex items-center gap-2 px-0.5 mb-7">
-            <div className="w-9 h-9 shrink-0 flex items-center justify-center overflow-hidden">
-              <img
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png"
-                alt="Logo ANDIMA"
-                width={400}
-                height={246}
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <div className="min-w-0 leading-none">
-              <h4 className="text-[14px] font-extrabold tracking-tight text-white">ANDIMA</h4>
-              <p className="mt-1.5 text-[8px] text-slate-300 whitespace-nowrap">Logistics Suite</p>
-            </div>
-          </div>
-
-          <nav className="space-y-2" aria-label="Main navigation">
-            {navigation.map(({ href, label, key, icon: Icon }) => (
-              <Link
-                key={key}
-                href={href}
-                aria-label={label}
-                title={label}
-                aria-current={activePage === key ? 'page' : undefined}
-                className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[10px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${
-                  activePage === key
-                    ? 'bg-[#075EDB] text-white shadow-sm'
-                    : 'text-slate-300 hover:bg-[#18355D] hover:text-white'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5 shrink-0" />
-                <span>{label}</span>
-              </Link>
-            ))}
-          </nav>
-        </div>
-
-        {/* Logout - tombol outline merah seperti referensi */}
-        <div className="pt-4">
-          <Link
-            href="/logout"
-            aria-label="Logout"
-            title="Logout"
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-full border border-[#F43F5E] text-[#FF4D6D] text-[9px] font-medium hover:bg-[#F43F5E]/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400"
-          >
-            <LogOut className="w-3 h-3" />
-            <span>Logout</span>
-          </Link>
-        </div>
-      </aside>
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <header className="px-4 md:px-8 py-4 flex justify-between items-center gap-3 text-white flex-shrink-0 bg-[#111827]">
-          <div>
-            <h1 className="text-xl font-bold tracking-wide">ANDIMA MID</h1>
-            <p className="text-xs text-slate-400">{activePage === 'dashboard' ? 'Dashboard Executive Overview' : 'Sales Performance'}</p>
-          </div>
-          {headerActions}
-        </header>
-        <main className="p-4 md:p-6 space-y-6">{children}</main>
-      </div>
-    </div>
-  );
-}
 
 type SalesPoint = { month: string; CCR: number; HRM: number; CRM: number; MID: number };
 
@@ -150,7 +68,7 @@ export default function SalesPerformance() {
   const range = `${data[0].month} – ${data[data.length - 1].month}`;
 
   return (
-    <DashboardShell activePage="sales-performance">
+    <DashboardShell activePage="dashboard">
       <section aria-labelledby="sales-title" className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200/80">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>

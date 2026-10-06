@@ -1,67 +1,8 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
-import Link from 'next/link';
-import { Building2, ChartNoAxesCombined, ChevronRight, LogOut } from 'lucide-react';
+import { useState } from 'react';
+import DashboardShell from '../dashboard-shell';
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
-
-type DashboardShellProps = {
-  activePage: 'dashboard' | 'sales-performance';
-  headerActions?: ReactNode;
-  children: ReactNode;
-};
-
-const navigation = [
-  { href: '/dashboard', label: 'Dashboard', key: 'dashboard', icon: Building2 },
-  { href: '/dashboard/sales-performance', label: 'Sales Performance', key: 'sales-performance', icon: ChartNoAxesCombined },
-];
-
-function DashboardShell({ activePage, headerActions, children }: DashboardShellProps) {
-  return (
-    <div className="flex h-dvh w-full overflow-hidden bg-[#F4F5F9] font-sans">
-      <aside className="w-20 md:w-64 flex flex-col justify-between p-3 md:p-4 flex-shrink-0 text-white bg-[#0B0F19]">
-        <div>
-          <div className="flex items-center justify-center md:justify-start gap-3 md:p-3 mb-6 bg-slate-900/60 rounded-xl">
-            <div className="w-12 h-12 shrink-0 rounded-full flex items-center justify-center font-bold text-lg bg-indigo-600 text-white">AN</div>
-            <div className="hidden md:block">
-              <h4 className="font-semibold text-sm leading-tight">ANDIMA</h4>
-              <p className="text-xs text-slate-400">Director of Board</p>
-              <p className="text-[10px] text-slate-500">Username</p>
-            </div>
-            <ChevronRight className="hidden md:block w-4 h-4 ml-auto text-slate-500" />
-          </div>
-          <nav className="space-y-2" aria-label="Main navigation">
-            {navigation.map(({ href, label, key, icon: Icon }) => (
-              <Link key={key} href={href} aria-label={label} title={label}
-                aria-current={activePage === key ? 'page' : undefined}
-                className={`w-full flex items-center justify-center md:justify-start gap-3 px-3 md:px-4 py-3 rounded-xl text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400 ${activePage === key ? 'bg-[#7C3AED] text-white shadow-lg shadow-purple-900/40' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}>
-                <Icon className="w-5 h-5 shrink-0" />
-                <span className="hidden md:inline">{label}</span>
-              </Link>
-            ))}
-          </nav>
-        </div>
-        <div className="border-t border-slate-800 pt-4 flex items-center justify-center md:justify-between px-2 text-slate-400 text-sm">
-          <div className="hidden md:flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-xs">N</div>
-            <span>Logout</span>
-          </div>
-          <LogOut className="w-4 h-4 text-rose-500" />
-        </div>
-      </aside>
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <header className="px-4 md:px-8 py-4 flex justify-between items-center gap-3 text-white flex-shrink-0 bg-[#111827]">
-          <div>
-            <h1 className="text-xl font-bold tracking-wide">ANDIMA MID</h1>
-            <p className="text-xs text-slate-400">{activePage === 'dashboard' ? 'Dashboard Executive Overview' : 'Sales Performance'}</p>
-          </div>
-          {headerActions}
-        </header>
-        <main className="p-4 md:p-6 space-y-6">{children}</main>
-      </div>
-    </div>
-  );
-}
 
 type SalesPoint = { month: string; CCR: number; HRM: number; CRM: number; MID: number };
 
