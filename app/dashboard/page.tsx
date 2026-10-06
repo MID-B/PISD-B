@@ -135,14 +135,6 @@ function LogoutIcon() {
   );
 }
 
-function ChevronLeftIcon() {
-  return (
-    <svg viewBox="0 0 24 24" style={{ width: "18px", height: "18px", fill: "none", stroke: "#fff", strokeWidth: 3, strokeLinecap: "round", strokeLinejoin: "round" }}>
-      <path d="M15 18l-6-6 6-6" />
-    </svg>
-  );
-}
-
 function ChevronDownIcon({ isOpen }: { isOpen?: boolean }) {
   return (
     <svg 
@@ -188,8 +180,8 @@ function CompanyLogo() {
         }}
       >
         <img 
-          src="/Logo-ANDIMA.png" 
-          alt="Logo ANDIMA AT" 
+          src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png" 
+          alt="Logo ANDIMA" 
           style={{ width: "100%", height: "100%", objectFit: "contain" }} 
         />
       </div>
@@ -215,6 +207,7 @@ export default function SmkiPage() {
   // State untuk Dropdown Sidebar SMKI & Navigasi Tab
   const [isSmkiOpen, setIsSmkiOpen] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>("account-maintains");
+  const [currentUserFullName, setCurrentUserFullName] = useState<string>("Loading...");
 
   // State untuk Modal Edit
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -291,7 +284,7 @@ export default function SmkiPage() {
 
       const { data: userData, error } = await supabase
         .from("b2_register")
-        .select("departement_id")
+        .select("departement_id, full_name")
         .ilike("email", session.user.email || "")
         .maybeSingle();
 
@@ -303,11 +296,40 @@ export default function SmkiPage() {
         return;
       }
 
+      if (userData.full_name) {
+      setCurrentUserFullName(userData.full_name);
+      }
+
       await fetchEmployeesFromSupabase();
       setIsLoading(false);
     };
 
     checkITUserAndFetchData();
+  }, [router]);
+
+  /* 3. LOGIKA AUTO-LOGOUT SAAT BERGANTI HARI */
+  useEffect(() => {
+    const getLocalDateString = () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    const initialDate = getLocalDateString();
+
+    const interval = setInterval(async () => {
+      const currentDate = getLocalDateString();
+
+      if (currentDate !== initialDate) {
+        clearInterval(interval);
+        await supabase.auth.signOut();
+        router.push("/login?reason=day_changed");
+      }
+    }, 5000); // Pengecekan setiap 5 detik
+
+    return () => clearInterval(interval);
   }, [router]);
 
   // Handler Logout
@@ -400,14 +422,14 @@ export default function SmkiPage() {
 
     // 1. Cek Minimal Panjang Password (misal: 8 karakter)
     if (newPass.length < 8) {
-      setErrorMessage("Password minimal harus 8 karakter.");
+      setErrorMessage("The password must be at least 8 characters long.");
       return;
     }
 
     // 2. Cek kombinasi Huruf, Angka, dan Karakter Spesial (misal: &*^ dll)
     const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).+$/;
     if (!passwordRegex.test(newPass)) {
-      setErrorMessage("Password harus mengandung kombinasi huruf, angka, dan karakter spesial (seperti &*^).");
+      setErrorMessage("The password must contain a combination of letters, numbers, and special characters (such as &*^).");
       return;
     }
 
@@ -420,7 +442,7 @@ export default function SmkiPage() {
 
     if (!fetchErr && currentData) {
       if (currentData.password === newPass) {
-        setErrorMessage("Password baru tidak boleh sama dengan password saat ini!");
+        setErrorMessage("The new password cannot be the same as the current password!");
         return;
       }
     }
@@ -447,6 +469,7 @@ export default function SmkiPage() {
       let query = supabase
         .from("b2_register")
         .update(updateData);
+        
       if (editingEmployee?.id) {
         query = query.eq("id", editingEmployee.id);
       } else {
@@ -489,11 +512,6 @@ export default function SmkiPage() {
         
         {/* 1. LOGO & TITLE */}
         <CompanyLogo />
-
-        {/* BUTTON COLLAPSE */}
-        <button style={{ position: "absolute", top: "28px", right: "-12px", width: "26px", height: "26px", borderRadius: "50%", background: "#8057e8", border: 0, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10, boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>
-          <ChevronLeftIcon />
-        </button>
 
         {/* 2. NAVIGATION WITH DROPDOWN */}
         <nav style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1, marginTop: "20px" }}>
@@ -639,13 +657,16 @@ export default function SmkiPage() {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              {/* Profil Guest */}
+              {/* Profil Guest / User Login */}
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#bbf7d0", color: "#166534", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800 }}>
                   IT
                 </div>
                 <div>
-                  <div style={{ fontSize: "11px", fontWeight: 700, color: "#0f172a", lineHeight: "1.2" }}>Joko Rusdi</div>
+                  {/* Menggunakan state nama user yang login */}
+                  <div style={{ fontSize: "11px", fontWeight: 700, color: "#0f172a", lineHeight: "1.2" }}>
+                    {currentUserFullName}
+                  </div>
                   <div style={{ fontSize: "9px", color: "#64748b" }}>Information Technology</div>
                 </div>
               </div>
