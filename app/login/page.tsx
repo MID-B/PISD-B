@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { getLoginDestination } from '@/lib/loginDestination';
+import { recordLogin } from '@/query/tracklog';
 
 
 function LoginContent() {
@@ -153,22 +154,23 @@ function LoginContent() {
 
       const targetRoute = getLoginDestination(profileData.position_id);
 
-        setLoginAttempts(0);
+      try {
+        await recordLogin();
+      } catch (logError) {
+        console.error('Gagal mencatat riwayat login:', logError);
+        setErrorMessage('Login berhasil, tetapi riwayat login tidak berhasil disimpan.');
+      }
 
-        setSuccessMessage(
-          `Login berhasil! Selamat datang, ${profileData.full_name || 'User'}. Mengalihkan...`
-        );
-
-        window.setTimeout(() => {
-          if (targetRoute) {
-            router.replace(targetRoute);
-          } else {
-            router.replace('/404');
-          }
-        }, 1200);
-        
       setLoginAttempts(0);
       setSuccessMessage(`Login berhasil! Selamat datang, ${profileData.full_name || 'User'}. Mengalihkan...`);
+
+      window.setTimeout(() => {
+        if (targetRoute) {
+          router.replace(targetRoute);
+        } else {
+          router.replace('/404');
+        }
+      }, 1200);
 
     } catch (err) {
       setErrorMessage('Tidak dapat menghubungi server login. Silakan coba lagi.');

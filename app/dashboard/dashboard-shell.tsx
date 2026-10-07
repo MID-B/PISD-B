@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Bell, Building2, ChartNoAxesCombined, ClipboardList } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { recordLogout } from '@/query/tracklog';
 
 type DashboardShellProps = {
   activePage: 'dashboard' | 'sales-performance' | 'issue-board';
@@ -39,6 +40,7 @@ export default function DashboardShell({ activePage, headerActions, children }: 
     setSigningOut(true);
     setLogoutError('');
     try {
+      await recordLogout();
       const { error } = await supabase.auth.signOut({ scope: 'local' });
       if (error) throw error;
       window.location.replace('/login');
@@ -201,4 +203,3 @@ export default function DashboardShell({ activePage, headerActions, children }: 
     </div>
   );
 }
-

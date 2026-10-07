@@ -702,19 +702,19 @@ export default function SmkiPage() {
 
                 {/* Submenu 3: Log Login */}
                 <button
-                  onClick={() => setActiveTab("log-login")}
+                  onClick={() => router.push("/smki/dashboard/loglogin")}
                   style={{
                     width: "100%",
                     padding: "10px 14px",
                     border: 0,
                     borderRadius: "10px",
-                    backgroundColor: activeTab === "log-login" ? "rgba(255, 255, 255, 0.15)" : "transparent",
-                    color: activeTab === "log-login" ? "#ffffff" : "#94a3b8",
+                    backgroundColor: "transparent",
+                    color: "#94a3b8",
                     display: "flex",
                     alignItems: "center",
                     gap: "10px",
                     fontSize: "13px",
-                    fontWeight: activeTab === "log-login" ? 700 : 500,
+                    fontWeight: 500,
                     cursor: "pointer",
                     textAlign: "left",
                     transition: "all 0.2s ease",
@@ -749,7 +749,7 @@ export default function SmkiPage() {
               <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>ANDIMA SMKI</span>
               <span style={{ color: "#cbd5e1" }}>|</span>
               <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
-                {activeTab === "log-activity" ? "Log Activity" : activeTab === "log-login" ? "Log Login" : "Account Maintains"}
+                {activeTab === "log-activity" ? "Log Activity" : "Account Maintains"}
               </span>
               {activeTab === "log-activity" && (
                 <div style={{ position: "relative", marginLeft: "clamp(12px, 3vw, 32px)" }}>
