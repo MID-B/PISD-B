@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { Bell, Building2, ChartNoAxesCombined, ClipboardList, LogOut } from 'lucide-react';
+import { Bell, Building2, ChartNoAxesCombined, ClipboardList } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
 type DashboardShellProps = {
@@ -30,7 +30,23 @@ type HeaderProfile = { name: string; position: string };
 const guestProfile: HeaderProfile = { name: 'Guest', position: 'Belum login' };
 
 export default function DashboardShell({ activePage, headerActions, children }: DashboardShellProps) {
+  const [signingOut, setSigningOut] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
   const [profile, setProfile] = useState<HeaderProfile>({ name: 'Memuat…', position: '' });
+
+  async function handleLogout() {
+    if (signingOut) return;
+    setSigningOut(true);
+    setLogoutError('');
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) throw error;
+      window.location.replace('/login');
+    } catch {
+      setLogoutError('Logout gagal. Silakan coba lagi.');
+      setSigningOut(false);
+    }
+  }
 
   useEffect(() => {
     let disposed = false;
@@ -144,15 +160,17 @@ export default function DashboardShell({ activePage, headerActions, children }: 
 
         {/* Logout - tombol outline merah seperti referensi */}
         <div className="pt-4">
-          <Link
-            href="/logout"
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={signingOut}
             aria-label="Logout"
             title="Logout"
             className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-full border border-[#F43F5E] text-[#FF4D6D] text-[9px] font-medium hover:bg-[#F43F5E]/10 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400"
           >
-            <LogOut className="w-3 h-3" />
-            <span>Logout</span>
-          </Link>
+            <span>{signingOut ? 'Keluar…' : 'Logout'}</span>
+          </button>
+          {logoutError && <p role="alert" className="mt-2 text-[10px] text-rose-200">{logoutError}</p>}
         </div>
       </aside>
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
