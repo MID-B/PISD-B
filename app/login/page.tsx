@@ -4,26 +4,8 @@ import React, { useState, useEffect, FormEvent, ChangeEvent, Suspense } from 're
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { getLoginDestination } from '@/lib/loginDestination';
 
-
-/* =========================
-   PEMETAAN ROUTE DEPARTEMEN
-========================= */
-const DEPARTMENT_ROUTE_MAP: Record<string, string> = {
-  '72cd470d-216c-48b6-abd9-0cd05a4d8974': '/dashboard/hrms', // Human Resources
-  'd38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc': '/dashboard/ccr',  // Logistics Ops / CCR
-  '8113ab6f-d5cc-4c94-bbf6-e08047931fab': '/dashboard',      // IT / SMKI Dashboard
-  '1653db5f-2b64-418f-b28b-68cb7b9dae8e': '/dashboard/fat',  // Finance & Tax
-  '97ac5d35-5da2-4f5d-9d36-78500f403cc7': '/dashboard/crm',  // Commercial / CRM
-};
-
-const REGISTERED_USERS = {
-  'manajemen@andima.co.id': {
-    passwordRole: 'Manajemen123!@#',
-    role: 'Manajemen',
-    redirectTo: '/dashboard/manajemen',
-  },
-};
 
 function LoginContent() {
   const router = useRouter();
@@ -126,16 +108,7 @@ function LoginContent() {
       return;
     }
 
-    // A. Akun Hardcoded Demo (Manajemen)
-    const userAccount = REGISTERED_USERS[email.toLowerCase() as keyof typeof REGISTERED_USERS];
-    if (userAccount && userAccount.passwordRole === password) {
-      setLoginAttempts(0);
-      setSuccessMessage(`Login successful! Redirecting to ${userAccount.role} Dashboard...`);
-      window.setTimeout(() => { router.push(userAccount.redirectTo); }, 1500);
-      return;
-    }
-
-    // B. Login Supabase Auth & Routing Berdasarkan UUID Departemen
+    // Authenticate first, then route using the position stored in the profile.
     setIsSigningIn(true);
     try {
       // 1. Autentikasi dengan Supabase Auth
@@ -155,8 +128,8 @@ function LoginContent() {
       // 2. Ambil Profil User dari b2_register
       const { data: profileData, error: profileError } = await supabase
         .from('b2_register')
-        .select('departement_id, full_name, is_active')
-        .ilike('email', email.trim())
+        .select('position_id, full_name, is_active')
+        .eq('id', authData.user.id)
         .maybeSingle();
 
       // Jika ada error dari Supabase (misal masalah RLS / query)
@@ -178,15 +151,24 @@ function LoginContent() {
         return;
       }
 
-      // 4. Tentukan Route Dashboard Berdasarkan departement_id (UUID)
-      const targetRoute = DEPARTMENT_ROUTE_MAP[profileData.departement_id] || '/dashboard';
+      const targetRoute = getLoginDestination(profileData.position_id);
 
+        setLoginAttempts(0);
+
+        setSuccessMessage(
+          `Login berhasil! Selamat datang, ${profileData.full_name || 'User'}. Mengalihkan...`
+        );
+
+        window.setTimeout(() => {
+          if (targetRoute) {
+            router.replace(targetRoute);
+          } else {
+            router.replace('/404');
+          }
+        }, 1200);
+        
       setLoginAttempts(0);
       setSuccessMessage(`Login berhasil! Selamat datang, ${profileData.full_name || 'User'}. Mengalihkan...`);
-
-      window.setTimeout(() => {
-        router.push(targetRoute);
-      }, 1200);
 
     } catch (err) {
       setErrorMessage('Tidak dapat menghubungi server login. Silakan coba lagi.');

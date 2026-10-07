@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import DashboardShell from './dashboard-shell';
-import { ResponsiveContainer, LineChart, Line, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
+import DashboardShell from '../dashboard-shell';
+import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 
 type SalesPoint = { month: string; CCR: number; HRM: number; CRM: number; MID: number };
 
@@ -68,7 +68,7 @@ export default function SalesPerformance() {
   const range = `${data[0].month} – ${data[data.length - 1].month}`;
 
   return (
-    <DashboardShell activePage="dashboard">
+    <DashboardShell activePage="sales-performance">
       <section aria-labelledby="sales-title" className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200/80">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
@@ -126,112 +126,6 @@ export default function SalesPerformance() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </section>
-
-        {/* Issue Board - mengikuti referensi */}
-        <section aria-labelledby="issue-board-title" className="mt-6 bg-[#E9EAF1] rounded-xl p-4 sm:p-5">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h2 id="issue-board-title" className="text-sm font-bold text-slate-700">Issue Board</h2>
-              <p className="text-[8px] text-slate-400 mt-0.5">Daftar Pemantauan isu operasional departemen &amp; logistik</p>
-            </div>
-            <span className="text-cyan-400 text-[8px]">✦</span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[620px] text-left border-collapse">
-              <thead>
-                <tr className="bg-white text-[7px] uppercase tracking-wide text-slate-500">
-                  {['Client', 'Issue', 'Date', 'PIC', 'Status'].map((heading) => (
-                    <th key={heading} className="py-2 px-3 font-semibold">{heading}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="text-[8px] text-slate-700">
-                {[
-                  ['Maju Bersama', 'Send quotation update', '16 Sep 2026', 'Yemina', 'Completed'],
-                  ['Sinar Logistik', 'Cargo Logistic not found', '17 Sep 2026', 'Khoirul', 'In Progress'],
-                  ['Makmur Jaya', 'Wrong invoice', '21 Sep 2026', 'Juan', 'In Progress'],
-                  ['Sumber Rejeki', 'Delivery late', '24 Sep 2026', 'Advent', 'Completed'],
-                  ['Brahma Surya', 'Delivery late', '29 Sep 2026', 'Vieri', 'In Progress'],
-                ].map(([client, issue, date, pic, status]) => (
-                  <tr key={`${client}-${date}`} className="border-b border-slate-300/70">
-                    <td className="py-2 px-3">
-                      <div className="font-semibold">{client}</div>
-                      <div className="text-[6px] text-slate-400">Logistic ID: LS-••••</div>
-                    </td>
-                    <td className="py-2 px-3 whitespace-nowrap">{issue}</td>
-                    <td className="py-2 px-3 whitespace-nowrap">{date}</td>
-                    <td className="py-2 px-3 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-[#C7D8E2] flex items-center justify-center text-[6px] text-slate-600">{pic.charAt(0)}</span>{pic}</span>
-                    </td>
-                    <td className="py-2 px-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[6px] font-semibold border ${status === 'Completed' ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-blue-600 bg-blue-50 border-blue-200'}`}>
-                        <span className="mr-1">●</span>{status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* Top Purchasing Clients - mengikuti referensi */}
-        <section aria-labelledby="top-purchasing-title" className="mt-6 bg-[#E9EAF1] rounded-xl p-4 sm:p-5">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 id="top-purchasing-title" className="text-sm font-bold text-slate-700">Top Purchasing Clients</h2>
-              <p className="text-[8px] text-slate-400 mt-1">Analisis Pembelian terbesar berdasarkan pendapatan | Dalam Juta Rp | Volume pesanan</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_135px] gap-4">
-            <div className="min-w-0">
-              <div className="h-44">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={[
-                    { client: 'Maju Bersama', revenue: 500, orders: 300 },
-                    { client: 'Sinar Logistik', revenue: 400, orders: 270 },
-                    { client: 'Makmur Jaya', revenue: 320, orders: 220 },
-                    { client: 'Trijaya Abadi', revenue: 350, orders: 180 },
-                  ]} margin={{ top: 10, right: 10, left: 0, bottom: 5 }} barGap={2}>
-                    <CartesianGrid strokeDasharray="2 2" stroke="#D5D8E1" vertical={false} />
-                    <XAxis dataKey="client" tick={{ fontSize: 6, fill: '#64748B' }} tickMargin={6} />
-                    <YAxis tick={{ fontSize: 7, fill: '#64748B' }} width={28} />
-                    <Tooltip />
-                    <Bar dataKey="revenue" fill="#7C4FE8" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="orders" fill="#2ED3CF" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="flex justify-center gap-4 text-[7px] text-slate-500 mt-1">
-                <span><i className="inline-block w-2 h-2 rounded-sm bg-[#7C4FE8] mr-1" />Revenue (IDR)</span>
-                <span><i className="inline-block w-2 h-2 rounded-sm bg-[#2ED3CF] mr-1" />Total Orders</span>
-              </div>
-            </div>
-
-            <div className="border-l border-slate-300 pl-3">
-              <h3 className="text-[8px] font-semibold text-slate-600 mb-2">Rank Leaderboard</h3>
-              <div className="space-y-1.5">
-                {[
-                  ['1', 'Maju Bersama', 'Rp. 450M'],
-                  ['2', 'Sinar Logistik', 'Rp. 350M'],
-                  ['3', 'Karya Mandiri', 'Rp. 290M'],
-                  ['4', 'Trijaya Abadi', 'Rp. 250M'],
-                ].map(([rank, name, value]) => (
-                  <div key={rank} className="flex items-center gap-1.5 bg-white rounded px-1.5 py-1">
-                    <span className="w-4 h-4 rounded-full bg-[#D9E2EA] flex items-center justify-center text-[7px] font-bold text-slate-600">{rank}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[7px] font-semibold text-slate-600 truncate">{name}</div>
-                      <div className="text-[5px] text-slate-400">Top sales client</div>
-                    </div>
-                    <span className="text-[6px] font-semibold text-slate-500 whitespace-nowrap">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </section>
       </section>
