@@ -88,28 +88,7 @@ type ActivityLog = {
   createdAt: string;
 };
 
-const SAMPLE_ACTIVITY_LOGS: ActivityLog[] = [
-  {
-    id: "activity-1",
-    name: "Praba",
-    email: "Praba@gmail.com",
-    department: "Human Resources",
-    departmentLabel: "HRMS",
-    role: "HR",
-    description: "Issue board ccr/payment",
-    createdAt: "2026-09-29T16:00:00",
-  },
-  {
-    id: "activity-2",
-    name: "Agus",
-    email: "Agussanjaya@gmail.com",
-    department: "Finance, Accounting & Tax",
-    departmentLabel: "FINANCE",
-    role: "FINANCE",
-    description: "Transaksi",
-    createdAt: "2026-09-30T19:00:00",
-  },
-];
+
 
 /* SVG ICONS */
 function AccountIcon() {
@@ -249,6 +228,10 @@ export default function SmkiPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string>("All");
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState('');
+  const [activityReload, setActivityReload] = useState(0);
   const [activitySortAscending, setActivitySortAscending] = useState<boolean>(false);
   // State untuk Dropdown Sidebar SMKI & Navigasi Tab
   const [isSmkiOpen, setIsSmkiOpen] = useState<boolean>(true);
@@ -357,6 +340,61 @@ export default function SmkiPage() {
     checkITUserAndFetchData();
   }, [router]);
 
+  useEffect(() => {
+    if (activeTab !== 'log-activity') return;
+    const controller = new AbortController();
+    async function loadActivity() {
+      setActivityLoading(true);
+      setActivityError('');
+      setActivityLogs([]);
+      try {
+        const logs: ActivityLog[] = [];
+        const pageSize = 500;
+        for (let offset = 0; ; offset += pageSize) {
+          // Read all described activities, without filtering by login identity or role.
+          const { data, error } = await supabase.from('b1_activity')
+            .select('id, name, email, department_name, position, description, date, time, created_at')
+            .not('description', 'is', null)
+            .neq('description', '')
+            .order('created_at', { ascending: false })
+            .order('id', { ascending: false })
+            .range(offset, offset + pageSize - 1)
+            .abortSignal(controller.signal);
+          if (controller.signal.aborted) return;
+          if (error) throw error;
+          const batch = data ?? [];
+          for (const row of batch) {
+            if (typeof row.description !== 'string' || !row.description.trim()) continue;
+            const eventTime = row.date && row.time ? `${row.date}T${row.time}+07:00` : '';
+            const createdAt = eventTime && Number.isFinite(Date.parse(eventTime)) ? eventTime : row.created_at;
+            logs.push({
+              id: String(row.id),
+              name: row.name || '-',
+              email: row.email || '-',
+              department: row.department_name || '-',
+              departmentLabel: row.department_name || '-',
+              role: row.position || '-',
+              description: row.description.trim(),
+              createdAt: createdAt && Number.isFinite(Date.parse(createdAt)) ? createdAt : '',
+            });
+          }
+          if (batch.length < pageSize) break;
+        }
+        if (!controller.signal.aborted) setActivityLogs(logs);
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          const message = error && typeof error === 'object' && 'message' in error
+            ? String(error.message) : 'Koneksi database gagal.';
+          setActivityError(`Gagal membaca b1_activity: ${message}`);
+        }
+      } finally {
+        if (!controller.signal.aborted) setActivityLoading(false);
+      }
+    }
+    void loadActivity();
+    return () => controller.abort();
+  }, [activeTab, activityReload]);
+
   /* 3. LOGIKA AUTO-LOGOUT SAAT BERGANTI HARI */
   useEffect(() => {
     const getLocalDateString = () => {
@@ -394,10 +432,10 @@ export default function SmkiPage() {
     return emp.department.toLowerCase() === selectedDepartment.toLowerCase();
   });
 
-  const filteredActivityLogs = SAMPLE_ACTIVITY_LOGS
+  const filteredActivityLogs = activityLogs
     .filter((activity) => selectedDepartment === "All" || activity.department === selectedDepartment)
     .sort((first, second) => {
-      const timeDifference = new Date(first.createdAt).getTime() - new Date(second.createdAt).getTime();
+      const timeDifference = (Date.parse(first.createdAt) || 0) - (Date.parse(second.createdAt) || 0);
       return activitySortAscending ? timeDifference : -timeDifference;
     });
 
@@ -784,7 +822,14 @@ export default function SmkiPage() {
                   </button>
                 </div>
 
-                {filteredActivityLogs.length > 0 ? (
+                {activityLoading ? (
+                  <div role="status" className="bg-white p-6 text-xs text-slate-500">Memuat Log Activity...</div>
+                ) : activityError ? (
+                  <div role="alert" className="bg-white p-6 text-xs text-red-600">
+                    <p>{activityError}</p>
+                    <button type="button" onClick={() => setActivityReload((value) => value + 1)} className="mt-2 cursor-pointer text-blue-600">Coba lagi</button>
+                  </div>
+                ) : filteredActivityLogs.length > 0 ? (
                   filteredActivityLogs.map((activity) => {
                     const timestamp = new Date(activity.createdAt);
 
@@ -799,15 +844,15 @@ export default function SmkiPage() {
                         <div>{activity.role}</div>
                         <div style={{ paddingRight: "8px" }}>{activity.description}</div>
                         <div style={{ display: "flex", flexDirection: "column", whiteSpace: "nowrap", lineHeight: 1.25 }}>
-                          <span>{timestamp.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-                          <span>{timestamp.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
+                          <span>{activity.createdAt ? timestamp.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Jakarta" }) : "-"}</span>
+                          <span>{activity.createdAt ? timestamp.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Jakarta" }) : "-"}</span>
                         </div>
                       </div>
                     );
                   })
                 ) : (
                   <div style={{ padding: "24px 18px", background: "#ffffff", color: "#64748b", fontSize: "12px" }}>
-                    No activity found for this department.
+                    Tidak ada aktivitas dengan deskripsi untuk departemen ini.
                   </div>
                 )}
               </div>
