@@ -59,6 +59,32 @@ function ChevronDownIcon({ isOpen }: { isOpen: boolean }) {
   );
 }
 
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getCalendarDays(month: Date) {
+  const firstOfMonth = startOfMonth(month);
+  const firstVisibleDay = new Date(
+    month.getFullYear(),
+    month.getMonth(),
+    1 - firstOfMonth.getDay()
+  );
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(firstVisibleDay);
+    date.setDate(firstVisibleDay.getDate() + index);
+    return { date, key: toDateKey(date), inMonth: date.getMonth() === month.getMonth() };
+  });
+}
+
 function CompanyLogo() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "12px", paddingBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
@@ -87,10 +113,32 @@ export default function LogLoginPage() {
   const [currentUserFullName, setCurrentUserFullName] = useState("");
   const [isSmkiOpen, setIsSmkiOpen] = useState(true);
   const [selectedDate, setSelectedDate] = useState("");
-  const dateInputRef = useRef<HTMLInputElement>(null);
+  const datePickerRef = useRef<HTMLDivElement>(null);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [loginLogs, setLoginLogs] = useState<LoginLogRecord[]>([]);
   const [isLogsLoading, setIsLogsLoading] = useState(true);
   const [logsError, setLogsError] = useState("");
+
+  useEffect(() => {
+    if (!isDatePickerOpen) return;
+
+    const closeWhenOutside = (event: MouseEvent) => {
+      if (!datePickerRef.current?.contains(event.target as Node)) {
+        setIsDatePickerOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsDatePickerOpen(false);
+    };
+
+    document.addEventListener("mousedown", closeWhenOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeWhenOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isDatePickerOpen]);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -273,59 +321,149 @@ export default function LogLoginPage() {
 
         <section style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "20px 24px", background: "#f1f3fc", boxSizing: "border-box" }}>
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "14px" }}>
-            <label
-              style={{
-                position: "relative",
-                width: "170px",
-                height: "36px",
-                padding: "0 16px",
-                border: "1px solid #94a3b8",
-                borderRadius: "20px",
-                background: "#ffffff",
-                color: "#64748b",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "10px",
-                fontSize: "13px",
-                fontWeight: 500,
-                boxSizing: "border-box",
-                cursor: "pointer",
-              }}
-              onClick={() => dateInputRef.current?.showPicker()}
-            >
-              <span style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
-                <span>Date</span>
-                {selectedDate && (
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {new Date(`${selectedDate}T00:00:00`).toLocaleDateString()}
-                  </span>
-                )}
-              </span>
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                style={{ width: "18px", height: "18px", flexShrink: 0, fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}
-              >
-                <rect x="3" y="5" width="18" height="16" rx="2" />
-                <path d="M16 3v4M8 3v4M3 10h18" />
-              </svg>
-              <input
-                ref={dateInputRef}
+            <div ref={datePickerRef} style={{ position: "relative" }}>
+              <button
+                type="button"
                 aria-label="Filter login history by date"
-                type="date"
-                value={selectedDate}
-                onChange={(event) => setSelectedDate(event.target.value)}
+                aria-haspopup="dialog"
+                aria-expanded={isDatePickerOpen}
+                onClick={() => {
+                  const month = selectedDate
+                    ? startOfMonth(new Date(`${selectedDate}T00:00:00`))
+                    : startOfMonth(new Date());
+                  setVisibleMonth(month);
+                  setIsDatePickerOpen((open) => !open);
+                }}
                 style={{
-                  position: "absolute",
-                  inset: 0,
-                  width: "100%",
-                  height: "100%",
-                  opacity: 0,
+                  width: "170px",
+                  height: "36px",
+                  padding: "0 16px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "24px",
+                  background: "#ffffff",
+                  color: "#64748b",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  boxSizing: "border-box",
                   cursor: "pointer",
                 }}
-              />
-            </label>
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                  <span>Date</span>
+                  {selectedDate && (
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {new Date(`${selectedDate}T00:00:00`).toLocaleDateString()}
+                    </span>
+                  )}
+                </span>
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  style={{ width: "18px", height: "18px", flexShrink: 0, fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}
+                >
+                  <rect x="3" y="5" width="18" height="16" rx="2" />
+                  <path d="M16 3v4M8 3v4M3 10h18" />
+                </svg>
+              </button>
+
+              {isDatePickerOpen && (
+                <div
+                  role="dialog"
+                  aria-label="Filter login history by date"
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 8px)",
+                    right: 0,
+                    zIndex: 20,
+                    width: "292px",
+                    padding: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "8px",
+                    background: "#ffffff",
+                    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.18)",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                    <span style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a" }}>
+                      {visibleMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                    </span>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <button
+                        type="button"
+                        aria-label="Previous month"
+                        onClick={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))}
+                        style={{ width: "32px", height: "32px", border: 0, borderRadius: "6px", background: "transparent", color: "#334155", fontSize: "22px", cursor: "pointer" }}
+                      >‹</button>
+                      <button
+                        type="button"
+                        aria-label="Next month"
+                        onClick={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))}
+                        style={{ width: "32px", height: "32px", border: 0, borderRadius: "6px", background: "transparent", color: "#334155", fontSize: "22px", cursor: "pointer" }}
+                      >›</button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", textAlign: "center", color: "#475569", fontSize: "12px", fontWeight: 600 }}>
+                    {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => <span key={day} style={{ padding: "6px 0" }}>{day}</span>)}
+                  </div>
+                  <div role="grid" aria-label={visibleMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })} style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px", textAlign: "center" }}>
+                    {getCalendarDays(visibleMonth).map(({ date, key, inMonth }) => {
+                      const isSelected = selectedDate === key;
+                      const isToday = toDateKey(new Date()) === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          role="gridcell"
+                          aria-label={date.toLocaleDateString("en-US", { dateStyle: "full" })}
+                          aria-pressed={isSelected}
+                          onClick={() => {
+                            setSelectedDate(key);
+                            setIsDatePickerOpen(false);
+                          }}
+                          style={{
+                            height: "34px",
+                            border: isToday && !isSelected ? "1px solid #94a3b8" : "1px solid transparent",
+                            borderRadius: "5px",
+                            background: isSelected ? "#075edb" : "transparent",
+                            color: isSelected ? "#ffffff" : inMonth ? "#0f172a" : "#94a3b8",
+                            fontSize: "13px",
+                            fontWeight: isSelected ? 700 : 400,
+                            cursor: "pointer",
+                          }}
+                        >{date.getDate()}</button>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", padding: "4px 2px 0" }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDate("");
+                        setIsDatePickerOpen(false);
+                      }}
+                      style={{ border: 0, background: "transparent", color: "#2563eb", fontSize: "13px", cursor: "pointer" }}
+                    >Default</button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const today = new Date();
+                        setSelectedDate(toDateKey(today));
+                        setVisibleMonth(startOfMonth(today));
+                        setIsDatePickerOpen(false);
+                      }}
+                      style={{ border: 0, background: "transparent", color: "#2563eb", fontSize: "13px", cursor: "pointer" }}
+                    >Today</button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <div style={{ overflow: "auto", border: "1px solid #e2e8f0", borderRadius: "6px", background: "#ffffff" }}>
             <div style={{ minWidth: "920px" }}>
