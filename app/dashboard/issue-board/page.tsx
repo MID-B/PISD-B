@@ -1,24 +1,29 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, CircleX, Clock3, Folder, RefreshCw, X } from 'lucide-react';
+import { SlidersHorizontal, X } from 'lucide-react';
 import DashboardShell from '../dashboard-shell';
-import { issues, type Issue, type IssueStatus } from './issue-data';
+import { issues, issueDateFormatter, type Issue, type IssueStatus, type IssuePriority } from './issue-data';
 
 const statuses = [
-  { name: 'In Progress', icon: RefreshCw, color: '#3981FF', background: '#EFF6FF' },
-  { name: 'Open', icon: Folder, color: '#F59E0B', background: '#FFFBEB' },
-  { name: 'Pending', icon: Clock3, color: '#9560FF', background: '#F5F0FF' },
-  { name: 'Completed', icon: CheckCircle2, color: '#10B981', background: '#ECFDF5' },
-  { name: 'Closed', icon: CircleX, color: '#77808F', background: '#F3F4F6' },
+  { name: 'In Progress', color: '#3981FF', background: '#EFF6FF' },
+  { name: 'Open', color: '#F59E0B', background: '#FFFBEB' },
+  { name: 'Pending', color: '#9560FF', background: '#F5F0FF' },
+  { name: 'Done', color: '#10B981', background: '#ECFDF5' },
+  { name: 'To Do', color: '#77808F', background: '#F3F4F6' },
 ] as const;
 
-const dateFormatter = new Intl.DateTimeFormat('id-ID', {
-  day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta',
-});
+const priorityClasses: Record<IssuePriority, string> = {
+  High: 'border-rose-100 bg-rose-50 text-rose-600',
+  Medium: 'border-amber-100 bg-amber-50 text-amber-600',
+  Low: 'border-emerald-100 bg-emerald-50 text-emerald-600',
+};
+const dueDateLabel = (value: string | null) => value
+  ? issueDateFormatter.format(new Date(`${value}T00:00:00+07:00`)) : '-';
 
 export default function IssueBoardPage() {
   const [selectedStatus, setSelectedStatus] = useState<IssueStatus | null>(null);
+  const [selectedPriority, setSelectedPriority] = useState<IssuePriority | 'unset' | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const selectedStyle = statuses.find((status) => status.name === selectedIssue?.status);
@@ -27,48 +32,71 @@ export default function IssueBoardPage() {
     if (selectedIssue && !dialogRef.current?.open) dialogRef.current?.showModal();
   }, [selectedIssue]);
 
-  const rows = selectedStatus ? issues.filter((issue) => issue.status === selectedStatus) : issues;
+  const rows = issues.filter((issue) => (!selectedStatus || issue.status === selectedStatus)
+    && (!selectedPriority || (selectedPriority === 'unset' ? issue.priority === null : issue.priority === selectedPriority)));
+  const activeFilterCount = Number(selectedStatus !== null) + Number(selectedPriority !== null);
 
   return (
     <DashboardShell activePage="issue-board">
       <section aria-labelledby="issue-page-title" className="space-y-5">
-        <div>
-          <h2 id="issue-page-title" className="text-2xl font-bold tracking-tight text-[#17233D]">Issue Board</h2>
-          <p className="mt-1 text-xs text-slate-500">Track and Trace all jobs posted at PT Andima Transportindo.</p>
-        </div>
-
-        <div className="grid grid-cols-1 min-[400px]:grid-cols-2 lg:grid-cols-5 gap-3" aria-label="Filter status issue">
-          {statuses.map(({ name, icon: Icon, color, background }) => (
-            <button key={name} type="button" aria-pressed={selectedStatus === name}
-              onClick={() => setSelectedStatus(selectedStatus === name ? null : name)}
-              style={{ borderColor: color, backgroundColor: selectedStatus === name ? background : '#FFFFFF' }}
-              className="relative min-h-24 rounded-xl border border-l-[3px] p-4 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-500 cursor-pointer">
-              <Icon aria-hidden="true" className="absolute right-4 top-4 h-5 w-5 opacity-30" style={{ color }} />
-              <span className="block text-[40px] font-bold leading-none text-[#14203C]">{issues.filter((issue) => issue.status === name).length}</span>
-              <span className="mt-2 block text-[10px] font-bold uppercase tracking-wide" style={{ color }}>{name}</span>
-            </button>
+        <div className="grid grid-cols-1 min-[400px]:grid-cols-2 lg:grid-cols-5 gap-5" aria-label="Ringkasan status issue">
+          {statuses.map(({ name, background }) => (
+            <div key={name}
+              style={{ background: `linear-gradient(145deg, #FFFFFF 35%, ${background} 100%)` }}
+              className="flex min-h-36 flex-col rounded-xl border border-blue-100 px-6 py-5 text-[#243F70] shadow-[0_2px_5px_rgba(43,82,153,0.18),0_0_8px_rgba(96,165,250,0.12)]">
+              <span className="block min-h-10 max-w-24 text-[15px] font-semibold uppercase leading-5 tracking-wide">{name}</span>
+              <span className="mt-2 block text-[34px] font-bold leading-none tabular-nums">{issues.filter((issue) => issue.status === name).length}</span>
+            </div>
           ))}
         </div>
 
-        <section aria-labelledby="issue-table-title" className="min-h-[560px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_12px_rgba(15,23,42,0.07)]">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5">
-            <div>
-              <h3 id="issue-table-title" className="text-sm font-bold text-[#20304E]">Issue Board</h3>
-              <p className="mt-1 text-[11px] text-slate-500">Daftar Pemantauan isu operasional departemen &amp; anggota</p>
-            </div>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+          <h2 id="issue-page-title" className="text-2xl font-bold uppercase leading-tight tracking-tight text-[#243F70]">ISSUE BOARD</h2>
+          <p className="mt-1 text-xs text-slate-500">Track and Trace all jobs posted at PT Andima Transportindo.</p>
+        </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-3">
             <div className="flex items-center gap-3 text-[10px]">
-              <span className="text-slate-400">Data contoh</span>
-              {selectedStatus && <button type="button" onClick={() => setSelectedStatus(null)} className="text-blue-600 hover:underline cursor-pointer">Tampilkan semua</button>}
+              <details className="relative">
+                <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-500 [&::-webkit-details-marker]:hidden">
+                  <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />Filter
+                  {activeFilterCount > 0 && <span className="rounded-full bg-blue-50 px-1.5 text-blue-600">{activeFilterCount}</span>}
+                </summary>
+                <div className="absolute right-0 top-full z-20 mt-2 w-64 space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-lg">
+                  <label className="block text-xs font-medium text-slate-600">Status
+                    <select value={selectedStatus ?? ''} onChange={(event) => setSelectedStatus((event.target.value || null) as IssueStatus | null)} className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-blue-500">
+                      <option value="">Semua status</option>
+                      {statuses.map(({ name }) => <option key={name} value={name}>{name}</option>)}
+                    </select>
+                  </label>
+                  <label className="block text-xs font-medium text-slate-600">Priority
+                    <select value={selectedPriority ?? ''} onChange={(event) => setSelectedPriority((event.target.value || null) as IssuePriority | 'unset' | null)} className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-blue-500">
+                      <option value="">Semua priority</option>
+                      <option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option><option value="unset">Belum ditentukan</option>
+                    </select>
+                  </label>
+                  <button type="button" disabled={activeFilterCount === 0} onClick={() => { setSelectedStatus(null); setSelectedPriority(null); }} className="cursor-pointer text-xs font-medium text-blue-600 hover:underline disabled:cursor-default disabled:text-slate-400">Reset filter</button>
+                </div>
+              </details>
             </div>
           </div>
+        </div>
+        <section aria-label="Tabel issue" className="overflow-hidden rounded-[18px] border border-[#DBE7FF] bg-white shadow-[0_2px_8px_rgba(83,133,232,0.22),0_0_4px_rgba(147,184,255,0.2)]">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-left">
+            <table className="w-full min-w-[1100px] table-fixed border-collapse text-center [&_tbody_td]:px-3 [&_tbody_td]:py-3 [&_tbody_td]:align-middle [&_tbody_th]:px-3 [&_tbody_th]:py-3 [&_tbody_th]:align-middle">
+              <colgroup>
+                <col style={{ width: '11%' }} /><col style={{ width: '14%' }} />
+                <col style={{ width: '21%' }} /><col style={{ width: '13%' }} />
+                <col style={{ width: '10%' }} /><col style={{ width: '9%' }} />
+                <col style={{ width: '10%' }} /><col style={{ width: '12%' }} />
+              </colgroup>
               <thead>
-                <tr className="border-y border-slate-100 bg-[#FAFBFD] text-[9px] uppercase tracking-wide text-slate-500">
-                  {['Ticket Code', 'Departemen', 'Issue', 'PIC', 'Date', 'Status'].map((heading) => <th key={heading} scope="col" className="px-5 py-3 font-medium">{heading}</th>)}
+                <tr className="border-b border-[#9FBEFF] bg-white text-xs tracking-normal text-[#243F70]">
+                  {['Ticket Code', 'Departemen', 'Issue', 'PIC', 'Date', 'Priority', 'Due Date', 'Status'].map((heading) => <th key={heading} scope="col" className="px-3 py-3.5 font-semibold">{heading}</th>)}
                 </tr>
               </thead>
-              <tbody className="text-[11px] text-slate-600">
+              <tbody className="text-[11px] font-medium leading-snug text-[#3B5686]">
                 {rows.map((issue) => {
                   const status = statuses.find((item) => item.name === issue.status)!;
                   return (
@@ -77,23 +105,25 @@ export default function IssueBoardPage() {
                         event.currentTarget.querySelector('button')?.focus();
                         setSelectedIssue(issue);
                       }}
-                      className="cursor-pointer border-b border-slate-50 even:bg-[#FCFCFD] hover:bg-blue-50/60 focus-within:bg-blue-50/60">
-                      <th scope="row" className="whitespace-nowrap px-5 py-4 font-semibold text-[#20304E]">
+                      className="cursor-pointer border-b border-[#B4CCFF] transition-colors last:border-b-0 hover:bg-[#F5F8FF] focus-within:bg-[#F5F8FF]">
+                      <th scope="row" className="whitespace-nowrap px-5 py-4 text-[11px] font-semibold text-[#243F70]">
                         <button type="button" aria-haspopup="dialog" aria-label={`Lihat detail ${issue.ticket_code}`} onClick={() => setSelectedIssue(issue)} className="cursor-pointer rounded text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-500">{issue.ticket_code}</button>
                       </th>
-                      <td className="px-5 py-4 whitespace-nowrap">{issue.reporter_department}</td>
-                      <td className="px-5 py-4"><span className="block max-w-44 truncate font-medium text-[#20304E]" title={issue.title}>{issue.title}</span></td>
-                      <td className="px-5 py-4"><span className="inline-flex items-center gap-2 whitespace-nowrap"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[7px] font-bold" style={{ color: status.color, backgroundColor: status.background }}>{issue.source}</span>{issue.employee_id}</span></td>
-                      <td className="px-5 py-4 whitespace-nowrap">{dateFormatter.format(new Date(issue.created_at))}</td>
-                      <td className="px-5 py-4"><span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[9px] font-semibold" style={{ color: status.color, backgroundColor: status.background }}><span aria-hidden="true" className="h-1 w-1 rounded-full bg-current" />{issue.status}</span></td>
+                      <td className="px-5 py-4 text-left font-semibold leading-snug text-[#3B5686]">{issue.reporter_department}</td>
+                      <td className="px-5 py-4"><span className="block break-words text-left font-medium leading-snug text-[#3B5686]" title={issue.title}>{issue.title}</span></td>
+                      <td className="px-5 py-4"><span className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[6px] font-semibold" style={{ color: status.color, backgroundColor: status.background }}>{issue.source}</span>{issue.employee_id}</span></td>
+                      <td className="px-5 py-4 whitespace-nowrap">{issueDateFormatter.format(new Date(issue.created_at))}</td>
+                      <td className="px-5 py-4">{issue.priority ? <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${priorityClasses[issue.priority]}`}>{issue.priority}</span> : <span className="text-slate-400">-</span>}</td>
+                      <td className="px-5 py-4 whitespace-nowrap">{dueDateLabel(issue.due_date)}</td>
+                      <td className="px-5 py-4"><span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-medium" style={{ color: status.color, backgroundColor: status.background, borderColor: `${status.color}40` }}><span aria-hidden="true" className="h-1 w-1 rounded-full bg-current" />{issue.status}</span></td>
                     </tr>
                   );
                 })}
-                {rows.length === 0 && <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-500">Belum ada issue dengan status {selectedStatus}.</td></tr>}
+                {rows.length === 0 && <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500">Tidak ada issue yang sesuai dengan filter.</td></tr>}
               </tbody>
             </table>
           </div>
-          <p role="status" className="sr-only">{rows.length} issue ditampilkan{selectedStatus ? ` dengan status ${selectedStatus}` : ''}.</p>
+          <p role="status" className="border-t border-[#B4CCFF] bg-white px-4 py-3 text-[10px] text-[#7186AD]">Menampilkan {rows.length} dari {issues.length} issue.</p>
         </section>
       </section>
       <dialog ref={dialogRef} aria-labelledby="issue-dialog-title"
@@ -117,6 +147,8 @@ export default function IssueBoardPage() {
               <div className="py-4"><dt className="mb-1 text-[9px] uppercase text-slate-400">Deskripsi</dt><dd className="font-semibold leading-relaxed">{selectedIssue.description}</dd></div>
               <div className="py-4"><dt className="mb-1 text-[9px] uppercase text-slate-400">PIC</dt><dd className="flex items-center gap-2 font-semibold"><span aria-hidden="true" className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-500 text-[9px] text-white">E</span>{selectedIssue.employee_id}</dd></div>
               <div className="py-4"><dt className="mb-1 text-[9px] uppercase text-slate-400">Task</dt><dd className="font-semibold leading-relaxed">{selectedIssue.task}</dd></div>
+              <div className="py-4"><dt className="mb-1 text-[9px] uppercase text-slate-400">Priority</dt><dd className="font-semibold">{selectedIssue.priority || '-'}</dd></div>
+              <div className="py-4"><dt className="mb-1 text-[9px] uppercase text-slate-400">Due Date</dt><dd className="font-semibold">{dueDateLabel(selectedIssue.due_date)}</dd></div>
               <div className="py-4"><dt className="mb-2 text-[9px] uppercase text-slate-400">Status</dt><dd><span className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-medium" style={{ color: selectedStyle?.color, borderColor: selectedStyle?.color }}><span aria-hidden="true" className="h-1 w-1 rounded-full bg-current" />{selectedIssue.status}</span></dd></div>
             </dl>
             <button type="button" onClick={() => dialogRef.current?.close()} className="mt-5 w-full cursor-pointer rounded-md bg-[#0752DF] py-2.5 text-xs font-semibold text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">Tutup</button>

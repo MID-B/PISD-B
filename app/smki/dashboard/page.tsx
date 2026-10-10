@@ -84,6 +84,7 @@ type ActivityLog = {
   department: string;
   departmentLabel: string;
   role: string;
+  location: string;
   description: string;
   createdAt: string;
 };
@@ -353,7 +354,7 @@ export default function SmkiPage() {
         for (let offset = 0; ; offset += pageSize) {
           // Read all described activities, without filtering by login identity or role.
           const { data, error } = await supabase.from('b1_activity')
-            .select('id, name, email, department_name, position, description, date, time, created_at')
+            .select('id, name, email, department_name, position, location, description, date, time, created_at')
             .not('description', 'is', null)
             .neq('description', '')
             .order('created_at', { ascending: false })
@@ -374,6 +375,7 @@ export default function SmkiPage() {
               department: row.department_name || '-',
               departmentLabel: row.department_name || '-',
               role: row.position || '-',
+              location: row.location?.trim() || '-',
               description: row.description.trim(),
               createdAt: createdAt && Number.isFinite(Date.parse(createdAt)) ? createdAt : '',
             });
@@ -802,13 +804,25 @@ export default function SmkiPage() {
           {/* AREA KONTEN (FILTER + TABEL) */}
           {activeTab === "log-activity" ? (
             <div style={{ flex: 1, minHeight: 0, overflow: "auto", background: "#f1f3fc" }}>
-              <div style={{ minWidth: "760px" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1.15fr 1.25fr 1fr 0.7fr 1fr 0.9fr", alignItems: "center", minHeight: "34px", padding: "0 18px", background: "#f8f9ff", color: "#506487", fontSize: "11px", fontWeight: 800, letterSpacing: "0.2px", borderBottom: "1px solid #e6eaf3", boxSizing: "border-box" }}>
-                  <div>EMPLOYEE&apos;S NAME</div>
-                  <div>EMAIL</div>
-                  <div>DEPARTMENT</div>
-                  <div>ROLE</div>
-                  <div>DESCRIPTION</div>
+              <table aria-label="Log Activity SMKI" className="w-full min-w-[1200px] table-fixed border-collapse text-left [&_th]:px-4 [&_th]:py-3 [&_th]:align-top [&_td]:px-4 [&_td]:py-4 [&_td]:align-top [&_td]:[overflow-wrap:anywhere]">
+                <colgroup>
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "18%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "17%" }} />
+                  <col style={{ width: "10%" }} />
+                </colgroup>
+                <thead className="sticky top-0 z-10 bg-[#f8f9ff] text-[11px] font-extrabold tracking-[0.2px] text-[#506487]">
+                <tr className="border-b border-[#e6eaf3]">
+                  <th scope="col">EMPLOYEE&apos;S NAME</th>
+                  <th scope="col">EMAIL</th>
+                  <th scope="col">DEPARTMENT</th>
+                  <th scope="col">ROLE</th>
+                  <th scope="col">LOCATION</th>
+                  <th scope="col">DESCRIPTION</th>
+                  <th scope="col" aria-sort={activitySortAscending ? "ascending" : "descending"}>
                   <button
                     type="button"
                     aria-label={`Sort by date and time ${activitySortAscending ? "descending" : "ascending"}`}
@@ -820,42 +834,49 @@ export default function SmkiPage() {
                       <path d="M5 2v11m0 0L2.5 10.5M5 13l2.5-2.5M11 14V3m0 0L8.5 5.5M11 3l2.5 2.5" />
                     </svg>
                   </button>
-                </div>
+                  </th>
+                </tr>
+                </thead>
+                <tbody className="bg-white text-xs leading-relaxed text-[#111827]">
 
                 {activityLoading ? (
-                  <div role="status" className="bg-white p-6 text-xs text-slate-500">Memuat Log Activity...</div>
+                  <tr><td colSpan={7}><div role="status" className="text-slate-500">Memuat Log Activity...</div></td></tr>
                 ) : activityError ? (
-                  <div role="alert" className="bg-white p-6 text-xs text-red-600">
+                  <tr><td colSpan={7}><div role="alert" className="text-red-600">
                     <p>{activityError}</p>
                     <button type="button" onClick={() => setActivityReload((value) => value + 1)} className="mt-2 cursor-pointer text-blue-600">Coba lagi</button>
-                  </div>
+                  </div></td></tr>
                 ) : filteredActivityLogs.length > 0 ? (
                   filteredActivityLogs.map((activity) => {
                     const timestamp = new Date(activity.createdAt);
 
                     return (
-                      <div key={activity.id} style={{ display: "grid", gridTemplateColumns: "1.15fr 1.25fr 1fr 0.7fr 1fr 0.9fr", alignItems: "center", minHeight: "48px", padding: "0 18px", background: "#ffffff", color: "#111827", fontSize: "10px", fontWeight: 650, borderBottom: "1px solid #e9edf5", boxSizing: "border-box" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "5px", minWidth: 0 }}>
+                      <tr key={activity.id} className="border-b border-[#e9edf5] hover:bg-slate-50">
+                        <td className="font-semibold"><div style={{ display: "flex", alignItems: "flex-start", gap: "8px", minWidth: 0 }}>
+                          <span className="mt-0.5 shrink-0">
                           <ActivityUserIcon />
-                          <span>{activity.name}</span>
-                        </div>
-                        <div style={{ overflowWrap: "anywhere" }}>{activity.email}</div>
-                        <div>{activity.departmentLabel}</div>
-                        <div>{activity.role}</div>
-                        <div style={{ paddingRight: "8px" }}>{activity.description}</div>
-                        <div style={{ display: "flex", flexDirection: "column", whiteSpace: "nowrap", lineHeight: 1.25 }}>
+                          </span>
+                          <span className="min-w-0">{activity.name}</span>
+                        </div></td>
+                        <td>{activity.email}</td>
+                        <td>{activity.departmentLabel}</td>
+                        <td>{activity.role}</td>
+                        <td>{activity.location}</td>
+                        <td className="whitespace-pre-line">{activity.description}</td>
+                        <td><div style={{ display: "flex", flexDirection: "column", whiteSpace: "nowrap" }}>
                           <span>{activity.createdAt ? timestamp.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Jakarta" }) : "-"}</span>
                           <span>{activity.createdAt ? timestamp.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Jakarta" }) : "-"}</span>
-                        </div>
-                      </div>
+                        </div></td>
+                      </tr>
                     );
                   })
                 ) : (
-                  <div style={{ padding: "24px 18px", background: "#ffffff", color: "#64748b", fontSize: "12px" }}>
+                  <tr><td colSpan={7} className="text-slate-500">
                     Tidak ada aktivitas dengan deskripsi untuk departemen ini.
-                  </div>
+                  </td></tr>
                 )}
-              </div>
+                </tbody>
+              </table>
             </div>
           ) : (
           <div style={{ flex: 1, padding: "20px 24px", overflowY: "auto", boxSizing: "border-box" }}>
