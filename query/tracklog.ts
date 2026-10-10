@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabaseClient";
 
 const LOGIN_LOG_SESSION_KEY = "b3_log_login_id";
@@ -14,7 +15,10 @@ function getJakartaDateTime() {
     second: "2-digit",
     hourCycle: "h23",
   }).formatToParts(new Date());
-  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+
+  const values = Object.fromEntries(
+    parts.map(({ type, value }) => [type, value])
+  );
 
   return {
     tanggal: `${values.year}-${values.month}-${values.day}`,
@@ -29,15 +33,16 @@ export type LoginLogRecord = {
   email: string | null;
   position: string | null;
   departement: string | null;
-  tanggal: string;
+  tanggal_login: string;
   waktu_login: string | null;
+  tanggal_logout: string | null;
   waktu_logout: string | null;
 };
 
 export async function fetchLoginLogs(
   date?: string
 ): Promise<LoginLogRecord[]> {
-  const query = supabase
+  let query = supabase
     .from("b3_log_login")
     .select(`
       id,
@@ -46,17 +51,24 @@ export async function fetchLoginLogs(
       email,
       "position",
       departement,
-      tanggal,
+      tanggal_login,
       waktu_login,
+      tanggal_logout,
       waktu_logout
     `);
-  const filteredQuery = date ? query.eq("tanggal", date) : query;
-  const { data, error } = await filteredQuery
-    .order("tanggal", { ascending: false })
+
+  if (date) {
+    query = query.eq("tanggal_login", date);
+  }
+
+  const { data, error } = await query
+    .order("tanggal_login", { ascending: false })
     .order("waktu_login", { ascending: false });
 
   if (error) {
-    throw new Error(`Gagal mengambil log login: ${error.message}`);
+    throw new Error(
+      `Gagal mengambil log login: ${error.message}`
+    );
   }
 
   return (data ?? []) as LoginLogRecord[];
@@ -69,30 +81,43 @@ export async function recordLogin(): Promise<void> {
   } = await supabase.auth.getUser();
 
   if (userError || !user?.email) {
-    throw new Error(`Tidak dapat membaca pengguna yang login: ${userError?.message ?? "email pengguna tidak tersedia"}`);
+    throw new Error(
+      `Tidak dapat membaca pengguna yang login: ${
+        userError?.message ?? "email pengguna tidak tersedia"
+      }`
+    );
   }
 
   const { data: register, error: registerError } = await supabase
     .from("b2_register")
     .select(`
-        id,
-        full_name,
-        email,
-        position_id,
-        departement_id
-      `)
+      id,
+      full_name,
+      email,
+      position_id,
+      departement_id
+    `)
     .ilike("email", user.email)
     .single();
 
   if (registerError || !register) {
-    throw new Error(`Gagal membaca profil b2_register: ${registerError?.message ?? "profil tidak ditemukan"}`);
+    throw new Error(
+      `Gagal membaca profil b2_register: ${
+        registerError?.message ?? "profil tidak ditemukan"
+      }`
+    );
   }
 
   if (!register.position_id) {
-    throw new Error("Profil pengguna belum memiliki position_id di b2_register.");
+    throw new Error(
+      "Profil pengguna belum memiliki position_id di b2_register."
+    );
   }
+
   if (!register.departement_id) {
-    throw new Error("Profil pengguna belum memiliki departement_id di b2_register.");
+    throw new Error(
+      "Profil pengguna belum memiliki departement_id di b2_register."
+    );
   }
 
   const { data: positionData, error: positionError } = await supabase
@@ -102,7 +127,12 @@ export async function recordLogin(): Promise<void> {
     .maybeSingle();
 
   if (positionError || !positionData?.title) {
-    throw new Error(`Gagal membaca posisi dari d3_positions: ${positionError?.message ?? "posisi tidak ditemukan atau tidak diizinkan oleh RLS/Data API"}`);
+    throw new Error(
+      `Gagal membaca posisi dari d3_positions: ${
+        positionError?.message ??
+        "posisi tidak ditemukan atau tidak diizinkan oleh RLS/Data API"
+      }`
+    );
   }
 
   const { data: departmentData, error: departmentError } = await supabase
@@ -112,10 +142,16 @@ export async function recordLogin(): Promise<void> {
     .maybeSingle();
 
   if (departmentError || !departmentData?.name) {
-    throw new Error(`Gagal membaca departemen dari d3_departments: ${departmentError?.message ?? "departemen tidak ditemukan atau tidak diizinkan oleh RLS/Data API"}`);
+    throw new Error(
+      `Gagal membaca departemen dari d3_departments: ${
+        departmentError?.message ??
+        "departemen tidak ditemukan atau tidak diizinkan oleh RLS/Data API"
+      }`
+    );
   }
 
   const loginTime = getJakartaDateTime();
+
   const { data: log, error: logError } = await supabase
     .from("b3_log_login")
     .insert({
@@ -124,18 +160,25 @@ export async function recordLogin(): Promise<void> {
       email: register.email,
       position: positionData.title,
       departement: departmentData.name,
-      tanggal: loginTime.tanggal,
+      tanggal_login: loginTime.tanggal,
       waktu_login: loginTime.waktu,
     })
     .select("id")
     .single();
 
   if (logError || !log) {
-    throw new Error(`Gagal menyimpan riwayat login: ${logError?.message ?? "ID log tidak dikembalikan"}`);
+    throw new Error(
+      `Gagal menyimpan riwayat login: ${
+        logError?.message ?? "ID log tidak dikembalikan"
+      }`
+    );
   }
 
   if (typeof window !== "undefined") {
-    window.sessionStorage.setItem(LOGIN_LOG_SESSION_KEY, log.id);
+    window.sessionStorage.setItem(
+      LOGIN_LOG_SESSION_KEY,
+      log.id
+    );
   }
 }
 
@@ -161,11 +204,13 @@ export async function recordLogout(): Promise<void> {
       return;
     }
 
-    const { waktu } = getJakartaDateTime();
+    const logoutTime = getJakartaDateTime();
+
     const { error } = await supabase
       .from("b3_log_login")
       .update({
-        waktu_logout: waktu,
+        tanggal_logout: logoutTime.tanggal,
+        waktu_logout: logoutTime.waktu,
       })
       .eq("id", loginLogId)
       .eq("email", user.email)

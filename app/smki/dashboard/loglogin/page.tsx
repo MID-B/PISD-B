@@ -85,6 +85,31 @@ function getCalendarDays(month: Date) {
   });
 }
 
+function formatLogDate(date: string | null) {
+  if (!date) return "";
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : date;
+}
+
+function formatLogTime(time: string | null) {
+  if (!time) return "";
+  const [hour, minute] = time.split(":");
+  return hour && minute ? `${hour}.${minute}` : time;
+}
+
+function LoginDateTime({ date, time }: { date: string | null; time: string | null }) {
+  if (!date && !time) {
+    return <span style={{ display: "block", textAlign: "center" }}>-</span>;
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "3px", lineHeight: 1.35, textAlign: "center" }}>
+      <span>{formatLogDate(date)}</span>
+      <span>{formatLogTime(time)}</span>
+    </div>
+  );
+}
+
 function CompanyLogo() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "12px", paddingBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
@@ -467,14 +492,13 @@ export default function LogLoginPage() {
           </div>
           <div style={{ overflow: "auto", border: "1px solid #e2e8f0", borderRadius: "6px", background: "#ffffff" }}>
             <div style={{ minWidth: "920px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.4fr 1.2fr 1.2fr 1fr 0.8fr 0.8fr", alignItems: "center", padding: "10px 16px", background: "#f8fafc", color: "#64748b", fontSize: "11px", fontWeight: 800, letterSpacing: "0.5px", borderBottom: "1px solid #e2e8f0" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.4fr 1.2fr 1.2fr 1fr 1fr", alignItems: "center", padding: "10px 16px", background: "#f8fafc", color: "#64748b", fontSize: "11px", fontWeight: 800, letterSpacing: "0.5px", borderBottom: "1px solid #e2e8f0" }}>
                 <div>EMPLOYEE NAME</div>
                 <div>E-MAIL</div>
                 <div>POSITION</div>
                 <div>DEPARTMENT</div>
-                <div>DATE</div>
-                <div>LOGIN</div>
-                <div>LOGOUT</div>
+                <div style={{ textAlign: "center" }}>LOGIN</div>
+                <div style={{ textAlign: "center" }}>LOGOUT</div>
               </div>
               {isLogsLoading ? (
                 <div style={{ padding: "24px 16px", color: "#64748b", fontSize: "12px" }}>Loading login records...</div>
@@ -482,7 +506,7 @@ export default function LogLoginPage() {
                 <div role="alert" style={{ padding: "24px 16px", color: "#dc2626", fontSize: "12px" }}>{logsError}</div>
               ) : loginLogs.length ? (
                 loginLogs.map((log) => (
-                  <div key={log.id} style={{ display: "grid", gridTemplateColumns: "1.2fr 1.4fr 1.2fr 1.2fr 1fr 0.8fr 0.8fr", alignItems: "center", minHeight: "48px", padding: "8px 16px", color: "#1e293b", fontSize: "12px", borderBottom: "1px solid #e9edf5", boxSizing: "border-box" }}>
+                  <div key={log.id} style={{ display: "grid", gridTemplateColumns: "1.2fr 1.4fr 1.2fr 1.2fr 1fr 1fr", alignItems: "center", minHeight: "60px", padding: "8px 16px", color: "#1e293b", fontSize: "12px", borderBottom: "1px solid #e9edf5", boxSizing: "border-box" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 700, minWidth: 0 }}>
                       <span style={{ width: "26px", height: "26px", borderRadius: "50%", background: "#cbd5e1", color: "#334155", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, flexShrink: 0 }}>
                         {log.nama?.trim().charAt(0).toUpperCase() || "-"}
@@ -492,9 +516,8 @@ export default function LogLoginPage() {
                     <div style={{ overflowWrap: "anywhere", color: "#64748b" }}>{log.email || "-"}</div>
                     <div style={{ fontWeight: 600, color: "#334155" }}>{log.position || "-"}</div>
                     <div style={{ fontWeight: 600, color: "#334155" }}>{log.departement || "-"}</div>
-                    <div>{new Date(`${log.tanggal}T00:00:00`).toLocaleDateString()}</div>
-                    <div>{log.waktu_login || "-"}</div>
-                    <div>{log.waktu_logout || "-"}</div>
+                    <LoginDateTime date={log.tanggal_login} time={log.waktu_login} />
+                    <LoginDateTime date={log.tanggal_logout} time={log.waktu_logout} />
                   </div>
                 ))
               ) : (
