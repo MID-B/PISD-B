@@ -302,7 +302,7 @@ export default function LogLoginPage() {
                   <AccountIcon />
                   <span>Account Maintains</span>
                 </button>
-                <button type="button" onClick={() => router.push("/smki/dashboard")} style={submenuButtonStyle(false)}>
+                <button type="button" onClick={() => router.push("/smki/dashboard?tab=log-activity")} style={submenuButtonStyle(false)}>
                   <ActivityIcon />
                   <span>Log Activity</span>
                 </button>

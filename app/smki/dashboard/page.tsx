@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getLoginDestination } from "@/lib/loginDestination";
 import { ACTIVITY_ACTIONS, IT_DEPARTMENT_ID, type ActivityAction } from '@/lib/activity';
@@ -212,8 +212,9 @@ function CompanyLogo() {
 }
 
 /* SMKI PAGE MAIN COMPONENT */
-export default function SmkiPage() {
+function SmkiDashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string>("All");
@@ -230,7 +231,7 @@ export default function SmkiPage() {
   const [activityAction, setActivityAction] = useState<ActivityAction | ''>('');
   // State untuk Dropdown Sidebar SMKI & Navigasi Tab
   const [isSmkiOpen, setIsSmkiOpen] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<string>("account-maintains");
+  const activeTab = searchParams.get('tab') === 'log-activity' ? 'log-activity' : 'account-maintains';
   const [currentUserFullName, setCurrentUserFullName] = useState<string>("Loading...");
 
   // State untuk Modal Edit
@@ -641,7 +642,7 @@ export default function SmkiPage() {
                 
                 {/* Submenu 1: Account Maintains */}
                 <button
-                  onClick={() => setActiveTab("account-maintains")}
+                  onClick={() => router.push('/smki/dashboard')}
                   style={{
                     width: "100%",
                     padding: "10px 14px",
@@ -667,7 +668,7 @@ export default function SmkiPage() {
 
                 {/* Submenu 2: Log Activity */}
                 <button
-                  onClick={() => setActiveTab("log-activity")}
+                  onClick={() => router.push('/smki/dashboard?tab=log-activity')}
                   style={{
                     width: "100%",
                     padding: "10px 14px",
@@ -1174,5 +1175,13 @@ export default function SmkiPage() {
       )}
 
     </main>
+  );
+}
+
+export default function SmkiPage() {
+  return (
+    <Suspense fallback={<main className="flex h-screen items-center justify-center bg-[#07111f] text-white">Loading Dashboard IT...</main>}>
+      <SmkiDashboard />
+    </Suspense>
   );
 }
