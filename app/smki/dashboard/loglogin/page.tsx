@@ -139,12 +139,28 @@ export default function LogLoginPage() {
   const [currentUserFullName, setCurrentUserFullName] = useState("");
   const [isSmkiOpen, setIsSmkiOpen] = useState(true);
   const [selectedDate, setSelectedDate] = useState("");
+  const [nameSearch, setNameSearch] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const datePickerRef = useRef<HTMLDivElement>(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [loginLogs, setLoginLogs] = useState<LoginLogRecord[]>([]);
   const [isLogsLoading, setIsLogsLoading] = useState(true);
   const [logsError, setLogsError] = useState("");
+  const departments = [...new Set(loginLogs.map((log) => log.departement?.trim()).filter((department): department is string => Boolean(department)))].sort((a, b) => a.localeCompare(b));
+  const filteredLoginLogs = loginLogs.filter((log) => {
+    const matchesName = (log.nama || "").toLocaleLowerCase().includes(nameSearch.trim().toLocaleLowerCase());
+    const matchesDepartment = !selectedDepartment || log.departement === selectedDepartment;
+    return matchesName && matchesDepartment;
+  });
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredLoginLogs.length / pageSize));
+  const pageLoginLogs = filteredLoginLogs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [nameSearch, selectedDepartment, selectedDate]);
 
   useEffect(() => {
     if (!isDatePickerOpen) return;
@@ -346,7 +362,16 @@ export default function LogLoginPage() {
         </header>
 
         <section style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "20px 24px", background: "#f1f3fc", boxSizing: "border-box" }}>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "14px", padding: "8px", border: "1px solid #e7eaf2", borderRadius: "10px", background: "#ffffff", boxShadow: "0 2px 8px rgba(15, 23, 42, 0.03)" }}>
+            <label style={{ flex: "1 1 220px", minWidth: "160px", height: "38px", display: "flex", alignItems: "center", gap: "8px", padding: "0 10px", border: "1px solid #e2e8f0", borderRadius: "8px", background: "#f8fafc", color: "#94a3b8", boxSizing: "border-box" }}>
+              <svg aria-hidden="true" viewBox="0 0 24 24" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2, flexShrink: 0 }}><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
+              <input aria-label="Search by employee name" value={nameSearch} onChange={(event) => setNameSearch(event.target.value)} placeholder="Search by Employee’s Name" style={{ width: "100%", border: 0, outline: 0, background: "transparent", color: "#0f172a", fontSize: "12px" }} />
+            </label>
+            <select aria-label="Filter by department" value={selectedDepartment} onChange={(event) => setSelectedDepartment(event.target.value)} style={{ flex: "0 1 220px", width: "220px", minWidth: "190px", height: "38px", padding: "0 10px", border: "1px solid #e2e8f0", borderRadius: "8px", background: "#ffffff", color: "#334155", fontSize: "12px", cursor: "pointer" }}>
+              <option value="">All Departments</option>
+              {!departments.some((department) => department.toLowerCase() === "commercial & customer success") && <option value="Commercial & Customer Success">Commercial &amp; Customer Success</option>}
+              {departments.map((department) => <option key={department} value={department}>{department}</option>)}
+            </select>
             <div ref={datePickerRef} style={{ position: "relative" }}>
               <button
                 type="button"
@@ -361,11 +386,11 @@ export default function LogLoginPage() {
                   setIsDatePickerOpen((open) => !open);
                 }}
                 style={{
-                  width: "170px",
-                  height: "36px",
-                  padding: "0 16px",
+                  width: "180px",
+                  height: "38px",
+                  padding: "0 10px",
                   border: "1px solid #cbd5e1",
-                  borderRadius: "24px",
+                  borderRadius: "8px",
                   background: "#ffffff",
                   color: "#64748b",
                   display: "flex",
@@ -382,7 +407,7 @@ export default function LogLoginPage() {
                   <span>Date</span>
                   {selectedDate && (
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {new Date(`${selectedDate}T00:00:00`).toLocaleDateString()}
+                      {selectedDate.split("-").reverse().join("-")}
                     </span>
                   )}
                 </span>
@@ -505,8 +530,8 @@ export default function LogLoginPage() {
                 <div style={{ padding: "24px 16px", color: "#64748b", fontSize: "12px" }}>Loading login records...</div>
               ) : logsError ? (
                 <div role="alert" style={{ padding: "24px 16px", color: "#dc2626", fontSize: "12px" }}>{logsError}</div>
-              ) : loginLogs.length ? (
-                loginLogs.map((log) => (
+              ) : pageLoginLogs.length ? (
+                pageLoginLogs.map((log) => (
                   <div key={log.id} style={{ display: "grid", gridTemplateColumns: "1.2fr 1.4fr 1.2fr 1.2fr 1fr 1fr", alignItems: "center", minHeight: "60px", padding: "8px 16px", color: "#1e293b", fontSize: "12px", borderBottom: "1px solid #e9edf5", boxSizing: "border-box" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 700, minWidth: 0 }}>
                       <span style={{ width: "26px", height: "26px", borderRadius: "50%", background: "#cbd5e1", color: "#334155", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, flexShrink: 0 }}>
@@ -523,11 +548,18 @@ export default function LogLoginPage() {
                 ))
               ) : (
                 <div style={{ padding: "24px 16px", color: "#94a3b8", fontSize: "12px" }}>
-                  {selectedDate ? "No login records for this date." : "No login records yet."}
+                  {loginLogs.length ? "No login records match these filters." : selectedDate ? "No login records for this date." : "No login records yet."}
                 </div>
               )}
             </div>
           </div>
+          {!isLogsLoading && !logsError && filteredLoginLogs.length > 0 && (
+            <nav aria-label="Login log pagination" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "14px", padding: "16px 4px", color: "#334155", fontSize: "13px" }}>
+              <button type="button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} style={{ minWidth: "96px", height: "40px", padding: "0 14px", border: "1px solid #dbe2ea", borderRadius: "6px", background: "#ffffff", color: currentPage === 1 ? "#a8b1bf" : "#334155", cursor: currentPage === 1 ? "default" : "pointer" }}>Sebelumnya</button>
+              <span aria-live="polite">Halaman {currentPage} dari {totalPages}</span>
+              <button type="button" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} style={{ minWidth: "96px", height: "40px", padding: "0 14px", border: "1px solid #cbd5e1", borderRadius: "6px", background: "#ffffff", color: currentPage >= totalPages ? "#a8b1bf" : "#334155", cursor: currentPage >= totalPages ? "default" : "pointer" }}>Berikutnya</button>
+            </nav>
+          )}
         </section>
       </section>
     </main>
