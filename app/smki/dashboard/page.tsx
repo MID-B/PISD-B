@@ -4,8 +4,8 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getLoginDestination } from "@/lib/loginDestination";
-
-// Imported from Andima-SMKI features/log-activity @ 02a29c7, including feature/maintenance.
+import { ACTIVITY_ACTIONS, IT_DEPARTMENT_ID, type ActivityAction } from '@/lib/activity';
+import { getActivities, getActivityById, matchesActivity, logoutWithActivity, trackActivity, type ActivityLog } from '@/query/activity';
 
 /* MASTER DATA OPTIONS */
 const DEPARTMENT_OPTIONS = [
@@ -77,17 +77,6 @@ type Employee = {
   isActive: boolean;
 };
 
-type ActivityLog = {
-  id: string;
-  name: string;
-  email: string;
-  department: string;
-  departmentLabel: string;
-  role: string;
-  location: string;
-  description: string;
-  createdAt: string;
-};
 
 
 
@@ -234,6 +223,11 @@ export default function SmkiPage() {
   const [activityError, setActivityError] = useState('');
   const [activityReload, setActivityReload] = useState(0);
   const [activitySortAscending, setActivitySortAscending] = useState<boolean>(false);
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityPageSize, setActivityPageSize] = useState(10);
+  const [activityTotal, setActivityTotal] = useState(0);
+  const [activitySearch, setActivitySearch] = useState('');
+  const [activityAction, setActivityAction] = useState<ActivityAction | ''>('');
   // State untuk Dropdown Sidebar SMKI & Navigasi Tab
   const [isSmkiOpen, setIsSmkiOpen] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>("account-maintains");
@@ -302,7 +296,7 @@ export default function SmkiPage() {
     }
   };
 
-  /* 2. CHECK THE USER POSITION BEFORE OPENING SMKI */
+  /* 2. CHECK THE IT DEPARTMENT BEFORE OPENING SMKI */
   useEffect(() => {
     const checkITUserAndFetchData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -314,7 +308,7 @@ export default function SmkiPage() {
 
       const { data: userData, error } = await supabase
         .from("b2_register")
-        .select("position_id, full_name, is_active")
+        .select("position_id, departement_id, full_name, is_active")
         .eq("id", session.user.id)
         .maybeSingle();
 
@@ -325,7 +319,7 @@ export default function SmkiPage() {
       }
 
       const destination = getLoginDestination(userData.position_id);
-      if (destination !== '/smki/dashboard') {
+      if (userData.departement_id !== IT_DEPARTMENT_ID) {
         router.replace(destination || '/login');
         return;
       }
@@ -342,60 +336,52 @@ export default function SmkiPage() {
   }, [router]);
 
   useEffect(() => {
-    if (activeTab !== 'log-activity') return;
-    const controller = new AbortController();
-    async function loadActivity() {
-      setActivityLoading(true);
-      setActivityError('');
-      setActivityLogs([]);
+    if (isLoading || activeTab !== 'log-activity') return;
+    let disposed = false;
+    let revision = 0;
+    const filters = {
+      page: activityPage, pageSize: activityPageSize, search: activitySearch,
+      action: activityAction, ascending: activitySortAscending,
+      departmentId: selectedDepartment === 'All' ? undefined : DEPARTMENT_UUID_MAP[selectedDepartment],
+    };
+    async function loadActivity(showLoading = true) {
+      const request = ++revision;
+      if (showLoading) { setActivityLoading(true); setActivityError(''); }
       try {
-        const logs: ActivityLog[] = [];
-        const pageSize = 500;
-        for (let offset = 0; ; offset += pageSize) {
-          // Read all described activities, without filtering by login identity or role.
-          const { data, error } = await supabase.from('b1_activity')
-            .select('id, name, email, department_name, position, location, description, date, time, created_at')
-            .not('description', 'is', null)
-            .neq('description', '')
-            .order('created_at', { ascending: false })
-            .order('id', { ascending: false })
-            .range(offset, offset + pageSize - 1)
-            .abortSignal(controller.signal);
-          if (controller.signal.aborted) return;
-          if (error) throw error;
-          const batch = data ?? [];
-          for (const row of batch) {
-            if (typeof row.description !== 'string' || !row.description.trim()) continue;
-            const eventTime = row.date && row.time ? `${row.date}T${row.time}+07:00` : '';
-            const createdAt = eventTime && Number.isFinite(Date.parse(eventTime)) ? eventTime : row.created_at;
-            logs.push({
-              id: String(row.id),
-              name: row.name || '-',
-              email: row.email || '-',
-              department: row.department_name || '-',
-              departmentLabel: row.department_name || '-',
-              role: row.position || '-',
-              location: row.location?.trim() || '-',
-              description: row.description.trim(),
-              createdAt: createdAt && Number.isFinite(Date.parse(createdAt)) ? createdAt : '',
-            });
-          }
-          if (batch.length < pageSize) break;
-        }
-        if (!controller.signal.aborted) setActivityLogs(logs);
+        const result = await getActivities(filters);
+        if (disposed || request !== revision) return;
+        const lastPage = Math.max(1, Math.ceil(result.total / activityPageSize));
+        if (activityPage > lastPage) { setActivityPage(lastPage); return; }
+        setActivityLogs(result.rows);
+        setActivityTotal(result.total);
+        setActivityError('');
       } catch (error) {
-        if (!controller.signal.aborted) {
-          const message = error && typeof error === 'object' && 'message' in error
-            ? String(error.message) : 'Koneksi database gagal.';
-          setActivityError(`Gagal membaca b1_activity: ${message}`);
+        if (!disposed && request === revision) {
+          setActivityError(`Gagal membaca b1_activity: ${error instanceof Error ? error.message : 'Koneksi database gagal.'}`);
         }
       } finally {
-        if (!controller.signal.aborted) setActivityLoading(false);
+        if (!disposed && request === revision) setActivityLoading(false);
       }
     }
+    const channel = supabase.channel('smki-log-activity')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'b1_activity' }, (payload) => {
+        void (async () => {
+          try {
+            const activity = await getActivityById(String(payload.new.id));
+            if (disposed || !activity || !matchesActivity(activity, filters)) return;
+            // Requery exact count and the page after resolving the inserted row's joins.
+            // Page 1 receives new rows at the top in the default descending order.
+            await loadActivity(false);
+          } catch { console.error('Gagal memperbarui Log Activity melalui Realtime.'); }
+        })();
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED' && !disposed) void loadActivity(false);
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.error('Koneksi Realtime Log Activity gagal.');
+      });
     void loadActivity();
-    return () => controller.abort();
-  }, [activeTab, activityReload]);
+    return () => { disposed = true; void supabase.removeChannel(channel); };
+  }, [isLoading, activeTab, activityReload, activityPage, activityPageSize, activitySearch, activityAction, activitySortAscending, selectedDepartment]);
 
   /* 3. LOGIKA AUTO-LOGOUT SAAT BERGANTI HARI */
   useEffect(() => {
@@ -414,7 +400,8 @@ export default function SmkiPage() {
 
       if (currentDate !== initialDate) {
         clearInterval(interval);
-        await supabase.auth.signOut();
+        const { error } = await logoutWithActivity('Sesi berakhir karena hari berganti.');
+        if (error) { console.error('Gagal logout saat hari berganti.'); return; }
         router.push("/login?reason=day_changed");
       }
     }, 5000); // Pengecekan setiap 5 detik
@@ -424,7 +411,8 @@ export default function SmkiPage() {
 
   // Handler Logout
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    const { error } = await logoutWithActivity('Keluar dari aplikasi.');
+    if (error) { console.error('Gagal logout.'); return; }
     router.push("/login");
   };
 
@@ -434,12 +422,7 @@ export default function SmkiPage() {
     return emp.department.toLowerCase() === selectedDepartment.toLowerCase();
   });
 
-  const filteredActivityLogs = activityLogs
-    .filter((activity) => selectedDepartment === "All" || activity.department === selectedDepartment)
-    .sort((first, second) => {
-      const timeDifference = (Date.parse(first.createdAt) || 0) - (Date.parse(second.createdAt) || 0);
-      return activitySortAscending ? timeDifference : -timeDifference;
-    });
+  const activityTotalPages = Math.max(1, Math.ceil(activityTotal / activityPageSize));
 
   // Buka Modal Konfirmasi Status
   const handleOpenStatusConfirm = (emp: Employee) => {
@@ -454,15 +437,18 @@ export default function SmkiPage() {
     const willBeActive = !statusConfirmEmployee.isActive;
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("b2_register")
         .update({ is_active: willBeActive })
-        .eq("email", statusConfirmEmployee.email);
+        .eq("email", statusConfirmEmployee.email)
+        .select('id');
 
       if (error) {
         alert("Gagal memperbarui status keaktifan di database: " + error.message);
         return;
       }
+      if (!data?.length) { console.error('Tidak ada akun yang diperbarui.'); return; }
+      trackActivity(willBeActive ? 'Activate' : 'Deactivate', `${willBeActive ? 'Mengaktifkan' : 'Menonaktifkan'} akun ${statusConfirmEmployee.name} (${statusConfirmEmployee.email}).`);
 
       setEmployees((prev) =>
         prev.map((emp) => {
@@ -586,6 +572,7 @@ export default function SmkiPage() {
         return;
       }
 
+      trackActivity('Update', `Mengubah data akun ${editForm.name.trim()} (${editForm.email.trim()}).`);
       await fetchEmployeesFromSupabase();
       setEditingEmployee(null);
     } catch (err) {
@@ -762,7 +749,7 @@ export default function SmkiPage() {
                     style={{ width: "174px", height: "28px", padding: "0 10px", border: 0, borderRadius: "9px", background: "#f1f1f1", color: "#475569", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "11px", fontWeight: 500, cursor: "pointer", boxSizing: "border-box" }}
                   >
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {selectedDepartment === "All" ? "Select Status" : selectedDepartment}
+                      {selectedDepartment === "All" ? "Semua departemen" : selectedDepartment}
                     </span>
                     <ChevronDownIcon isOpen={isFilterOpen} />
                   </button>
@@ -772,7 +759,7 @@ export default function SmkiPage() {
                         <button
                           key={department}
                           type="button"
-                          onClick={() => { setSelectedDepartment(department); setIsFilterOpen(false); }}
+                          onClick={() => { setSelectedDepartment(department); setActivityPage(1); setIsFilterOpen(false); }}
                           style={{ width: "100%", padding: "7px 10px", background: selectedDepartment === department ? "#f1f5f9" : "#ffffff", color: "#475569", border: 0, textAlign: "left", fontSize: "10px", fontWeight: 500, cursor: "pointer" }}
                         >
                           {department}
@@ -804,12 +791,25 @@ export default function SmkiPage() {
           {/* AREA KONTEN (FILTER + TABEL) */}
           {activeTab === "log-activity" ? (
             <div style={{ flex: 1, minHeight: 0, overflow: "auto", background: "#f1f3fc" }}>
+              <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
+                <label className="flex items-center gap-2">Show
+                  <select aria-label="Jumlah Log Activity per halaman" value={activityPageSize} onChange={(event) => { setActivityPageSize(Number(event.target.value)); setActivityPage(1); }} className="rounded border border-slate-300 bg-white px-2 py-1.5">
+                    {[10, 25, 50].map((size) => <option key={size} value={size}>{size}</option>)}
+                  </select>entries
+                </label>
+                <input type="search" aria-label="Cari Log Activity berdasarkan nama, email, action, atau deskripsi" placeholder="Search..." value={activitySearch} onChange={(event) => { setActivitySearch(event.target.value); setActivityPage(1); }} className="h-9 w-full max-w-72 rounded-lg border border-slate-300 bg-slate-100 px-3 focus-visible:outline-2 focus-visible:outline-blue-500" />
+                <select aria-label="Filter action Log Activity" value={activityAction} onChange={(event) => { setActivityAction(event.target.value as ActivityAction | ''); setActivityPage(1); }} className="h-9 rounded-lg border border-slate-300 bg-white px-3">
+                  <option value="">Semua action</option>
+                  {ACTIVITY_ACTIONS.map((action) => <option key={action} value={action}>{action}</option>)}
+                </select>
+              </div>
               <table aria-label="Log Activity SMKI" className="w-full min-w-[1200px] table-fixed border-collapse text-left [&_th]:px-4 [&_th]:py-3 [&_th]:align-top [&_td]:px-4 [&_td]:py-4 [&_td]:align-top [&_td]:[overflow-wrap:anywhere]">
                 <colgroup>
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "18%" }} />
-                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "12%" }} />
                   <col style={{ width: "16%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "10%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "17%" }} />
                   <col style={{ width: "10%" }} />
@@ -820,13 +820,14 @@ export default function SmkiPage() {
                   <th scope="col">EMAIL</th>
                   <th scope="col">DEPARTMENT</th>
                   <th scope="col">ROLE</th>
-                  <th scope="col">LOCATION</th>
+                  <th scope="col">IP ADDRESS</th>
+                  <th scope="col">USER AGENT</th>
                   <th scope="col">DESCRIPTION</th>
                   <th scope="col" aria-sort={activitySortAscending ? "ascending" : "descending"}>
                   <button
                     type="button"
                     aria-label={`Sort by date and time ${activitySortAscending ? "descending" : "ascending"}`}
-                    onClick={() => setActivitySortAscending((ascending) => !ascending)}
+                    onClick={() => { setActivitySortAscending((ascending) => !ascending); setActivityPage(1); }}
                     style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: "3px", padding: 0, border: 0, background: "transparent", color: "inherit", font: "inherit", letterSpacing: "inherit", cursor: "pointer", whiteSpace: "nowrap" }}
                   >
                     DATE TIME
@@ -840,14 +841,14 @@ export default function SmkiPage() {
                 <tbody className="bg-white text-xs leading-relaxed text-[#111827]">
 
                 {activityLoading ? (
-                  <tr><td colSpan={7}><div role="status" className="text-slate-500">Memuat Log Activity...</div></td></tr>
+                  <tr><td colSpan={8}><div role="status" className="text-slate-500">Memuat Log Activity...</div></td></tr>
                 ) : activityError ? (
-                  <tr><td colSpan={7}><div role="alert" className="text-red-600">
+                  <tr><td colSpan={8}><div role="alert" className="text-red-600">
                     <p>{activityError}</p>
                     <button type="button" onClick={() => setActivityReload((value) => value + 1)} className="mt-2 cursor-pointer text-blue-600">Coba lagi</button>
                   </div></td></tr>
-                ) : filteredActivityLogs.length > 0 ? (
-                  filteredActivityLogs.map((activity) => {
+                ) : activityLogs.length > 0 ? (
+                  activityLogs.map((activity) => {
                     const timestamp = new Date(activity.createdAt);
 
                     return (
@@ -859,9 +860,10 @@ export default function SmkiPage() {
                           <span className="min-w-0">{activity.name}</span>
                         </div></td>
                         <td>{activity.email}</td>
-                        <td>{activity.departmentLabel}</td>
+                        <td>{activity.department}</td>
                         <td>{activity.role}</td>
-                        <td>{activity.location}</td>
+                        <td>{activity.ipAddress}</td>
+                        <td>{activity.userAgent}</td>
                         <td className="whitespace-pre-line">{activity.description}</td>
                         <td><div style={{ display: "flex", flexDirection: "column", whiteSpace: "nowrap" }}>
                           <span>{activity.createdAt ? timestamp.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Jakarta" }) : "-"}</span>
@@ -871,12 +873,22 @@ export default function SmkiPage() {
                     );
                   })
                 ) : (
-                  <tr><td colSpan={7} className="text-slate-500">
-                    Tidak ada aktivitas dengan deskripsi untuk departemen ini.
+                  <tr><td colSpan={8} className="text-slate-500">
+                    Tidak ada aktivitas yang sesuai dengan pencarian dan filter.
                   </td></tr>
                 )}
                 </tbody>
               </table>
+              {!activityLoading && !activityError && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
+                  <p role="status">Menampilkan {activityTotal ? (activityPage - 1) * activityPageSize + 1 : 0}–{Math.min(activityPage * activityPageSize, activityTotal)} dari {activityTotal} aktivitas.</p>
+                  <nav aria-label="Pagination Log Activity" className="flex items-center gap-3">
+                    <button type="button" disabled={activityPage <= 1} onClick={() => setActivityPage((page) => page - 1)} className="cursor-pointer rounded border border-slate-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40">Sebelumnya</button>
+                    <span>Halaman {activityPage} dari {activityTotalPages}</span>
+                    <button type="button" disabled={activityPage >= activityTotalPages} onClick={() => setActivityPage((page) => page + 1)} className="cursor-pointer rounded border border-slate-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40">Berikutnya</button>
+                  </nav>
+                </div>
+              )}
             </div>
           ) : (
           <div style={{ flex: 1, padding: "20px 24px", overflowY: "auto", boxSizing: "border-box" }}>

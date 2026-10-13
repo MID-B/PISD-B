@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { fetchLoginLogs, recordLogout, type LoginLogRecord } from "@/query/tracklog";
+import { logoutWithActivity } from '@/query/activity';
 
 const IT_DEPARTMENT_UUID = "8113ab6f-d5cc-4c94-bbf6-e08047931fab";
 
@@ -228,7 +229,7 @@ export default function LogLoginPage() {
 
   const handleLogout = async () => {
     await recordLogout();
-    const { error } = await supabase.auth.signOut();
+    const { error } = await logoutWithActivity('Keluar dari aplikasi.');
 
     if (error) {
       alert("Gagal logout: " + error.message);

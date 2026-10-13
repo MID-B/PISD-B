@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
 import DashboardShell from '../dashboard-shell';
 import { issues, issueDateFormatter, type Issue, type IssueStatus, type IssuePriority } from './issue-data';
 
@@ -22,6 +22,7 @@ const dueDateLabel = (value: string | null) => value
   ? issueDateFormatter.format(new Date(`${value}T00:00:00+07:00`)) : '-';
 
 export default function IssueBoardPage() {
+  const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<IssueStatus | null>(null);
   const [selectedPriority, setSelectedPriority] = useState<IssuePriority | 'unset' | null>(null);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
@@ -32,8 +33,11 @@ export default function IssueBoardPage() {
     if (selectedIssue && !dialogRef.current?.open) dialogRef.current?.showModal();
   }, [selectedIssue]);
 
+  const searchQuery = search.trim().toLowerCase();
   const rows = issues.filter((issue) => (!selectedStatus || issue.status === selectedStatus)
-    && (!selectedPriority || (selectedPriority === 'unset' ? issue.priority === null : issue.priority === selectedPriority)));
+    && (!selectedPriority || (selectedPriority === 'unset' ? issue.priority === null : issue.priority === selectedPriority))
+    && (!searchQuery || [issue.ticket_code, issue.reporter_department, issue.title, issue.employee_id, issue.source, issue.priority, issue.status]
+      .some((value) => value?.toLowerCase().includes(searchQuery))));
   const activeFilterCount = Number(selectedStatus !== null) + Number(selectedPriority !== null);
 
   return (
@@ -51,10 +55,21 @@ export default function IssueBoardPage() {
         </div>
 
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-          <h2 id="issue-page-title" className="text-2xl font-bold uppercase leading-tight tracking-tight text-[#243F70]">ISSUE BOARD</h2>
-          <p className="mt-1 text-xs text-slate-500">Track and Trace all jobs posted at PT Andima Transportindo.</p>
-        </div>
+          <div className="w-full max-w-[460px]">
+            <h2 id="issue-page-title" className="text-2xl font-bold uppercase leading-tight tracking-tight text-[#243F70]">ISSUE BOARD</h2>
+            <p className="mt-1 text-xs text-slate-500">Track and Trace all jobs posted at PT Andima Transportindo.</p>
+            <div className="relative mt-3 w-full">
+              <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input
+                type="search"
+                aria-label="Cari issue berdasarkan ticket code, departemen, issue, PIC, source, priority, atau status"
+                placeholder="Search..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="h-9 w-full rounded-lg border border-slate-300 bg-slate-200/70 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              />
+            </div>
+          </div>
 
           <div className="flex flex-wrap items-center justify-end gap-3">
             <div className="flex items-center gap-3 text-[10px]">
@@ -119,7 +134,7 @@ export default function IssueBoardPage() {
                     </tr>
                   );
                 })}
-                {rows.length === 0 && <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500">Tidak ada issue yang sesuai dengan filter.</td></tr>}
+                {rows.length === 0 && <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500">Tidak ada issue yang sesuai dengan {searchQuery ? 'pencarian dan filter' : 'filter'}.</td></tr>}
               </tbody>
             </table>
           </div>

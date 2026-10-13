@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, FormEvent, ChangeEvent } from 'reac
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { trackActivity } from '@/query/activity';
 
 interface FieldErrors {
   fullName?: string;
@@ -260,6 +261,7 @@ export default function RegisterPage() {
         }
 
         // 4. Berhasil
+        if (authData.session) trackActivity('Register', 'Berhasil mendaftarkan akun.');
         setSuccessMessage(
           `Registration successful! Your ID is ${autoEmployeeId}. Redirecting to login page...`
         );

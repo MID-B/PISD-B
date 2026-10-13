@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { getLoginDestination } from '@/lib/loginDestination';
 import { recordLogin } from '@/query/tracklog';
+import { trackActivity } from '@/query/activity';
 
 
 function LoginContent() {
@@ -162,6 +163,7 @@ function LoginContent() {
       }
 
       setLoginAttempts(0);
+      trackActivity('Login', 'Berhasil login ke aplikasi.');
       setSuccessMessage(`Login berhasil! Selamat datang, ${profileData.full_name || 'User'}. Mengalihkan...`);
 
       window.setTimeout(() => {

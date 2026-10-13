@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Bell, Building2, ChartNoAxesCombined, ClipboardList } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { recordLogout } from '@/query/tracklog';
+import { logoutWithActivity } from '@/query/activity';
 
 type DashboardShellProps = {
   activePage: 'dashboard' | 'sales-performance' | 'issue-board';
@@ -41,7 +42,7 @@ export default function DashboardShell({ activePage, headerActions, children }: 
     setLogoutError('');
     try {
       await recordLogout();
-      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      const { error } = await logoutWithActivity('Keluar dari aplikasi.', 'local');
       if (error) throw error;
       window.location.replace('/login');
     } catch {

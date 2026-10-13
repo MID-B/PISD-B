@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { ArrowDown, ArrowUp, ArrowDownUp } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
 type Outstanding = {
@@ -8,6 +9,8 @@ type Outstanding = {
   outstanding_amount: number | null; due_date: string | null;
   overdue_by: number | null; status: string | null; source: string | null;
 };
+export type OutstandingSortColumn = 'customer' | 'job_number';
+export type OutstandingSort = { column: OutstandingSortColumn; direction: 'ascending' | 'descending' } | null;
 const rupiah = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 2 });
 const dateLabel = (value: string | null) => value ? new Date(value + 'T00:00:00+07:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' }) : '-';
 
@@ -52,16 +55,36 @@ export function useOutstandingPayments(limit?: number) {
   return { rows, total, tableLoading, tableError, retry: () => setReload((value) => value + 1) };
 }
 
-export function OutstandingPaymentsTable({ rows: visibleRows, tableLoading, tableError }: {
-  rows: Outstanding[]; tableLoading: boolean; tableError: string;
+export function OutstandingPaymentsTable({ rows: visibleRows, tableLoading, tableError, emptyMessage = 'Belum ada data outstanding.', sort = null, onSort }: {
+  rows: Outstanding[]; tableLoading: boolean; tableError: string; emptyMessage?: string;
+  sort?: OutstandingSort; onSort?: (column: OutstandingSortColumn) => void;
 }) {
   const rows = visibleRows;
   return (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px] text-left border-collapse">
-              <thead><tr className="bg-violet-50/70 border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400">{['Issue', 'Customer', 'Job Number', 'Amount', 'Due Date', 'Status/Source'].map((heading) => <th key={heading} scope="col" className="py-3 px-3 font-semibold">{heading}</th>)}</tr></thead>
+              <thead>
+                <tr className="bg-violet-50/70 border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400">
+                  {['Issue', 'Customer', 'Job Number', 'Amount', 'Due Date', 'Status/Source'].map((heading) => {
+                    const column = heading === 'Customer' ? 'customer' : heading === 'Job Number' ? 'job_number' : null;
+                    const sortable = column !== null && onSort !== undefined;
+                    const direction = sort?.column === column ? sort?.direction : undefined;
+                    const Icon = direction === 'ascending' ? ArrowUp : direction === 'descending' ? ArrowDown : ArrowDownUp;
+                    const nextOrder = direction === 'ascending' ? 'Z–A' : direction === 'descending' ? 'urutan awal' : 'A–Z';
+                    return (
+                      <th key={heading} scope="col" aria-sort={sortable ? direction ?? 'none' : undefined} className="py-3 px-3 font-semibold">
+                        {sortable ? (
+                          <button type="button" onClick={() => onSort(column)} aria-label={`${heading}: urutkan ${nextOrder}`} title={`Urutkan ${nextOrder}`} className={`flex cursor-pointer items-center gap-1.5 rounded uppercase tracking-wider hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-purple-500 ${direction ? 'text-slate-700' : ''}`}>
+                            {heading}<Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                          </button>
+                        ) : heading}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                {tableLoading ? <tr><td colSpan={6} className="p-4" role="status">Memuat outstanding...</td></tr> : tableError ? <tr><td colSpan={6} className="p-4 text-red-600" role="alert">{tableError}</td></tr> : rows.length === 0 ? <tr><td colSpan={6} className="p-4 text-slate-500">Belum ada data outstanding.</td></tr> : visibleRows.map((row) => (
+                {tableLoading ? <tr><td colSpan={6} className="p-4" role="status">Memuat outstanding...</td></tr> : tableError ? <tr><td colSpan={6} className="p-4 text-red-600" role="alert">{tableError}</td></tr> : rows.length === 0 ? <tr><td colSpan={6} className="p-4 text-slate-500" role="status">{emptyMessage}</td></tr> : visibleRows.map((row) => (
                   <tr key={row.outstanding_row_id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-4 px-3 font-medium">Outstanding Payment</td><td className="py-4 px-3">{row.customer || '-'}</td><td className="py-4 px-3 whitespace-nowrap">{row.job_number || '-'}</td>
                     <td className="py-4 px-3 whitespace-nowrap tabular-nums">{row.outstanding_amount == null ? '-' : rupiah.format(Number(row.outstanding_amount))}</td>
