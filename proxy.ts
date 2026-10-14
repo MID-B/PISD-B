@@ -1,12 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,9 +12,12 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet: Array<{ name: string; value: string; options: any }>) {
-          cookiesToSet.forEach(({ name, value, options }) => {
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value);
+          });
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
         },
@@ -30,31 +29,27 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // PERBAIKAN DI SINI: Cek apakah rute berawalan /dashboard ATAU /smki/dashboard
-  const isDashboardRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/smki/dashboard');
+  const isDashboardRoute = pathname === '/dashboard' || pathname.startsWith('/dashboard/')
+    || pathname === '/smki/dashboard' || pathname.startsWith('/smki/dashboard/');
 
   // Jika tidak ada user dan mencoba akses rute dashboard tersebut
   if ((error || !user) && isDashboardRoute) {
     const redirectUrl = new URL('/login', request.url);
     const res = NextResponse.redirect(redirectUrl);
-    
-    // Hapus kuki sesi jika ada yang tertinggal
-    request.cookies.getAll().forEach((cookie) => {
-      if (cookie.name.startsWith('sb-')) {
-        res.cookies.delete(cookie.name);
-      }
-    });
+
+    // Preserve session updates/expiry cookies produced by the Supabase client.
+    response.cookies.getAll().forEach((cookie) => res.cookies.set(cookie));
+    res.headers.set('Cache-Control', 'private, no-store');
     return res;
   }
 
+  response.headers.set('Cache-Control', 'private, no-store');
   return response;
 }
 
 export const config = {
   matcher: [
-    '/dashboard/:path*', 
-    '/dashboard', 
-    '/smki/dashboard/:path*', 
-    '/smki/dashboard'
+    '/dashboard/:path*',
+    '/smki/dashboard/:path*',
   ],
 };

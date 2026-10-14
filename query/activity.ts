@@ -22,7 +22,26 @@ export type ActivityLog = {
 export type ActivityFilters = {
   page?: number; pageSize?: number; search?: string; action?: ActivityAction | '';
   departmentId?: string; ascending?: boolean;
+  startDate?: string; endDate?: string;
 };
+
+export function getActivityDateRange(startDate = '', endDate = '') {
+  function midnight(value: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error('Tanggal tidak valid.');
+    const time = Date.parse(`${value}T00:00:00+07:00`);
+    if (!Number.isFinite(time) || new Date(time + 7 * 60 * 60 * 1000).toISOString().slice(0, 10) !== value) {
+      throw new Error('Tanggal tidak valid.');
+    }
+    return time;
+  }
+  const start = startDate ? midnight(startDate) : undefined;
+  const end = endDate ? midnight(endDate) : undefined;
+  if (start !== undefined && end !== undefined && start > end) throw new Error('Tanggal akhir harus sama atau setelah tanggal mulai.');
+  return {
+    start: start === undefined ? undefined : new Date(start).toISOString(),
+    endExclusive: end === undefined ? undefined : new Date(end + 24 * 60 * 60 * 1000).toISOString(),
+  };
+}
 const activitySelect = `id, action, description, ip_address, user_agent, created_at,
   profile:b2_register!register_id(full_name, email, departement_id,
     position:d3_positions!position_id(title), department:d3_departments!departement_id(name))`;
@@ -96,17 +115,24 @@ export async function logoutWithActivity(description: string, scope: 'global' | 
 
 export function matchesActivity(activity: ActivityLog, filters: ActivityFilters): boolean {
   const search = sanitizeActivitySearch(filters.search ?? '').toLowerCase();
+  const range = getActivityDateRange(filters.startDate, filters.endDate);
+  const time = Date.parse(activity.createdAt);
   return (!filters.action || activity.action === filters.action)
     && (!filters.departmentId || activity.departmentId === filters.departmentId)
+    && (!range.start || time >= Date.parse(range.start))
+    && (!range.endExclusive || time < Date.parse(range.endExclusive))
     && (!search || [activity.name, activity.email, activity.description, activity.action]
       .some((value) => value.toLowerCase().includes(search)));
 }
 
-export async function getActivities({ page = 1, pageSize = 10, search = '', action = '', departmentId, ascending = false }: ActivityFilters = {}) {
+export async function getActivities({ page = 1, pageSize = 10, search = '', action = '', departmentId, ascending = false, startDate = '', endDate = '' }: ActivityFilters = {}) {
   const size = [10, 25, 50].includes(pageSize) ? pageSize : 10;
   const start = (Math.max(1, Math.floor(page)) - 1) * size;
   const term = sanitizeActivitySearch(search);
+  const range = getActivityDateRange(startDate, endDate);
   let query = supabase.from('b1_activity').select(activitySelect, { count: 'exact' });
+  if (range.start) query = query.gte('created_at', range.start);
+  if (range.endExclusive) query = query.lt('created_at', range.endExclusive);
   if (departmentId) {
     const ids = await findProfileIds('', departmentId);
     if (!ids.length) return { rows: [], total: 0 };

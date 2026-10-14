@@ -148,6 +148,35 @@ function queryModule(supabase, fetch = async () => ({ ok: true })) {
 }
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
+test('date range includes the entire Jakarta day and excludes the next midnight', () => {
+  const query = queryModule({});
+  const range = query.getActivityDateRange('2026-10-14', '2026-10-14');
+  assert.equal(range.start, '2026-10-13T17:00:00.000Z');
+  assert.equal(range.endExclusive, '2026-10-14T17:00:00.000Z');
+  const filters = { startDate: '2026-10-14', endDate: '2026-10-14' };
+  assert.equal(query.matchesActivity({ createdAt: '2026-10-13T16:59:59Z' }, filters), false);
+  assert.equal(query.matchesActivity({ createdAt: '2026-10-13T17:00:00Z' }, filters), true);
+  assert.equal(query.matchesActivity({ createdAt: '2026-10-14T16:59:59.999Z' }, filters), true);
+  assert.equal(query.matchesActivity({ createdAt: '2026-10-14T17:00:00Z' }, filters), false);
+  assert.equal(query.getActivityDateRange().start, undefined);
+  assert.equal(query.getActivityDateRange('', '2026-10-14').start, undefined);
+  assert.throws(() => query.getActivityDateRange('2026-10-15', '2026-10-14'));
+  assert.throws(() => query.getActivityDateRange('2026-02-30'));
+});
+
+test('date range is applied in the database before ordering and pagination', async () => {
+  const calls = [];
+  const builder = { then(resolve) { return Promise.resolve({ data: [], count: 0, error: null }).then(resolve); } };
+  for (const method of ['select', 'gte', 'lt', 'order', 'range']) builder[method] = (...args) => { calls.push([method, ...args]); return builder; };
+  const query = queryModule({ from: () => builder });
+  await query.getActivities({ startDate: '2026-10-14', endDate: '2026-10-14', page: 2, ascending: true });
+  assert.equal(calls.find(([method]) => method === 'gte').slice(1).join(','), 'created_at,2026-10-13T17:00:00.000Z');
+  assert.equal(calls.find(([method]) => method === 'lt').slice(1).join(','), 'created_at,2026-10-14T17:00:00.000Z');
+  assert.equal(calls.find(([method]) => method === 'range').slice(1).join(','), '10,19');
+  assert.equal(calls.find(([method]) => method === 'order')[2].ascending, true);
+  assert.ok(calls.findIndex(([method]) => method === 'lt') < calls.findIndex(([method]) => method === 'range'));
+});
+
 test('tracking is session-only, keepalive and never throws when sending fails', async () => {
   let session = { access_token: 'token' };
   const calls = [];

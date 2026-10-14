@@ -1,10 +1,11 @@
 "use client";
 
-import React, { Suspense, useState, useEffect } from "react";
+import React, { Suspense, useState, useEffect, useRef } from "react";
+import { CalendarDays, ListFilter } from 'lucide-react';
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getLoginDestination } from "@/lib/loginDestination";
-import { ACTIVITY_ACTIONS, IT_DEPARTMENT_ID, type ActivityAction } from '@/lib/activity';
+import { IT_DEPARTMENT_ID } from '@/lib/activity';
 import { getActivities, getActivityById, matchesActivity, logoutWithActivity, trackActivity, type ActivityLog } from '@/query/activity';
 
 /* MASTER DATA OPTIONS */
@@ -203,12 +204,16 @@ function SmkiDashboard() {
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityError, setActivityError] = useState('');
   const [activityReload, setActivityReload] = useState(0);
-  const [activitySortAscending, setActivitySortAscending] = useState<boolean>(false);
   const [activityPage, setActivityPage] = useState(1);
-  const [activityPageSize, setActivityPageSize] = useState(10);
+  const activityPageSize = 10;
   const [activityTotal, setActivityTotal] = useState(0);
   const [activitySearch, setActivitySearch] = useState('');
-  const [activityAction, setActivityAction] = useState<ActivityAction | ''>('');
+  const [activityStartDate, setActivityStartDate] = useState('');
+  const [activityEndDate, setActivityEndDate] = useState('');
+  const [draftStartDate, setDraftStartDate] = useState('');
+  const [draftEndDate, setDraftEndDate] = useState('');
+  const dateRangeDialogRef = useRef<HTMLDialogElement>(null);
+  const dateRangeStartRef = useRef<HTMLInputElement>(null);
   
   const [isSmkiOpen, setIsSmkiOpen] = useState<boolean>(true);
   const activeTab = searchParams.get('tab') === 'log-activity' ? 'log-activity' : 'account-maintains';
@@ -323,7 +328,8 @@ function SmkiDashboard() {
     let revision = 0;
     const filters = {
       page: activityPage, pageSize: activityPageSize, search: activitySearch,
-      action: activityAction, ascending: activitySortAscending,
+      startDate: activityStartDate, endDate: activityEndDate,
+      ascending: Boolean(activityStartDate),
       departmentId: selectedDepartment === 'All' ? undefined : DEPARTMENT_UUID_MAP[selectedDepartment],
     };
     async function loadActivity(showLoading = true) {
@@ -361,7 +367,7 @@ function SmkiDashboard() {
       });
     void loadActivity();
     return () => { disposed = true; void supabase.removeChannel(channel); };
-  }, [isLoading, activeTab, activityReload, activityPage, activityPageSize, activitySearch, activityAction, activitySortAscending, selectedDepartment]);
+  }, [isLoading, activeTab, activityReload, activityPage, activityPageSize, activitySearch, activityStartDate, activityEndDate, selectedDepartment]);
 
   /* 3. LOGIKA AUTO-LOGOUT SAAT BERGANTI HARI */
   useEffect(() => {
@@ -405,6 +411,11 @@ function SmkiDashboard() {
   });
 
   const activityTotalPages = Math.max(1, Math.ceil(activityTotal / activityPageSize));
+  const filterDateLabel = (date: string) => date.split('-').reverse().join('/');
+  const activityRangeLabel = activityStartDate && activityEndDate
+    ? `${filterDateLabel(activityStartDate)} - ${filterDateLabel(activityEndDate)}`
+    : activityStartDate ? `Mulai ${filterDateLabel(activityStartDate)}`
+      : activityEndDate ? `Sampai ${filterDateLabel(activityEndDate)}` : '';
 
   // Buka Modal Konfirmasi Status
   const handleOpenStatusConfirm = (emp: Employee) => {
@@ -761,18 +772,66 @@ function SmkiDashboard() {
         {activeTab === "log-activity" ? (
           <div style={{ flex: 1, minHeight: 0, overflow: "auto", background: "#f1f3fc" }}>
             <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
-              <label className="flex items-center gap-2">Show
-                <select aria-label="Jumlah Log Activity per halaman" value={activityPageSize} onChange={(event) => { setActivityPageSize(Number(event.target.value)); setActivityPage(1); }} className="rounded border border-slate-300 bg-white px-2 py-1.5">
-                  {[10, 25, 50].map((size) => <option key={size} value={size}>{size}</option>)}
-                </select>entries
-              </label>
-              <input type="search" aria-label="Cari Log Activity berdasarkan nama, email, action, atau deskripsi" placeholder="Search..." value={activitySearch} onChange={(event) => { setActivitySearch(event.target.value); setActivityPage(1); }} className="h-9 w-full max-w-72 rounded-lg border border-slate-300 bg-slate-100 px-3 focus-visible:outline-2 focus-visible:outline-blue-500" />
-              <select aria-label="Filter action Log Activity" value={activityAction} onChange={(event) => { setActivityAction(event.target.value as ActivityAction | ''); setActivityPage(1); }} className="h-9 rounded-lg border border-slate-300 bg-white px-3">
-                <option value="">Semua action</option>
-                {ACTIVITY_ACTIONS.map((action) => <option key={action} value={action}>{action}</option>)}
-              </select>
-            </div>
-            <table aria-label="Log Activity SMKI" className="w-full min-w-[1200px] table-fixed border-collapse text-left [&_th]:px-4 [&_th]:py-3 [&_th]:align-top [&_td]:px-4 [&_td]:py-4 [&_td]:align-top [&_td]:[overflow-wrap:anywhere]">
+                <button
+                  type="button"
+                  aria-haspopup="dialog"
+                  onClick={() => { setDraftStartDate(activityStartDate); setDraftEndDate(activityEndDate); dateRangeDialogRef.current?.showModal(); }}
+                  className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border bg-white px-3 text-xs font-medium focus-visible:outline-2 focus-visible:outline-blue-500 ${activityStartDate || activityEndDate ? 'border-blue-300 text-blue-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                >
+                  <ListFilter aria-hidden="true" className="h-3.5 w-3.5" />Filters
+                  {(activityStartDate || activityEndDate) && <span aria-label="Filter tanggal aktif" className="h-1.5 w-1.5 rounded-full bg-blue-600" />}
+                </button>
+                <dialog
+                  ref={dateRangeDialogRef}
+                  aria-labelledby="activity-date-range-title"
+                  className="fixed inset-0 m-auto w-[440px] max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white p-6 text-[#555555] shadow-xl backdrop:bg-slate-900/30"
+                  onClick={(event) => {
+                    if (event.target !== event.currentTarget) return;
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) event.currentTarget.close();
+                  }}
+                >
+                  <form onSubmit={(event) => {
+                    event.preventDefault();
+                    if (draftStartDate && draftEndDate && draftStartDate > draftEndDate) return;
+                    setActivityStartDate(draftStartDate); setActivityEndDate(draftEndDate); setActivityPage(1);
+                    dateRangeDialogRef.current?.close();
+                  }}>
+                    <h2 id="activity-date-range-title" className="text-[28px] font-bold leading-tight text-black">Filter</h2>
+                    <p className="mt-1.5 text-sm text-[#707070]">Select date range to search</p>
+                    <div className="mt-5">
+                      <p id="activity-date-range-label" className="mb-1.5 text-sm font-medium">Date Range</p>
+                      <div role="group" aria-labelledby="activity-date-range-label" className="flex min-h-14 items-center gap-2 rounded-lg border border-[#D9D9D9] px-3 py-2 focus-within:border-blue-400">
+                        <label className="min-w-0 flex-1">
+                          <span className="mb-1 block text-[10px] font-medium text-slate-500">Tanggal mulai</span>
+                          <input ref={dateRangeStartRef} type="date" value={draftStartDate} onChange={(event) => {
+                            const start = event.target.value;
+                            setDraftStartDate(start);
+                            if (start && draftEndDate && start > draftEndDate) setDraftEndDate('');
+                          }} className="w-full min-w-0 bg-transparent text-xs text-[#858585] focus-visible:outline-2 focus-visible:outline-blue-500 sm:text-sm [&::-webkit-calendar-picker-indicator]:hidden" />
+                        </label>
+                        <span aria-hidden="true" className="text-[#858585]">–</span>
+                        <label className="min-w-0 flex-1">
+                          <span className="mb-1 block text-[10px] font-medium text-slate-500">Tanggal akhir</span>
+                          <input type="date" value={draftEndDate} min={draftStartDate || undefined} onChange={(event) => setDraftEndDate(event.target.value)} className="w-full min-w-0 bg-transparent text-xs text-[#858585] focus-visible:outline-2 focus-visible:outline-blue-500 sm:text-sm" />
+                        </label>
+                        <button type="button" aria-label="Buka kalender tanggal mulai" onClick={() => { dateRangeStartRef.current?.focus(); dateRangeStartRef.current?.showPicker?.(); }} className="ml-1 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded text-[#858585] hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-500">
+                          <CalendarDays aria-hidden="true" className="h-5 w-5" />
+                        </button>
+                      </div>
+                      <p className="mt-2 text-[11px] leading-relaxed text-slate-500">Waktu Jakarta. Kosongkan tanggal akhir untuk melihat semua aktivitas sejak tanggal mulai.</p>
+                    </div>
+                    {draftStartDate && draftEndDate && draftStartDate > draftEndDate && <p role="alert" className="mt-2 text-xs text-red-600">Tanggal akhir harus sama atau setelah tanggal mulai.</p>}
+                    <div className="mt-8 grid grid-cols-[1fr_1.4fr] gap-4">
+                      <button type="button" onClick={() => { setActivityStartDate(''); setActivityEndDate(''); setDraftStartDate(''); setDraftEndDate(''); setActivityPage(1); dateRangeDialogRef.current?.close(); }} className="h-12 cursor-pointer rounded-lg border border-[#B8B8B8] bg-white text-base font-semibold text-[#555555] hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-500">Reset</button>
+                      <button type="submit" disabled={Boolean(draftStartDate && draftEndDate && draftStartDate > draftEndDate)} className="h-12 cursor-pointer rounded-lg bg-[#386BF6] text-base font-semibold text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-40">Apply</button>
+                    </div>
+                  </form>
+                </dialog>
+                <input type="search" aria-label="Cari Log Activity berdasarkan nama, email, action, atau deskripsi" placeholder="Search..." value={activitySearch} onChange={(event) => { setActivitySearch(event.target.value); setActivityPage(1); }} className="h-9 w-full max-w-72 rounded-lg border border-slate-300 bg-slate-100 px-3 focus-visible:outline-2 focus-visible:outline-blue-500" />
+                {activityRangeLabel && <p role="status" className="text-[11px] text-slate-500">{activityRangeLabel} (WIB){!activityLoading && !activityError && ` · ${activityTotal} aktivitas · ${activityStartDate ? 'dari tanggal mulai' : 'terbaru lebih dulu'}`}</p>}
+              </div>
+              <table aria-label="Log Activity SMKI" className="w-full min-w-[1200px] table-fixed border-collapse text-left [&_th]:px-4 [&_th]:py-3 [&_th]:align-top [&_td]:px-4 [&_td]:py-4 [&_td]:align-top [&_td]:[overflow-wrap:anywhere]">
               <colgroup>
                 <col style={{ width: "12%" }} />
                 <col style={{ width: "16%" }} />
@@ -792,19 +851,7 @@ function SmkiDashboard() {
                 <th scope="col">IP ADDRESS</th>
                 <th scope="col">USER AGENT</th>
                 <th scope="col">DESCRIPTION</th>
-                <th scope="col" aria-sort={activitySortAscending ? "ascending" : "descending"}>
-                <button
-                  type="button"
-                  aria-label={`Sort by date and time ${activitySortAscending ? "descending" : "ascending"}`}
-                  onClick={() => { setActivitySortAscending((ascending) => !ascending); setActivityPage(1); }}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: "3px", padding: 0, border: 0, background: "transparent", color: "inherit", font: "inherit", letterSpacing: "inherit", cursor: "pointer", whiteSpace: "nowrap" }}
-                >
-                  DATE TIME
-                  <svg aria-hidden="true" viewBox="0 0 16 16" style={{ width: "14px", height: "14px", fill: "none", stroke: "currentColor", strokeWidth: 1.5 }}>
-                    <path d="M5 2v11m0 0L2.5 10.5M5 13l2.5-2.5M11 14V3m0 0L8.5 5.5M11 3l2.5 2.5" />
-                  </svg>
-                </button>
-                </th>
+                <th scope="col" aria-sort={activityStartDate ? 'ascending' : 'descending'} className="whitespace-nowrap">DATE TIME</th>
               </tr>
               </thead>
               <tbody className="bg-white text-xs leading-relaxed text-[#111827]">
