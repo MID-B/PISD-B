@@ -140,6 +140,8 @@ export default function RegisterPage() {
       const nameRegex = /^[a-zA-Z\s]+$/;
       if (!fullName.trim()) {
         errors.fullName = 'Full name is required.';
+      } else if (fullName.trim().length > 50) {
+        errors.fullName = 'Full name cannot exceed 50 characters.';
       } else if (!nameRegex.test(fullName.trim())) {
         errors.fullName = 'Full name must contain letters and spaces only.';
       }
@@ -148,6 +150,8 @@ export default function RegisterPage() {
       const emailLower = email.trim().toLowerCase();
       if (!email.trim()) {
         errors.email = 'Email address is required.';
+      } else if (email.trim().length > 30) {
+        errors.email = 'Email address cannot exceed 30 characters.';
       } else if (!/^[^\s@]+@andima\.co\.id$/.test(emailLower)) {
         errors.email = 'Email address must use the domain @andima.co.id';
       }
@@ -162,6 +166,8 @@ export default function RegisterPage() {
         errors.password = 'Password is required.';
       } else if (password.length < 10) {
         errors.password = 'Password must be at least 10 characters long.';
+      } else if (password.length > 15) {
+        errors.password = 'Password cannot exceed 15 characters.';
       } else if (!hasLetter || !hasNumber || !hasSpecialChar) {
         errors.password =
           'Password must include letters, numbers, and special characters.';

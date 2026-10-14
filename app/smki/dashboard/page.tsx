@@ -77,9 +77,6 @@ type Employee = {
   isActive: boolean;
 };
 
-
-
-
 /* SVG ICONS */
 function AccountIcon() {
   return (
@@ -131,16 +128,6 @@ function DisableIcon({ active }: { active: boolean }) {
   );
 }
 
-function LogoutIcon() {
-  return (
-    <svg viewBox="0 0 28 28" aria-hidden="true" style={{ width: "22px", height: "22px", flexShrink: 0, color: "#f42d5b", fill: "none" }}>
-      <path d="M17 4H7.5C6.7 4 6 4.7 6 5.5v17c0 .8.7 1.5 1.5 1.5H17" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M12 14h11" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M19 9l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function ActivityUserIcon() {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true" style={{ width: "15px", height: "15px", flexShrink: 0, fill: "currentColor" }}>
@@ -170,15 +157,7 @@ function ChevronDownIcon({ isOpen }: { isOpen?: boolean }) {
   );
 }
 
-function SmkiIcon() {
-  return (
-    <svg viewBox="0 0 24 24" style={{ width: "20px", height: "20px", flexShrink: 0, fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}>
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    </svg>
-  );
-}
-
-{/* HEADER LOGO SIDEBAR */}
+/* HEADER LOGO SIDEBAR */
 function CompanyLogo() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "12px", paddingBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
@@ -190,7 +169,7 @@ function CompanyLogo() {
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
-          background: "transparent", // Diubah ke transparent
+          background: "transparent",
         }}
       >
         <img 
@@ -219,6 +198,7 @@ function SmkiDashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string>("All");
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>(""); // State untuk Search Bar
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityError, setActivityError] = useState('');
@@ -229,7 +209,7 @@ function SmkiDashboard() {
   const [activityTotal, setActivityTotal] = useState(0);
   const [activitySearch, setActivitySearch] = useState('');
   const [activityAction, setActivityAction] = useState<ActivityAction | ''>('');
-  // State untuk Dropdown Sidebar SMKI & Navigasi Tab
+  
   const [isSmkiOpen, setIsSmkiOpen] = useState<boolean>(true);
   const activeTab = searchParams.get('tab') === 'log-activity' ? 'log-activity' : 'account-maintains';
   const [currentUserFullName, setCurrentUserFullName] = useState<string>("Loading...");
@@ -325,8 +305,9 @@ function SmkiDashboard() {
         return;
       }
 
-      if (userData.full_name) {
-      setCurrentUserFullName(userData.full_name);
+     if (userData.full_name) {
+        const firstName = userData.full_name.trim().split(" ")[0];
+        setCurrentUserFullName(firstName);
       }
 
       await fetchEmployeesFromSupabase();
@@ -370,8 +351,6 @@ function SmkiDashboard() {
           try {
             const activity = await getActivityById(String(payload.new.id));
             if (disposed || !activity || !matchesActivity(activity, filters)) return;
-            // Requery exact count and the page after resolving the inserted row's joins.
-            // Page 1 receives new rows at the top in the default descending order.
             await loadActivity(false);
           } catch { console.error('Gagal memperbarui Log Activity melalui Realtime.'); }
         })();
@@ -405,7 +384,7 @@ function SmkiDashboard() {
         if (error) { console.error('Gagal logout saat hari berganti.'); return; }
         router.push("/login?reason=day_changed");
       }
-    }, 5000); // Pengecekan setiap 5 detik
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [router]);
@@ -417,10 +396,12 @@ function SmkiDashboard() {
     router.push("/login");
   };
 
-  // Handler Filter Department
+  // Handler Filter Department & Search
   const filteredEmployees = employees.filter((emp) => {
-    if (selectedDepartment === "All") return true;
-    return emp.department.toLowerCase() === selectedDepartment.toLowerCase();
+    const matchesDept = selectedDepartment === "All" || emp.department.toLowerCase() === selectedDepartment.toLowerCase();
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = !searchQuery || emp.name.toLowerCase().includes(query) || emp.email.toLowerCase().includes(query);
+    return matchesDept && matchesSearch;
   });
 
   const activityTotalPages = Math.max(1, Math.ceil(activityTotal / activityPageSize));
@@ -430,7 +411,7 @@ function SmkiDashboard() {
     setStatusConfirmEmployee(emp);
   };
 
-  /* 3. UPDATE STATUS KEAKTIFAN AKUN DI SUPABASE */
+/* 3. UPDATE STATUS KEAKTIFAN AKUN DI SUPABASE */
   const handleConfirmToggleStatus = async () => {
     if (!statusConfirmEmployee) return;
 
@@ -438,17 +419,24 @@ function SmkiDashboard() {
     const willBeActive = !statusConfirmEmployee.isActive;
 
     try {
+      // Menggunakan .eq("id", targetId) agar lebih akurat dibandingkan .eq("email", ...)
       const { data, error } = await supabase
         .from("b2_register")
         .update({ is_active: willBeActive })
-        .eq("email", statusConfirmEmployee.email)
+        .eq("id", targetId)
         .select('id');
 
       if (error) {
         alert("Gagal memperbarui status keaktifan di database: " + error.message);
         return;
       }
-      if (!data?.length) { console.error('Tidak ada akun yang diperbarui.'); return; }
+      
+      if (!data?.length) { 
+        console.error('Tidak ada akun yang diperbarui. Periksa ID atau RLS policy tabel b2_register.'); 
+        alert("Gagal memperbarui status: Akun tidak ditemukan atau dibatasi oleh policy database.");
+        return; 
+      }
+
       trackActivity(willBeActive ? 'Activate' : 'Deactivate', `${willBeActive ? 'Mengaktifkan' : 'Menonaktifkan'} akun ${statusConfirmEmployee.name} (${statusConfirmEmployee.email}).`);
 
       setEmployees((prev) =>
@@ -502,50 +490,46 @@ function SmkiDashboard() {
     }
 
     if (editForm.newPassword && editForm.newPassword.trim() !== "") {
-    const newPass = editForm.newPassword.trim();
+      const newPass = editForm.newPassword.trim();
 
-    // 1. Cek Minimal Panjang Password (misal: 8 karakter)
-    if (newPass.length < 8) {
-      setErrorMessage("The password must be at least 8 characters long.");
-      return;
-    }
-
-    // 2. Cek kombinasi Huruf, Angka, dan Karakter Spesial (misal: &*^ dll)
-    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).+$/;
-    if (!passwordRegex.test(newPass)) {
-      setErrorMessage("The password must contain a combination of letters, numbers, and special characters (such as &*^).");
-      return;
-    }
-
-    // 3. Cek agar tidak sama dengan password saat ini di database
-    const { data: currentData, error: fetchErr } = await supabase
-      .from("b2_register")
-      .select("password")
-      .eq("id", editingEmployee?.id)
-      .single();
-
-    if (!fetchErr && currentData) {
-      if (currentData.password === newPass) {
-        setErrorMessage("The new password cannot be the same as the current password!");
+      if (newPass.length < 8) {
+        setErrorMessage("The password must be at least 8 characters long.");
         return;
       }
+
+      const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).+$/;
+      if (!passwordRegex.test(newPass)) {
+        setErrorMessage("The password must contain a combination of letters, numbers, and special characters (such as &*^).");
+        return;
+      }
+
+      const { data: currentData, error: fetchErr } = await supabase
+        .from("b2_register")
+        .select("password")
+        .eq("id", editingEmployee?.id)
+        .single();
+
+      if (!fetchErr && currentData) {
+        if (currentData.password === newPass) {
+          setErrorMessage("The new password cannot be the same as the current password!");
+          return;
+        }
+      }
     }
-  }
 
     try {
       const selectedDeptUuid = DEPARTMENT_UUID_MAP[editForm.department];
       const selectedPosUuid = POSITION_UUID_MAP[editForm.position];
 
       const updateData: Record<string, any> = {
-      full_name: editForm.name.trim(),
-      email: editForm.email.trim(),
-      phone: editForm.phone.trim(),
-      departement_id: selectedDeptUuid,
-      position_id: selectedPosUuid,
-      employment_status: editForm.employmentStatus,
+        full_name: editForm.name.trim(),
+        email: editForm.email.trim(),
+        phone: editForm.phone.trim(),
+        departement_id: selectedDeptUuid,
+        position_id: selectedPosUuid,
+        employment_status: editForm.employmentStatus,
       };
 
-      // Sertakan password jika diisi pengguna
       if (editForm.newPassword && editForm.newPassword.trim() !== "") {
         updateData.password = editForm.newPassword.trim(); 
       }
@@ -567,7 +551,6 @@ function SmkiDashboard() {
         return;
       }
 
-      // Cek apakah ada baris yang benar-benar ter-update
       if (!data || data.length === 0) {
         setErrorMessage("Data tidak ditemukan di Supabase. Periksa izin RLS UPDATE tabel b2_register.");
         return;
@@ -595,13 +578,10 @@ function SmkiDashboard() {
       {/* SIDEBAR */}
       <aside style={{ width: "250px", height: "100vh", flexShrink: 0, position: "relative", padding: "24px 16px", background: "#0f2038", color: "#fff", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
         
-        {/* 1. LOGO & TITLE */}
         <CompanyLogo />
 
-        {/* 2. NAVIGATION WITH DROPDOWN */}
         <nav style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1, marginTop: "20px" }}>
           <div>
-            {/* BUTTON SMKI DROPDOWN HEADER */}
             <button
               onClick={() => setIsSmkiOpen(!isSmkiOpen)}
               style={{
@@ -610,7 +590,7 @@ function SmkiDashboard() {
                 padding: "0 16px",
                 border: 0,
                 borderRadius: "10px",
-                background: "#055be5", // Warna Biru Sesuai Desain
+                background: "#055be5",
                 color: "#fff",
                 display: "flex",
                 alignItems: "center",
@@ -625,10 +605,8 @@ function SmkiDashboard() {
               <ChevronDownIcon isOpen={isSmkiOpen} />
             </button>
 
-            {/* SUBMENU ITEM SMKI */}
             {isSmkiOpen && (
               <div style={{ position: "relative", marginTop: "12px", paddingLeft: "24px" }}>
-                {/* Garis Vertikal Indikator Kiri */}
                 <div
                   style={{
                     position: "absolute",
@@ -640,7 +618,6 @@ function SmkiDashboard() {
                   }}
                 />
                 
-                {/* Submenu 1: Account Maintains */}
                 <button
                   onClick={() => router.push('/smki/dashboard')}
                   style={{
@@ -648,15 +625,13 @@ function SmkiDashboard() {
                     padding: "10px 14px",
                     border: 0,
                     borderRadius: "10px",
-                    // Ubah di sini: putih agak transparan jika aktif, transparan jika tidak
                     backgroundColor: activeTab === "account-maintains" ? "rgba(255, 255, 255, 0.15)" : "transparent",
-                    // Teks putih solid jika aktif, abu-abu jika tidak
                     color: activeTab === "account-maintains" ? "#ffffff" : "#94a3b8",
                     display: "flex",
                     alignItems: "center",
                     gap: "10px",
                     fontSize: "13px",
-                    fontWeight: activeTab === "account-maintains" ? 700 : 500, // Cetak tebal saat aktif agar makin jelas
+                    fontWeight: activeTab === "account-maintains" ? 700 : 500,
                     cursor: "pointer",
                     textAlign: "left",
                     transition: "all 0.2s ease",
@@ -666,7 +641,6 @@ function SmkiDashboard() {
                   <span>Account Maintains</span>
                 </button>
 
-                {/* Submenu 2: Log Activity */}
                 <button
                   onClick={() => router.push('/smki/dashboard?tab=log-activity')}
                   style={{
@@ -690,7 +664,6 @@ function SmkiDashboard() {
                   <span>Log Activity</span>
                 </button>
 
-                {/* Submenu 3: Log Login */}
                 <button
                   onClick={() => router.push("/smki/dashboard/loglogin")}
                   style={{
@@ -719,10 +692,9 @@ function SmkiDashboard() {
           </div>
         </nav>
 
-        {/* LOGOUT */}
         <button
           onClick={handleLogout}
-          style={{width: "100%", height: "44px", borderRadius: "22px", border: "2px solid #f43f5e", background: "transparent", color: "#f43f5e", display: "flex",
+          style={{ width: "100%", height: "44px", borderRadius: "22px", border: "2px solid #f43f5e", background: "transparent", color: "#f43f5e", display: "flex",
             alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "15px", fontWeight: 700, marginTop: "auto", transition: "all 0.2s ease",
           }}
         >
@@ -731,217 +703,268 @@ function SmkiDashboard() {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-        <section style={{ flex: 1, height: "100vh", background: "#ffffff", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" }}>
+      <section style={{ flex: 1, height: "100vh", background: "#ffffff", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" }}>
 
-          {/* 1. TOP BAR / HEADER (PROFIL DI KANAN) */}
-          <header style={{ width: "100%", height: activeTab === "log-activity" ? "42px" : "56px", padding: activeTab === "log-activity" ? "0 16px" : "0 24px", background: "#ffffff", borderBottom: "1px solid #e2e8f0", color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxSizing: "border-box", gap: "12px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-              <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>ANDIMA SMKI</span>
-              <span style={{ color: "#cbd5e1" }}>|</span>
-              <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
-                {activeTab === "log-activity" ? "Log Activity" : "Account Maintains"}
-              </span>
-              {activeTab === "log-activity" && (
-                <div style={{ position: "relative", marginLeft: "clamp(12px, 3vw, 32px)" }}>
-                  <button
-                    type="button"
-                    aria-expanded={isFilterOpen}
-                    onClick={() => setIsFilterOpen(!isFilterOpen)}
-                    style={{ width: "174px", height: "28px", padding: "0 10px", border: 0, borderRadius: "9px", background: "#f1f1f1", color: "#475569", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "11px", fontWeight: 500, cursor: "pointer", boxSizing: "border-box" }}
-                  >
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {selectedDepartment === "All" ? "Semua departemen" : selectedDepartment}
-                    </span>
-                    <ChevronDownIcon isOpen={isFilterOpen} />
-                  </button>
-                  {isFilterOpen && (
-                    <div style={{ position: "absolute", left: 0, top: "32px", background: "#ffffff", border: "1px solid #e2e8f0", boxShadow: "0 4px 10px rgba(15,23,42,0.12)", zIndex: 30, width: "220px", overflow: "hidden" }}>
-                      {["All", ...DEPARTMENT_OPTIONS].map((department) => (
-                        <button
-                          key={department}
-                          type="button"
-                          onClick={() => { setSelectedDepartment(department); setActivityPage(1); setIsFilterOpen(false); }}
-                          style={{ width: "100%", padding: "7px 10px", background: selectedDepartment === department ? "#f1f5f9" : "#ffffff", color: "#475569", border: 0, textAlign: "left", fontSize: "10px", fontWeight: 500, cursor: "pointer" }}
-                        >
-                          {department}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              {/* Profil Guest / User Login */}
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#bbf7d0", color: "#166534", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800 }}>
-                  IT
-                </div>
-                <div>
-                  {/* Menggunakan state nama user yang login */}
-                  <div style={{ fontSize: "11px", fontWeight: 700, color: "#0f172a", lineHeight: "1.2" }}>
-                    {currentUserFullName}
+        <header style={{ width: "100%", height: activeTab === "log-activity" ? "42px" : "56px", padding: activeTab === "log-activity" ? "0 16px" : "0 24px", background: "#ffffff", borderBottom: "1px solid #e2e8f0", color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxSizing: "border-box", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+            <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>ANDIMA SMKI</span>
+            <span style={{ color: "#cbd5e1" }}>|</span>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
+              {activeTab === "log-activity" ? "Log Activity" : "Account Maintains"}
+            </span>
+            {activeTab === "log-activity" && (
+              <div style={{ position: "relative", marginLeft: "clamp(12px, 3vw, 32px)" }}>
+                <button
+                  type="button"
+                  aria-expanded={isFilterOpen}
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                  style={{ width: "174px", height: "28px", padding: "0 10px", border: 0, borderRadius: "9px", background: "#f1f1f1", color: "#475569", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "11px", fontWeight: 500, cursor: "pointer", boxSizing: "border-box" }}
+                >
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {selectedDepartment === "All" ? "Semua departemen" : selectedDepartment}
+                  </span>
+                  <ChevronDownIcon isOpen={isFilterOpen} />
+                </button>
+                {isFilterOpen && (
+                  <div style={{ position: "absolute", left: 0, top: "32px", background: "#ffffff", border: "1px solid #e2e8f0", boxShadow: "0 4px 10px rgba(15,23,42,0.12)", zIndex: 30, width: "220px", overflow: "hidden" }}>
+                    {["All", ...DEPARTMENT_OPTIONS].map((department) => (
+                      <button
+                        key={department}
+                        type="button"
+                        onClick={() => { setSelectedDepartment(department); setActivityPage(1); setIsFilterOpen(false); }}
+                        style={{ width: "100%", padding: "7px 10px", background: selectedDepartment === department ? "#f1f5f9" : "#ffffff", color: "#475569", border: 0, textAlign: "left", fontSize: "10px", fontWeight: 500, cursor: "pointer" }}
+                      >
+                        {department}
+                      </button>
+                    ))}
                   </div>
-                  <div style={{ fontSize: "9px", color: "#64748b" }}>Information Technology</div>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          {/* AREA KONTEN (FILTER + TABEL) */}
-          {activeTab === "log-activity" ? (
-            <div style={{ flex: 1, minHeight: 0, overflow: "auto", background: "#f1f3fc" }}>
-              <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
-                <label className="flex items-center gap-2">Show
-                  <select aria-label="Jumlah Log Activity per halaman" value={activityPageSize} onChange={(event) => { setActivityPageSize(Number(event.target.value)); setActivityPage(1); }} className="rounded border border-slate-300 bg-white px-2 py-1.5">
-                    {[10, 25, 50].map((size) => <option key={size} value={size}>{size}</option>)}
-                  </select>entries
-                </label>
-                <input type="search" aria-label="Cari Log Activity berdasarkan nama, email, action, atau deskripsi" placeholder="Search..." value={activitySearch} onChange={(event) => { setActivitySearch(event.target.value); setActivityPage(1); }} className="h-9 w-full max-w-72 rounded-lg border border-slate-300 bg-slate-100 px-3 focus-visible:outline-2 focus-visible:outline-blue-500" />
-                <select aria-label="Filter action Log Activity" value={activityAction} onChange={(event) => { setActivityAction(event.target.value as ActivityAction | ''); setActivityPage(1); }} className="h-9 rounded-lg border border-slate-300 bg-white px-3">
-                  <option value="">Semua action</option>
-                  {ACTIVITY_ACTIONS.map((action) => <option key={action} value={action}>{action}</option>)}
-                </select>
-              </div>
-              <table aria-label="Log Activity SMKI" className="w-full min-w-[1200px] table-fixed border-collapse text-left [&_th]:px-4 [&_th]:py-3 [&_th]:align-top [&_td]:px-4 [&_td]:py-4 [&_td]:align-top [&_td]:[overflow-wrap:anywhere]">
-                <colgroup>
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "16%" }} />
-                  <col style={{ width: "13%" }} />
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "17%" }} />
-                  <col style={{ width: "10%" }} />
-                </colgroup>
-                <thead className="sticky top-0 z-10 bg-[#f8f9ff] text-[11px] font-extrabold tracking-[0.2px] text-[#506487]">
-                <tr className="border-b border-[#e6eaf3]">
-                  <th scope="col">EMPLOYEE&apos;S NAME</th>
-                  <th scope="col">EMAIL</th>
-                  <th scope="col">DEPARTMENT</th>
-                  <th scope="col">ROLE</th>
-                  <th scope="col">IP ADDRESS</th>
-                  <th scope="col">USER AGENT</th>
-                  <th scope="col">DESCRIPTION</th>
-                  <th scope="col" aria-sort={activitySortAscending ? "ascending" : "descending"}>
-                  <button
-                    type="button"
-                    aria-label={`Sort by date and time ${activitySortAscending ? "descending" : "ascending"}`}
-                    onClick={() => { setActivitySortAscending((ascending) => !ascending); setActivityPage(1); }}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: "3px", padding: 0, border: 0, background: "transparent", color: "inherit", font: "inherit", letterSpacing: "inherit", cursor: "pointer", whiteSpace: "nowrap" }}
-                  >
-                    DATE TIME
-                    <svg aria-hidden="true" viewBox="0 0 16 16" style={{ width: "14px", height: "14px", fill: "none", stroke: "currentColor", strokeWidth: 1.5 }}>
-                      <path d="M5 2v11m0 0L2.5 10.5M5 13l2.5-2.5M11 14V3m0 0L8.5 5.5M11 3l2.5 2.5" />
-                    </svg>
-                  </button>
-                  </th>
-                </tr>
-                </thead>
-                <tbody className="bg-white text-xs leading-relaxed text-[#111827]">
-
-                {activityLoading ? (
-                  <tr><td colSpan={8}><div role="status" className="text-slate-500">Memuat Log Activity...</div></td></tr>
-                ) : activityError ? (
-                  <tr><td colSpan={8}><div role="alert" className="text-red-600">
-                    <p>{activityError}</p>
-                    <button type="button" onClick={() => setActivityReload((value) => value + 1)} className="mt-2 cursor-pointer text-blue-600">Coba lagi</button>
-                  </div></td></tr>
-                ) : activityLogs.length > 0 ? (
-                  activityLogs.map((activity) => {
-                    const timestamp = new Date(activity.createdAt);
-
-                    return (
-                      <tr key={activity.id} className="border-b border-[#e9edf5] hover:bg-slate-50">
-                        <td className="font-semibold"><div style={{ display: "flex", alignItems: "flex-start", gap: "8px", minWidth: 0 }}>
-                          <span className="mt-0.5 shrink-0">
-                          <ActivityUserIcon />
-                          </span>
-                          <span className="min-w-0">{activity.name}</span>
-                        </div></td>
-                        <td>{activity.email}</td>
-                        <td>{activity.department}</td>
-                        <td>{activity.role}</td>
-                        <td>{activity.ipAddress}</td>
-                        <td>{activity.userAgent}</td>
-                        <td className="whitespace-pre-line">{activity.description}</td>
-                        <td><div style={{ display: "flex", flexDirection: "column", whiteSpace: "nowrap" }}>
-                          <span>{activity.createdAt ? timestamp.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Jakarta" }) : "-"}</span>
-                          <span>{activity.createdAt ? timestamp.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Jakarta" }) : "-"}</span>
-                        </div></td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr><td colSpan={8} className="text-slate-500">
-                    Tidak ada aktivitas yang sesuai dengan pencarian dan filter.
-                  </td></tr>
                 )}
-                </tbody>
-              </table>
-              {!activityLoading && !activityError && (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
-                  <p role="status">Menampilkan {activityTotal ? (activityPage - 1) * activityPageSize + 1 : 0}–{Math.min(activityPage * activityPageSize, activityTotal)} dari {activityTotal} aktivitas.</p>
-                  <nav aria-label="Pagination Log Activity" className="flex items-center gap-3">
-                    <button type="button" disabled={activityPage <= 1} onClick={() => setActivityPage((page) => page - 1)} className="cursor-pointer rounded border border-slate-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40">Sebelumnya</button>
-                    <span>Halaman {activityPage} dari {activityTotalPages}</span>
-                    <button type="button" disabled={activityPage >= activityTotalPages} onClick={() => setActivityPage((page) => page + 1)} className="cursor-pointer rounded border border-slate-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40">Berikutnya</button>
-                  </nav>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#bbf7d0", color: "#166534", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800 }}>
+                IT
+              </div>
+              <div>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#0f172a", lineHeight: "1.2" }}>
+                  {currentUserFullName}
                 </div>
-              )}
+                <div style={{ fontSize: "9px", color: "#64748b" }}>Information Technology</div>
+              </div>
             </div>
-          ) : (
+          </div>
+        </header>
+
+        {activeTab === "log-activity" ? (
+          <div style={{ flex: 1, minHeight: 0, overflow: "auto", background: "#f1f3fc" }}>
+            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
+              <label className="flex items-center gap-2">Show
+                <select aria-label="Jumlah Log Activity per halaman" value={activityPageSize} onChange={(event) => { setActivityPageSize(Number(event.target.value)); setActivityPage(1); }} className="rounded border border-slate-300 bg-white px-2 py-1.5">
+                  {[10, 25, 50].map((size) => <option key={size} value={size}>{size}</option>)}
+                </select>entries
+              </label>
+              <input type="search" aria-label="Cari Log Activity berdasarkan nama, email, action, atau deskripsi" placeholder="Search..." value={activitySearch} onChange={(event) => { setActivitySearch(event.target.value); setActivityPage(1); }} className="h-9 w-full max-w-72 rounded-lg border border-slate-300 bg-slate-100 px-3 focus-visible:outline-2 focus-visible:outline-blue-500" />
+              <select aria-label="Filter action Log Activity" value={activityAction} onChange={(event) => { setActivityAction(event.target.value as ActivityAction | ''); setActivityPage(1); }} className="h-9 rounded-lg border border-slate-300 bg-white px-3">
+                <option value="">Semua action</option>
+                {ACTIVITY_ACTIONS.map((action) => <option key={action} value={action}>{action}</option>)}
+              </select>
+            </div>
+            <table aria-label="Log Activity SMKI" className="w-full min-w-[1200px] table-fixed border-collapse text-left [&_th]:px-4 [&_th]:py-3 [&_th]:align-top [&_td]:px-4 [&_td]:py-4 [&_td]:align-top [&_td]:[overflow-wrap:anywhere]">
+              <colgroup>
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "13%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "17%" }} />
+                <col style={{ width: "10%" }} />
+              </colgroup>
+              <thead className="sticky top-0 z-10 bg-[#f8f9ff] text-[11px] font-extrabold tracking-[0.2px] text-[#506487]">
+              <tr className="border-b border-[#e6eaf3]">
+                <th scope="col">EMPLOYEE&apos;S NAME</th>
+                <th scope="col">EMAIL</th>
+                <th scope="col">DEPARTMENT</th>
+                <th scope="col">ROLE</th>
+                <th scope="col">IP ADDRESS</th>
+                <th scope="col">USER AGENT</th>
+                <th scope="col">DESCRIPTION</th>
+                <th scope="col" aria-sort={activitySortAscending ? "ascending" : "descending"}>
+                <button
+                  type="button"
+                  aria-label={`Sort by date and time ${activitySortAscending ? "descending" : "ascending"}`}
+                  onClick={() => { setActivitySortAscending((ascending) => !ascending); setActivityPage(1); }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: "3px", padding: 0, border: 0, background: "transparent", color: "inherit", font: "inherit", letterSpacing: "inherit", cursor: "pointer", whiteSpace: "nowrap" }}
+                >
+                  DATE TIME
+                  <svg aria-hidden="true" viewBox="0 0 16 16" style={{ width: "14px", height: "14px", fill: "none", stroke: "currentColor", strokeWidth: 1.5 }}>
+                    <path d="M5 2v11m0 0L2.5 10.5M5 13l2.5-2.5M11 14V3m0 0L8.5 5.5M11 3l2.5 2.5" />
+                  </svg>
+                </button>
+                </th>
+              </tr>
+              </thead>
+              <tbody className="bg-white text-xs leading-relaxed text-[#111827]">
+              {activityLoading ? (
+                <tr><td colSpan={8}><div role="status" className="text-slate-500">Memuat Log Activity...</div></td></tr>
+              ) : activityError ? (
+                <tr><td colSpan={8}><div role="alert" className="text-red-600">
+                  <p>{activityError}</p>
+                  <button type="button" onClick={() => setActivityReload((value) => value + 1)} className="mt-2 cursor-pointer text-blue-600">Coba lagi</button>
+                </div></td></tr>
+              ) : activityLogs.length > 0 ? (
+                activityLogs.map((activity) => {
+                  const timestamp = new Date(activity.createdAt);
+                  return (
+                    <tr key={activity.id} className="border-b border-[#e9edf5] hover:bg-slate-50">
+                      <td className="font-semibold"><div style={{ display: "flex", alignItems: "flex-start", gap: "8px", minWidth: 0 }}>
+                        <span className="mt-0.5 shrink-0"><ActivityUserIcon /></span>
+                        <span className="min-w-0">{activity.name}</span>
+                      </div></td>
+                      <td>{activity.email}</td>
+                      <td>{activity.department}</td>
+                      <td>{activity.role}</td>
+                      <td>{activity.ipAddress}</td>
+                      <td>{activity.userAgent}</td>
+                      <td className="whitespace-pre-line">{activity.description}</td>
+                      <td><div style={{ display: "flex", flexDirection: "column", whiteSpace: "nowrap" }}>
+                        <span>{activity.createdAt ? timestamp.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Jakarta" }) : "-"}</span>
+                        <span>{activity.createdAt ? timestamp.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Jakarta" }) : "-"}</span>
+                      </div></td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr><td colSpan={8} className="text-slate-500">
+                  Tidak ada aktivitas yang sesuai dengan pencarian dan filter.
+                </td></tr>
+              )}
+              </tbody>
+            </table>
+            {!activityLoading && !activityError && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
+                <p role="status">Menampilkan {activityTotal ? (activityPage - 1) * activityPageSize + 1 : 0}–{Math.min(activityPage * activityPageSize, activityTotal)} dari {activityTotal} aktivitas.</p>
+                <nav aria-label="Pagination Log Activity" className="flex items-center gap-3">
+                  <button type="button" disabled={activityPage <= 1} onClick={() => setActivityPage((page) => page - 1)} className="cursor-pointer rounded border border-slate-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40">Sebelumnya</button>
+                  <span>Halaman {activityPage} dari {activityTotalPages}</span>
+                  <button type="button" disabled={activityPage >= activityTotalPages} onClick={() => setActivityPage((page) => page + 1)} className="cursor-pointer rounded border border-slate-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40">Berikutnya</button>
+                </nav>
+              </div>
+            )}
+          </div>
+        ) : (
           <div style={{ flex: 1, padding: "20px 24px", overflowY: "auto", boxSizing: "border-box" }}>
             
-            {/* 2. TOMBOL FILTER (STYLE KAPSUL / OUTLINE SESUAI GAMBAR) */}
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "14px", position: "relative" }}>
-              <button
-                onClick={() => setIsFilterOpen(!isFilterOpen)}
-                style={{
-                  width: "300px",
-                  height: "36px",
-                  padding: "0 16px",
-                  border: "1px solid #94a3b8",
-                  borderRadius: "20px",
-                  background: "#ffffff",
-                  color: "#64748b",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  boxSizing: "border-box",
-                  outline: "none",
-                }}
-              >
-                <span>{selectedDepartment === "All" ? "Select Status" : selectedDepartment}</span>
-                <ChevronDownIcon />
-              </button>
+            {/* SEARCH BAR & FILTER BERJEJER DI KIRI/KANAN SESUAI UI BARU */}
+            <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: "12px", marginBottom: "14px", position: "relative" }}>
+              
+              {/* KOTAK SEARCH BAR */}
+              <div style={{
+                position: "relative",
+                width: "400px",
+                height: "36px",
+                backgroundColor: "#f8fafc",
+                border: "1px solid #94a3b8",
+                borderRadius: "20px",
+                display: "flex",
+                alignItems: "center",
+                padding: "0 14px",
+                boxSizing: "border-box",
+                flexShrink: 0,
+              }}>
+                <svg viewBox="0 0 24 24" style={{ width: "16px", height: "16px", fill: "none", stroke: "#94a3b8", strokeWidth: 2, marginRight: "8px", flexShrink: 0 }}>
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
 
-              {isFilterOpen && (
-                <div style={{ position: "absolute", right: 0, top: "42px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", zIndex: 30, width: "220px", overflow: "hidden" }}>
+                <input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: "100%",
+                    border: 0,
+                    background: "transparent",
+                    outline: "none",
+                    fontSize: "13px",
+                    color: "#0f172a",
+                  }}
+                />
+
+                {searchQuery && (
                   <button
-                    onClick={() => { setSelectedDepartment("All"); setIsFilterOpen(false); }}
-                    style={{ width: "100%", padding: "10px 16px", background: selectedDepartment === "All" ? "#f1f5f9" : "transparent", color: selectedDepartment === "All" ? "#0f172a" : "#475569", border: 0, textAlign: "left", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                    onClick={() => setSearchQuery("")}
+                    style={{
+                      background: "transparent",
+                      border: 0,
+                      cursor: "pointer",
+                      color: "#94a3b8",
+                      fontSize: "14px",
+                      padding: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
                   >
-                    All
+                    ✕
                   </button>
-                  {DEPARTMENT_OPTIONS.map((dept) => (
+                )}
+              </div>
+
+              {/* TOMBOL FILTER DEPARTEMEN */}
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                  style={{
+                    width: "300px",
+                    height: "36px",
+                    padding: "0 16px",
+                    border: "1px solid #94a3b8",
+                    borderRadius: "20px",
+                    background: "#ffffff",
+                    color: "#64748b",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    boxSizing: "border-box",
+                    outline: "none",
+                  }}
+                >
+                  <span>{selectedDepartment === "All" ? "Select Departemen" : selectedDepartment}</span>
+                  <ChevronDownIcon />
+                </button>
+
+                {isFilterOpen && (
+                  <div style={{ position: "absolute", left: 0, top: "42px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", zIndex: 30, width: "220px", overflow: "hidden" }}>
                     <button
-                      key={dept}
-                      onClick={() => { setSelectedDepartment(dept); setIsFilterOpen(false); }}
-                      style={{ width: "100%", padding: "10px 16px", background: selectedDepartment === dept ? "#f1f5f9" : "transparent", color: selectedDepartment === dept ? "#0f172a" : "#475569", border: 0, textAlign: "left", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                      onClick={() => { setSelectedDepartment("All"); setIsFilterOpen(false); }}
+                      style={{ width: "100%", padding: "10px 16px", background: selectedDepartment === "All" ? "#f1f5f9" : "transparent", color: selectedDepartment === "All" ? "#0f172a" : "#475569", border: 0, textAlign: "left", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
                     >
-                      {dept}
+                      All
                     </button>
-                  ))}
-                </div>
-              )}
+                    {DEPARTMENT_OPTIONS.map((dept) => (
+                      <button
+                        key={dept}
+                        onClick={() => { setSelectedDepartment(dept); setIsFilterOpen(false); }}
+                        style={{ width: "100%", padding: "10px 16px", background: selectedDepartment === dept ? "#f1f5f9" : "transparent", color: selectedDepartment === dept ? "#0f172a" : "#475569", border: 0, textAlign: "left", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                      >
+                        {dept}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
             </div>
 
-            {/* 3. TABEL DATA (DI BAWAH FILTER) */}
+            {/* TABEL DATA KARYAWAN */}
             <div style={{ background: "#ffffff", borderRadius: "6px", border: "1px solid #e2e8f0", overflow: "hidden", width: "100%" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.2fr 1.2fr 0.6fr", alignItems: "center", padding: "10px 16px", background: "#f8fafc", color: "#64748b", fontSize: "11px", fontWeight: 800, letterSpacing: "0.5px", borderBottom: "1px solid #e2e8f0" }}>
                 <div>EMPLOYEE'S NAME</div>
@@ -955,7 +978,6 @@ function SmkiDashboard() {
                 filteredEmployees.map((employee) => (
                   <div key={employee.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.2fr 1.2fr 0.6fr", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #f1f5f9", fontSize: "12px", color: !employee.isActive ? "#94a3b8" : "#1e293b", background: "#ffffff" }}>
                     
-                    {/* Nama & Initial Karyawan */}
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 700 }}>
                       <span style={{ width: "26px", height: "26px", borderRadius: "50%", background: "#cbd5e1", color: "#334155", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, flexShrink: 0 }}>
                         {employee.initial}
@@ -963,20 +985,16 @@ function SmkiDashboard() {
                       <span>{employee.name}</span>
                     </div>
 
-                    {/* Email */}
                     <div style={{ color: "#64748b" }}>{employee.email}</div>
 
-                    {/* Department (Sambung ke Supabase) */}
                     <div style={{ fontWeight: 600, color: "#334155" }}>
                       {employee.department}
                     </div>
 
-                    {/* Position (Sambung ke Supabase) */}
                     <div style={{ fontWeight: 600, color: "#334155" }}>
                       {employee.position}
                     </div>
 
-                    {/* Action Buttons */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "16px" }}>
                       <button onClick={() => handleOpenEdit(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }}>
                         <EditIcon />
@@ -996,8 +1014,8 @@ function SmkiDashboard() {
             </div>
 
           </div>
-          )}
-        </section>
+        )}
+      </section>
 
       {/* EDIT KARYAWAN */}
       {editingEmployee && (
@@ -1016,7 +1034,6 @@ function SmkiDashboard() {
               </button>
             </div>
 
-            {/* Error Banner */}
             {errorMessage && (
               <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#ef4444", padding: "10px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: 600, marginBottom: "16px" }}>
                 {errorMessage}
@@ -1024,7 +1041,6 @@ function SmkiDashboard() {
             )}
 
             <form onSubmit={handleSaveEdit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              {/* Full Name */}
               <div>
                 <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Full Name</label>
                 <input
@@ -1035,7 +1051,6 @@ function SmkiDashboard() {
                 />
               </div>
 
-              {/* Email & Phone */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Email Address</label>
@@ -1057,7 +1072,6 @@ function SmkiDashboard() {
                 </div>
               </div>
 
-              {/* Employment Status */}
               <div>
                 <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Employment Status</label>
                 <select
@@ -1070,7 +1084,6 @@ function SmkiDashboard() {
                 </select>
               </div>
 
-              {/* Position & Department */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Position</label>
@@ -1099,7 +1112,6 @@ function SmkiDashboard() {
                 </div>
               </div>
 
-              {/* New Password (Optional) */}
               <div>
                 <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>
                   RESET PASSWORD (Optional)
@@ -1113,7 +1125,6 @@ function SmkiDashboard() {
                 />
               </div>
 
-              {/* Action Buttons */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "20px" }}>
                 <button
                   type="button"
