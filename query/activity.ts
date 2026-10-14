@@ -99,6 +99,14 @@ export async function logoutWithActivity(description: string, scope: 'global' | 
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) throw new Error('Session tidak tersedia.');
     if (session) {
+      // Log Login is updated independently; a failure here must not affect Log Activity or logout.
+      try {
+        await fetch('/api/login-log/logout', {
+          method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` },
+          keepalive: true, signal: AbortSignal.timeout(4000),
+        });
+      } catch { console.error('Gagal mengirim pencatatan logout Log Login.'); }
+
       // The server authenticates before revoking the session and logs only after success.
       const response = await fetch('/api/activity', {
         method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },

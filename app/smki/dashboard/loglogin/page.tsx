@@ -2,11 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CalendarDays } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { fetchLoginLogs, recordLogout, type LoginLogRecord } from "@/query/tracklog";
 import { logoutWithActivity } from '@/query/activity';
 
 const IT_DEPARTMENT_UUID = "8113ab6f-d5cc-4c94-bbf6-e08047931fab";
+const DEPARTMENT_OPTIONS = [
+  "Human Resources",
+  "Logistics & Shipment Operations",
+  "Information Technology",
+  "Finance, Accounting & Tax",
+  "Commercial & Customer Success",
+];
 
 function AccountIcon() {
   return (
@@ -58,32 +66,6 @@ function ChevronDownIcon({ isOpen }: { isOpen: boolean }) {
       <path d="M6 9l6 6 6-6" />
     </svg>
   );
-}
-
-function startOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function toDateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function getCalendarDays(month: Date) {
-  const firstOfMonth = startOfMonth(month);
-  const firstVisibleDay = new Date(
-    month.getFullYear(),
-    month.getMonth(),
-    1 - firstOfMonth.getDay()
-  );
-
-  return Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(firstVisibleDay);
-    date.setDate(firstVisibleDay.getDate() + index);
-    return { date, key: toDateKey(date), inMonth: date.getMonth() === month.getMonth() };
-  });
 }
 
 function formatLogDate(date: string | null) {
@@ -138,20 +120,25 @@ export default function LogLoginPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentUserFullName, setCurrentUserFullName] = useState("");
   const [isSmkiOpen, setIsSmkiOpen] = useState(true);
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedStartDate, setSelectedStartDate] = useState("");
+  const [selectedEndDate, setSelectedEndDate] = useState("");
+  const [draftStartDate, setDraftStartDate] = useState("");
+  const [draftEndDate, setDraftEndDate] = useState("");
+  const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
   const [nameSearch, setNameSearch] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const datePickerRef = useRef<HTMLDivElement>(null);
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
+  const dateRangeDialogRef = useRef<HTMLDialogElement>(null);
   const [loginLogs, setLoginLogs] = useState<LoginLogRecord[]>([]);
   const [isLogsLoading, setIsLogsLoading] = useState(true);
   const [logsError, setLogsError] = useState("");
-  const departments = [...new Set(loginLogs.map((log) => log.departement?.trim()).filter((department): department is string => Boolean(department)))].sort((a, b) => a.localeCompare(b));
+  const departments = [...new Set([
+    ...DEPARTMENT_OPTIONS,
+    ...loginLogs.map((log) => log.departement?.trim()).filter((department): department is string => Boolean(department)),
+  ])].sort((a, b) => a.localeCompare(b));
   const filteredLoginLogs = loginLogs.filter((log) => {
     const matchesName = (log.nama || "").toLocaleLowerCase().includes(nameSearch.trim().toLocaleLowerCase());
-    const matchesDepartment = !selectedDepartment || log.departement === selectedDepartment;
+    const matchesDepartment = !selectedDepartment || log.departement?.trim().toLocaleLowerCase() === selectedDepartment.toLocaleLowerCase();
     return matchesName && matchesDepartment;
   });
   const pageSize = 10;
@@ -160,27 +147,7 @@ export default function LogLoginPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [nameSearch, selectedDepartment, selectedDate]);
-
-  useEffect(() => {
-    if (!isDatePickerOpen) return;
-
-    const closeWhenOutside = (event: MouseEvent) => {
-      if (!datePickerRef.current?.contains(event.target as Node)) {
-        setIsDatePickerOpen(false);
-      }
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsDatePickerOpen(false);
-    };
-
-    document.addEventListener("mousedown", closeWhenOutside);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeWhenOutside);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [isDatePickerOpen]);
+  }, [nameSearch, selectedDepartment, selectedStartDate, selectedEndDate]);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -220,7 +187,7 @@ export default function LogLoginPage() {
       setIsLogsLoading(true);
       setLogsError("");
       try {
-        const logs = await fetchLoginLogs(selectedDate || undefined);
+        const logs = await fetchLoginLogs(selectedStartDate || undefined, selectedEndDate || undefined);
         if (isCurrent) {
           setLoginLogs(logs);
         }
@@ -241,7 +208,7 @@ export default function LogLoginPage() {
     return () => {
       isCurrent = false;
     };
-  }, [isLoading, selectedDate]);
+  }, [isLoading, selectedStartDate, selectedEndDate]);
 
   const handleLogout = async () => {
     await recordLogout();
@@ -369,21 +336,19 @@ export default function LogLoginPage() {
             </label>
             <select aria-label="Filter by department" value={selectedDepartment} onChange={(event) => setSelectedDepartment(event.target.value)} style={{ flex: "0 1 220px", width: "220px", minWidth: "190px", height: "38px", padding: "0 10px", border: "1px solid #e2e8f0", borderRadius: "8px", background: "#ffffff", color: "#334155", fontSize: "12px", cursor: "pointer" }}>
               <option value="">All Departments</option>
-              {!departments.some((department) => department.toLowerCase() === "commercial & customer success") && <option value="Commercial & Customer Success">Commercial &amp; Customer Success</option>}
               {departments.map((department) => <option key={department} value={department}>{department}</option>)}
             </select>
-            <div ref={datePickerRef} style={{ position: "relative" }}>
+            <div>
               <button
                 type="button"
                 aria-label="Filter login history by date"
                 aria-haspopup="dialog"
-                aria-expanded={isDatePickerOpen}
+                aria-expanded={isDateRangeOpen}
                 onClick={() => {
-                  const month = selectedDate
-                    ? startOfMonth(new Date(`${selectedDate}T00:00:00`))
-                    : startOfMonth(new Date());
-                  setVisibleMonth(month);
-                  setIsDatePickerOpen((open) => !open);
+                  setDraftStartDate(selectedStartDate);
+                  setDraftEndDate(selectedEndDate);
+                  dateRangeDialogRef.current?.showModal();
+                  setIsDateRangeOpen(true);
                 }}
                 style={{
                   width: "180px",
@@ -405,11 +370,6 @@ export default function LogLoginPage() {
               >
                 <span style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
                   <span>Date</span>
-                  {selectedDate && (
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {selectedDate.split("-").reverse().join("-")}
-                    </span>
-                  )}
                 </span>
                 <svg
                   aria-hidden="true"
@@ -421,99 +381,66 @@ export default function LogLoginPage() {
                 </svg>
               </button>
 
-              {isDatePickerOpen && (
-                <div
-                  role="dialog"
-                  aria-label="Filter login history by date"
-                  style={{
-                    position: "absolute",
-                    top: "calc(100% + 8px)",
-                    right: 0,
-                    zIndex: 20,
-                    width: "292px",
-                    padding: "12px",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: "8px",
-                    background: "#ffffff",
-                    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.18)",
-                    boxSizing: "border-box",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
-                    <span style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a" }}>
-                      {visibleMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-                    </span>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <button
-                        type="button"
-                        aria-label="Previous month"
-                        onClick={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))}
-                        style={{ width: "32px", height: "32px", border: 0, borderRadius: "6px", background: "transparent", color: "#334155", fontSize: "22px", cursor: "pointer" }}
-                      >‹</button>
-                      <button
-                        type="button"
-                        aria-label="Next month"
-                        onClick={() => setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))}
-                        style={{ width: "32px", height: "32px", border: 0, borderRadius: "6px", background: "transparent", color: "#334155", fontSize: "22px", cursor: "pointer" }}
-                      >›</button>
+              <dialog
+                ref={dateRangeDialogRef}
+                aria-labelledby="login-date-range-title"
+                onClose={() => setIsDateRangeOpen(false)}
+                className="fixed inset-0 m-auto w-[440px] max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white p-6 text-[#555555] shadow-xl backdrop:bg-slate-900/30"
+                onClick={(event) => {
+                  if (event.target !== event.currentTarget) return;
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) event.currentTarget.close();
+                }}
+              >
+                <form onSubmit={(event) => {
+                  event.preventDefault();
+                  if (draftStartDate && draftEndDate && draftStartDate > draftEndDate) return;
+                  setSelectedStartDate(draftStartDate);
+                  setSelectedEndDate(draftEndDate);
+                  setCurrentPage(1);
+                  dateRangeDialogRef.current?.close();
+                }}>
+                  <h2 id="login-date-range-title" className="text-[28px] font-bold leading-tight text-black">Filter</h2>
+                  <p className="mt-1.5 text-sm text-[#707070]">Select date range to search</p>
+                  <div className="mt-5">
+                    <p id="login-date-range-label" className="mb-1.5 text-sm font-medium">Date Range</p>
+                    <div role="group" aria-labelledby="login-date-range-label" className="flex min-h-14 items-center gap-2 rounded-lg border border-[#D9D9D9] px-3 py-2 focus-within:border-blue-400">
+                      <label className="min-w-0 flex-1">
+                        <span className="mb-1 block text-[10px] font-medium text-slate-500">Tanggal mulai</span>
+                        <input type="date" value={draftStartDate} onChange={(event) => {
+                          const start = event.target.value;
+                          setDraftStartDate(start);
+                          if (start && draftEndDate && start > draftEndDate) setDraftEndDate("");
+                        }} className="w-full min-w-0 bg-transparent text-xs text-[#858585] focus-visible:outline-2 focus-visible:outline-blue-500 sm:text-sm" />
+                      </label>
+                      <span aria-hidden="true" className="text-[#858585]">–</span>
+                      <label className="min-w-0 flex-1">
+                        <span className="mb-1 block text-[10px] font-medium text-slate-500">Tanggal akhir</span>
+                        <input type="date" value={draftEndDate} min={draftStartDate || undefined} onChange={(event) => setDraftEndDate(event.target.value)} className="w-full min-w-0 bg-transparent text-xs text-[#858585] focus-visible:outline-2 focus-visible:outline-blue-500 sm:text-sm" />
+                      </label>
+                      <button type="button" aria-label="Buka kalender tanggal mulai" onClick={(event) => {
+                        const startInput = event.currentTarget.closest("form")?.querySelector<HTMLInputElement>('input[type="date"]');
+                        startInput?.focus();
+                        startInput?.showPicker?.();
+                      }} className="ml-1 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded text-[#858585] hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-500">
+                        <CalendarDays aria-hidden="true" className="h-5 w-5" />
+                      </button>
                     </div>
+                    <p className="mt-2 text-[11px] leading-relaxed text-slate-500">Filter berdasarkan tanggal login. Kosongkan salah satu batas untuk rentang terbuka.</p>
                   </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", textAlign: "center", color: "#475569", fontSize: "12px", fontWeight: 600 }}>
-                    {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => <span key={day} style={{ padding: "6px 0" }}>{day}</span>)}
+                  <div className="mt-8 grid grid-cols-[1fr_1.4fr] gap-4">
+                    <button type="button" onClick={() => {
+                      setSelectedStartDate("");
+                      setSelectedEndDate("");
+                      setDraftStartDate("");
+                      setDraftEndDate("");
+                      setCurrentPage(1);
+                      dateRangeDialogRef.current?.close();
+                    }} className="h-12 cursor-pointer rounded-lg border border-[#B8B8B8] bg-white text-base font-semibold text-[#555555] hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-500">Reset</button>
+                    <button type="submit" disabled={Boolean(draftStartDate && draftEndDate && draftStartDate > draftEndDate)} className="h-12 cursor-pointer rounded-lg bg-[#386BF6] text-base font-semibold text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-40">Apply</button>
                   </div>
-                  <div role="grid" aria-label={visibleMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })} style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px", textAlign: "center" }}>
-                    {getCalendarDays(visibleMonth).map(({ date, key, inMonth }) => {
-                      const isSelected = selectedDate === key;
-                      const isToday = toDateKey(new Date()) === key;
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          role="gridcell"
-                          aria-label={date.toLocaleDateString("en-US", { dateStyle: "full" })}
-                          aria-pressed={isSelected}
-                          onClick={() => {
-                            setSelectedDate(key);
-                            setIsDatePickerOpen(false);
-                          }}
-                          style={{
-                            height: "34px",
-                            border: isToday && !isSelected ? "1px solid #94a3b8" : "1px solid transparent",
-                            borderRadius: "5px",
-                            background: isSelected ? "#075edb" : "transparent",
-                            color: isSelected ? "#ffffff" : inMonth ? "#0f172a" : "#94a3b8",
-                            fontSize: "13px",
-                            fontWeight: isSelected ? 700 : 400,
-                            cursor: "pointer",
-                          }}
-                        >{date.getDate()}</button>
-                      );
-                    })}
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", padding: "4px 2px 0" }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedDate("");
-                        setIsDatePickerOpen(false);
-                      }}
-                      style={{ border: 0, background: "transparent", color: "#2563eb", fontSize: "13px", cursor: "pointer" }}
-                    >Default</button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const today = new Date();
-                        setSelectedDate(toDateKey(today));
-                        setVisibleMonth(startOfMonth(today));
-                        setIsDatePickerOpen(false);
-                      }}
-                      style={{ border: 0, background: "transparent", color: "#2563eb", fontSize: "13px", cursor: "pointer" }}
-                    >Today</button>
-                  </div>
-                </div>
-              )}
+                </form>
+              </dialog>
             </div>
           </div>
           <div style={{ overflow: "auto", border: "1px solid #e2e8f0", borderRadius: "6px", background: "#ffffff" }}>
@@ -548,7 +475,7 @@ export default function LogLoginPage() {
                 ))
               ) : (
                 <div style={{ padding: "24px 16px", color: "#94a3b8", fontSize: "12px" }}>
-                  {loginLogs.length ? "No login records match these filters." : selectedDate ? "No login records for this date." : "No login records yet."}
+                  {loginLogs.length ? "No login records match these filters." : selectedStartDate || selectedEndDate ? "No login records in this date range." : "No login records yet."}
                 </div>
               )}
             </div>

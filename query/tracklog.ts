@@ -40,7 +40,8 @@ export type LoginLogRecord = {
 };
 
 export async function fetchLoginLogs(
-  date?: string
+  startDate?: string,
+  endDate?: string
 ): Promise<LoginLogRecord[]> {
   let query = supabase
     .from("b3_log_login")
@@ -57,9 +58,8 @@ export async function fetchLoginLogs(
       waktu_logout
     `);
 
-  if (date) {
-    query = query.eq("tanggal_login", date);
-  }
+  if (startDate) query = query.gte("tanggal_login", startDate);
+  if (endDate) query = query.lte("tanggal_login", endDate);
 
   const { data, error } = await query
     .order("tanggal_login", { ascending: false })
@@ -162,6 +162,7 @@ export async function recordLogin(): Promise<void> {
       departement: departmentData.name,
       tanggal_login: loginTime.tanggal,
       waktu_login: loginTime.waktu,
+      last_seen_at: new Date().toISOString(),
     })
     .select("id")
     .single();
