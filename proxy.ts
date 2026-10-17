@@ -29,15 +29,24 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  const isDashboardRoute = pathname === '/dashboard' || pathname.startsWith('/dashboard/')
-    || pathname === '/smki/dashboard' || pathname.startsWith('/smki/dashboard/');
+  if (user && pathname === '/login') {
+    const redirectUrl = new URL('/landing-page', request.url);
+    const res = NextResponse.redirect(redirectUrl);
+    response.cookies.getAll().forEach((cookie) => res.cookies.set(cookie));
+    res.headers.set('Cache-Control', 'private, no-store');
+    return res;
+  }
 
-  // Jika tidak ada user dan mencoba akses rute dashboard tersebut
-  if ((error || !user) && isDashboardRoute) {
-    const redirectUrl = new URL('/login', request.url);
+  // 2. Rute yang dilindungi (Dashboard & SMKI)
+  const isDashboardRoute = pathname === '/dashboard' || pathname.startsWith('/dashboard/')
+    || pathname === '/smki/dashboard' || pathname.startsWith('/smki/dashboard/')
+    || pathname === '/landing-page' || pathname.startsWith('/landing-page/');
+
+  // Jika tidak ada user dan mencoba akses rute tersebut
+  if ((error || !user) && (isDashboardRoute || pathname === '/landing-page')) {
+    const redirectUrl = new URL('/login?error=unauthorized', request.url);
     const res = NextResponse.redirect(redirectUrl);
 
-    // Preserve session updates/expiry cookies produced by the Supabase client.
     response.cookies.getAll().forEach((cookie) => res.cookies.set(cookie));
     res.headers.set('Cache-Control', 'private, no-store');
     return res;
@@ -47,9 +56,15 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
+// Tambahkan '/login' dan '/landing-page' ke dalam matcher supaya terpantau
 export const config = {
   matcher: [
+    '/login',
+    '/landing-page',
+    '/landing-page/:path*',
+    '/dashboard',
     '/dashboard/:path*',
+    '/smki/dashboard',
     '/smki/dashboard/:path*',
   ],
 };

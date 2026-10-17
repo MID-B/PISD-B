@@ -46,62 +46,77 @@ export default function RegisterPage() {
 
   // 1. Pemetaan Prefiks ID berdasarkan ID Departemen
   const DEPARTMENT_PREFIX_MAP: Record<string, string> = {
-    '72cd470d-216c-48b6-abd9-0cd05a4d8974': 'HCC-HR-MGR', // HRMS
-    'd38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc': 'FAT-BIL',     // CCR / Logistics Ops
+    '6e116b24-22fe-4b8f-be7e-2159b99022bd': 'HCC-HR-MGR', // HRMS
     '8113ab6f-d5cc-4c94-bbf6-e08047931fab': 'IT-DEV',      // IT
-    '1653db5f-2b64-418f-b28b-68cb7b9dae8e': 'DIR-FAT',     // Finance & Tax
+    '1653db5f-2b64-418f-b28b-68cb7b9dae8e': 'FNC-CS',     // Finance & Tax
     '97ac5d35-5da2-4f5d-9d36-78500f403cc7': 'COM-CS-MGR',  // CRM / Commercial
   };
 
   const VALID_POSITION_DEPARTMENTS: Record<string, string> = {
-    '40a8e1f1-0713-4e5d-a7af-061b6e5f495c': 'd38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc', // Freight Forwarding Specialist -> Logistics
-    '96c66ea1-44b6-474f-9410-ad992dd14b93': '72cd470d-216c-48b6-abd9-0cd05a4d8974', // HR Administrator -> Human Resources
+    '446c8f5a-e923-4668-924d-75e28002fa03': '6e116b24-22fe-4b8f-be7e-2159b99022bd', // HR Manager -> Human Resources
     '265c9357-105c-437c-a244-6897122f17c1': '8113ab6f-d5cc-4c94-bbf6-e08047931fab', // Information Technology -> IT
-    '10da1bac-a6a8-472e-a171-e4984ab768d9': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Accounting Associate -> Finance, Accounting & Tax
-    '58706b7f-950b-4e71-b066-792fbd91424d': '97ac5d35-5da2-4f5d-9d36-78500f403cc7', // Sales Executive -> Commercial
+    '7539f5e1-5729-423e-bd87-e15a51fae54c': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Billing -> Finance 
+    'bc015ef6-0515-4875-a15d-0f38dbf3d2c3': '97ac5d35-5da2-4f5d-9d36-78500f403cc7', // Sales Executive -> Commercial, Customer Success Executive -> Cust Success
+    '48e90a83-86bd-4bd9-8b34-0fe7da11cc18': '97ac5d35-5da2-4f5d-9d36-78500f403cc7', // Manager of Customer Success -> Commercial, Customer Success Manager -> Cust Success
+    '2f1901c6-0617-45ba-852f-9556ed957f21': '97ac5d35-5da2-4f5d-9d36-78500f403cc7', // Field Agent -> Commercial 
+    '8b14d133-0c6c-4867-a807-373cf462e5fe': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Manager of Accounting -> Finance 
+    'a8be934a-5d25-46cc-94c7-3be79e3ba035': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Cash Manager Associate -> Finance
+    '67a8e1ba-daa7-4230-9c82-8dfef7e8fd15': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Tax Manager -> Finance 
+    '44f4f4b2-edb9-46c8-933d-9c0dc0fd3646': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Tax Associate -> Finance 
+    'ba43f1eb-7e99-4a85-8471-9d3e54e526b9': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Sales Administration Associate -> Customer Success
+    '7f6c629b-2300-4229-8c24-9df137c3cff2': '6e116b24-22fe-4b8f-be7e-2159b99022bd', // Associate Officer -> Human Resources
+    '8669bd7b-bad6-497e-8bbd-39039949224a': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Accounting Associate -> Finance
   };
   
-  // 2. Daftar Kode Resmi Direktur (Fixed)
+  // 2. Daftar Kode Resmi Direktur (Fixed) sesuai permintaan
   const DIRECTOR_CODES = [
-    'DIR-FAT-001',
-    'DIR-COM-001',
-    'DIR-HCC-001',
+    'DRT-FAT-001', // Finance, Accounting & Tax
+    'DRT-COM-001', // Commercial & Customer Success
+    'DRT-HCC-001', // Human Resources & Corporate Culture
   ] as const;
 
-  // 3. Fungsi Generate ID Tunggal Tanpa Redundansi
+  const DIRECTOR_POSITION_ID = '4acac2d4-8441-4cd8-bcd3-cf3ce4ca0ee0';
+
+  // Pemetaan kode direktur berdasarkan departemen yang dipilih
+  const DIRECTOR_CODE_BY_DEPARTMENT: Record<string, string> = {
+    '1653db5f-2b64-418f-b28b-68cb7b9dae8e': 'DRT-FAT-001', // Finance
+    '97ac5d35-5da2-4f5d-9d36-78500f403cc7': 'DRT-COM-001', // Commercial
+    '6e116b24-22fe-4b8f-be7e-2159b99022bd': 'DRT-HCC-001', // Human Resources
+  };
+
+  // 3. Fungsi Generate ID & Pengecekan Kuota Direktur
   const generateNextEmployeeId = async (
     selectedDepartmentId: string,
     selectedPositionId: string
   ): Promise<string> => {
-    // A. Jika Posisinya Direktur (0ec333af-8737-413f-adab-841a3067e485)
-    const IS_DIRECTOR = selectedPositionId === '0ec333af-8737-413f-adab-841a3067e485';
+    const IS_DIRECTOR = selectedPositionId === DIRECTOR_POSITION_ID;
 
     if (IS_DIRECTOR) {
-      const { data: dirData, error: dirError } = await supabase
+      const specificDirCode = DIRECTOR_CODE_BY_DEPARTMENT[selectedDepartmentId];
+      
+      if (!specificDirCode) {
+        throw new Error('Departemen yang dipilih untuk posisi Direktur tidak memiliki alokasi kode resmi.');
+      }
+
+      // Cek apakah kode direktur khusus departemen ini sudah terdaftar di database
+      const { data: existingDir, error: checkError } = await supabase
         .from('b2_register')
         .select('employee_id')
-        .like('employee_id', 'DIR-%')
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .eq('employee_id', specificDirCode)
+        .maybeSingle();
 
-      if (dirError) throw new Error('Gagal memeriksa ID Direktur: ' + dirError.message);
-      if (!dirData?.length) return DIRECTOR_CODES[0];
+      if (checkError) throw new Error('Gagal memeriksa ketersediaan akun Direktur.');
 
-      const lastDirId = dirData[0].employee_id ?? '';
-      const currentIndex = DIRECTOR_CODES.indexOf(lastDirId as any);
-
-      if (currentIndex !== -1 && currentIndex + 1 < DIRECTOR_CODES.length) {
-        return DIRECTOR_CODES[currentIndex + 1];
+      if (existingDir) {
+        throw new Error(`Pendaftaran gagal: Posisi Direktur untuk departemen ini (${specificDirCode}) sudah memiliki akun terdaftar!`);
       }
-      
-      // Jika kuota kode fixed direktur habis, gunakan fallback AND-
-      return 'AND-0001';
+
+      return specificDirCode;
     }
 
     // B. Jika Karyawan Biasa: Ambil Prefiks Berdasarkan Departemen
     const prefix = DEPARTMENT_PREFIX_MAP[selectedDepartmentId] || 'AND';
 
-    // Cari ID terakhir di DB yang berawalan prefiks departemen tersebut (misal: 'IT-DEV-%')
     const { data, error } = await supabase
       .from('b2_register')
       .select('employee_id')
@@ -111,10 +126,8 @@ export default function RegisterPage() {
 
     if (error) throw new Error('Gagal menyiapkan ID registrasi: ' + error.message);
 
-    // Jika belum ada karyawan di departemen tersebut, mulai dari 001
     if (!data?.length) return `${prefix}-001`;
 
-    // Ambil nomor urut terakhir
     const lastId = data[0].employee_id ?? '';
     const regex = new RegExp(`^${prefix}-(\\d+)$`);
     const match = regex.exec(lastId);
@@ -199,16 +212,16 @@ export default function RegisterPage() {
       }
 
       // --- VALIDASI RELEVANSI POSISI & DEPARTEMEN ---
-      const DIRECTOR_POSITION_ID = '0ec333af-8737-413f-adab-841a3067e485';
+      const DIRECTOR_POSITION_ID = '4acac2d4-8441-4cd8-bcd3-cf3ce4ca0ee0';
 
       if (positionId && departementId && positionId !== DIRECTOR_POSITION_ID) {
-        const expectedDepartmentId = VALID_POSITION_DEPARTMENTS[positionId];
-        if (expectedDepartmentId && expectedDepartmentId !== departementId) {
-          errors.positionId = 'Selected position does not match the department.';
-          errors.departementId = 'Selected department does not match the position.';
-        }
+      const expectedDepartmentId = VALID_POSITION_DEPARTMENTS[positionId];
+      if (expectedDepartmentId && expectedDepartmentId !== departementId) {
+        errors.positionId = 'Selected position does not match the department.';
+        errors.departementId = 'Selected department does not match the position.';
       }
-
+    }
+      
       // Kalau validasi gagal
       if (Object.keys(errors).length > 0) {
         setFieldErrors(errors);
@@ -432,9 +445,37 @@ export default function RegisterPage() {
               {fieldErrors.employmentStatus && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.employmentStatus}</p>}
             </div>
 
-            {/* Grid Position & Department */}
+            {/* Grid Department & Position (Ditukar: Departemen di Kiri, Posisi di Kanan) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {/* Position */}
+              
+              {/* 1. Department (Pindah ke Kiri) */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
+                  Department
+                </label>
+                <select
+                  value={departementId}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+                    const newDept = e.target.value;
+                    setDepartementId(newDept);
+                    // Reset posisi jika departemen diubah agar sinkron/bersih
+                    setPositionId('');
+                    if (fieldErrors.departementId) setFieldErrors((prev) => ({ ...prev, departementId: undefined }));
+                  }}
+                  className={`w-full px-4 py-3 rounded-2xl bg-white/90 text-[#172033] text-sm focus:outline-none border shadow-sm transition-all ${
+                    fieldErrors.departementId ? 'border-red-500 focus:ring-2 focus:ring-red-500/30' : 'border-[#172033]/15 focus:border-[#3B6FF5] focus:ring-2 focus:ring-[#3B6FF5]/30'
+                  }`}
+                >
+                  <option value="">Select Department</option>
+                  <option value="6e116b24-22fe-4b8f-be7e-2159b99022bd">Human Resources</option>
+                  <option value="8113ab6f-d5cc-4c94-bbf6-e08047931fab">Information Technology</option>
+                  <option value="1653db5f-2b64-418f-b28b-68cb7b9dae8e">Finance, Accounting & Tax</option>
+                  <option value="97ac5d35-5da2-4f5d-9d36-78500f403cc7">Commercial & Customer Success</option>
+                </select>
+                {fieldErrors.departementId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.departementId}</p>}
+              </div>
+
+              {/* 2. Position (Pindah ke Kanan, Opsi Difilter Berdasarkan Departemen) */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
                   Position
@@ -450,41 +491,47 @@ export default function RegisterPage() {
                   }`}
                 >
                   <option value="">Select Position</option>
-                  {/* GANTI DENGAN UUID ASLI DARI TABEL POSISI KAMU */}
-                  <option value="40a8e1f1-0713-4e5d-a7af-061b6e5f495c">Freight Forwarding Specialist</option>
-                  <option value="96c66ea1-44b6-474f-9410-ad992dd14b93">HR Administrator</option>
-                  <option value="265c9357-105c-437c-a244-6897122f17c1">Information Technology</option>
-                  <option value="0ec333af-8737-413f-adab-841a3067e485">Director</option>
-                  <option value="10da1bac-a6a8-472e-a171-e4984ab768d9">Accounting Associate</option>
-                  <option value="58706b7f-950b-4e71-b066-792fbd91424d">Sales Executive </option>
+                  
+                  {/* Opsi Director selalu muncul untuk semua departemen */}
+                  <option value={DIRECTOR_POSITION_ID}>Director</option>
+
+                  {/* Human Resources */}
+                  {(!departementId || departementId === '6e116b24-22fe-4b8f-be7e-2159b99022bd') && (
+                    <>
+                    <option value="446c8f5a-e923-4668-924d-75e28002fa03">HR Manager</option>
+                    <option value="7f6c629b-2300-4229-8c24-9df137c3cff2">Associate Officer</option> 
+                    </>
+                  )}
+
+                  {/* Information Technology */}
+                  {(!departementId || departementId === '8113ab6f-d5cc-4c94-bbf6-e08047931fab') && (
+                    <option value="265c9357-105c-437c-a244-6897122f17c1">Information Technology</option>
+                  )}
+
+                  {/* Finance, Accounting & Tax */}
+                  {(!departementId || departementId === '1653db5f-2b64-418f-b28b-68cb7b9dae8e') && (
+                    <>
+                      <option value="8669bd7b-bad6-497e-8bbd-39039949224a">Accounting Associate</option>
+                      <option value="8b14d133-0c6c-4867-a807-373cf462e5fe">Manager of Accounting</option>
+                      <option value="4b7c8e36-f133-4e2b-9b98-c1a1554d1545">Cash Manager</option>
+                      <option value="67a8e1ba-daa7-4230-9c82-8dfef7e8fd15">Tax Manager</option>
+                      <option value="44f4f4b2-edb9-46c8-933d-9c0dc0fd3646">Tax Associate</option>
+                      <option value="a8be934a-5d25-46cc-94c7-3be79e3ba035">Cash Associate</option>
+                      <option value="7539f5e1-5729-423e-bd87-e15a51fae54c">Billing</option>
+                      <option value="ba43f1eb-7e99-4a85-8471-9d3e54e526b9">Sales Administration Associate</option>
+                    </>
+                  )}
+
+                  {/* Commercial & Customer Success */}
+                  {(!departementId || departementId === '97ac5d35-5da2-4f5d-9d36-78500f403cc7') && (
+                    <>
+                      <option value="bc015ef6-0515-4875-a15d-0f38dbf3d2c3">Sales Executive</option>
+                      <option value="48e90a83-86bd-4bd9-8b34-0fe7da11cc18">Manager of Customer Success</option>
+                      <option value="2f1901c6-0617-45ba-852f-9556ed957f21">Field Agent</option>
+                    </>
+                  )}
                 </select>
                 {fieldErrors.positionId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.positionId}</p>}
-              </div>
-
-              {/* Department */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
-                  Department
-                </label>
-                <select
-                  value={departementId}
-                  onChange={(e: ChangeEvent<HTMLSelectElement>) => {
-                    setDepartementId(e.target.value);
-                    if (fieldErrors.departementId) setFieldErrors((prev) => ({ ...prev, departementId: undefined }));
-                  }}
-                  className={`w-full px-4 py-3 rounded-2xl bg-white/90 text-[#172033] text-sm focus:outline-none border shadow-sm transition-all ${
-                    fieldErrors.departementId ? 'border-red-500 focus:ring-2 focus:ring-red-500/30' : 'border-[#172033]/15 focus:border-[#3B6FF5] focus:ring-2 focus:ring-[#3B6FF5]/30'
-                  }`}
-                >
-                  <option value="">Select Department</option>
-                  {/* GANTI DENGAN UUID ASLI DARI TABEL DEPARTEMEN KAMU */}
-                  <option value="72cd470d-216c-48b6-abd9-0cd05a4d8974">Human Resources</option>
-                  <option value="d38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc">Logistics & Shipment Operations</option>
-                  <option value="8113ab6f-d5cc-4c94-bbf6-e08047931fab">Information Technology</option>
-                  <option value="1653db5f-2b64-418f-b28b-68cb7b9dae8e">Finance, Accounting & Tax</option>
-                  <option value="97ac5d35-5da2-4f5d-9d36-78500f403cc7">Commercial & Customer Success</option>
-                </select>
-                {fieldErrors.departementId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.departementId}</p>}
               </div>
             </div>
 

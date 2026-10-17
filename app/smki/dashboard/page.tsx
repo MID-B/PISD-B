@@ -7,23 +7,31 @@ import { supabase } from "@/lib/supabaseClient";
 import { getLoginDestination } from "@/lib/loginDestination";
 import { IT_DEPARTMENT_ID } from '@/lib/activity';
 import { getActivities, getActivityById, matchesActivity, logoutWithActivity, trackActivity, type ActivityLog } from '@/query/activity';
+import { current } from "immer";
 
 /* MASTER DATA OPTIONS */
 const DEPARTMENT_OPTIONS = [
   "Human Resources",
-  "Logistics & Shipment Operations",
   "Information Technology",
   "Finance, Accounting & Tax",
   "Commercial & Customer Success",
 ];
 
 const POSITION_OPTIONS = [
-  "Freight Forwarding Specialist",
-  "HR Administrator",
-  "Information Technology",
   "Director",
+  "HR Manager",
+  "Associate Officer",
+  "Information Technology",
+  "Billing",
+  "Manager of Accounting",
+  "Cash Manager Associate",
+  "Tax Manager",
+  "Tax Associate",
   "Accounting Associate",
   "Sales Executive",
+  "Manager of Customer Success",
+  "Field Agent",
+  "Sales Administration Associate",
 ];
 
 /* PEMETAAN NAMA DEPARTEMEN KE UUID SUPABASE */
@@ -46,22 +54,41 @@ const UUID_DEPARTMENT_MAP: Record<string, string> = {
 
 /* PEMETAAN NAMA JABATAN KE UUID SUPABASE */
 const POSITION_UUID_MAP: Record<string, string> = {
-  "Freight Forwarding Specialist": "40a8e1f1-0713-4e5d-a7af-061b6e5f495c",
-  "HR Administrator": "96c66ea1-44b6-474f-9410-ad992dd14b93",
+  "Director": "4acac2d4-8441-4cd8-bcd3-cf3ce4ca0ee0",
+  "HR Manager": "446c8f5a-e923-4668-924d-75e28002fa03",
+  "Associate Officer": "7f6c629b-2300-4229-8c24-9df137c3cff2",
   "Information Technology": "265c9357-105c-437c-a244-6897122f17c1",
-  "Accounting Associate": "10da1bac-a6a8-472e-a171-e4984ab768d9",
-  "Sales Executive": "58706b7f-950b-4e71-b066-792fbd91424d",
-  "Director": "0ec333af-8737-413f-adab-841a3067e485",
+  "Billing": "7539f5e1-5729-423e-bd87-e15a51fae54c",
+  "Manager of Accounting": "8b14d133-0c6c-4867-a807-373cf462e5fe",
+  "Cash Manager Associate": "a8be934a-5d25-46cc-94c7-3be79e3ba035",
+  "Tax Manager": "67a8e1ba-daa7-4230-9c82-8dfef7e8fd15",
+  "Tax Associate": "44f4f4b2-edb9-46c8-933d-9c0dc0fd3646",
+  "Accounting Associate": "8669bd7b-bad6-497e-8bbd-39039949224a",
+  "Sales Executive": "bc015ef6-0515-4875-a15d-0f38dbf3d2c3",
+  "Manager of Customer Success": "48e90a83-86bd-4bd9-8b34-0fe7da11cc18",
+  "Field Agent": "2f1901c6-0617-45ba-852f-9556ed957f21",
+  "Sales Administration Associate": "ba43f1eb-7e99-4a85-8471-9d3e54e526b9",
 };
 
 /* PEMETAAN UUID JABATAN KE NAMA TAMPILAN */
-const UUID_POSITION_MAP: Record<string, string> = {
-  "40a8e1f1-0713-4e5d-a7af-061b6e5f495c": "Freight Forwarding Specialist",
-  "96c66ea1-44b6-474f-9410-ad992dd14b93": "HR Administrator",
-  "265c9357-105c-437c-a244-6897122f17c1": "Information Technology",
-  "10da1bac-a6a8-472e-a171-e4984ab768d9": "Accounting Associate",
-  "58706b7f-950b-4e71-b066-792fbd91424d": "Sales Executive",
-  "0ec333af-8737-413f-adab-841a3067e485": "Director",
+const UUID_POSITION_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(POSITION_UUID_MAP).map(([name, uuid]) => [uuid, name])
+);
+
+const VALID_POSITION_DEPARTMENTS: Record<string, string> = {
+  "HR Manager": "Human Resources",
+  "Associate Officer": "Human Resources",
+  "Information Technology": "Information Technology",
+  "Billing": "Finance, Accounting & Tax",
+  "Manager of Accounting": "Finance, Accounting & Tax",
+  "Cash Manager Associate": "Finance, Accounting & Tax",
+  "Tax Manager": "Finance, Accounting & Tax",
+  "Tax Associate": "Finance, Accounting & Tax",
+  "Accounting Associate": "Finance, Accounting & Tax",
+  "Sales Executive": "Commercial & Customer Success",
+  "Manager of Customer Success": "Commercial & Customer Success",
+  "Field Agent": "Commercial & Customer Success",
+  "Sales Administration Associate": "Commercial & Customer Success",
 };
 
 /* TYPES */
@@ -121,13 +148,17 @@ function EditIcon() {
 
 function DisableIcon({ active }: { active: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "18px", height: "18px", display: "block", color: active ? "#64748b" : "#ef4444", fill: "currentColor" }}>
-      <path d="M8.2 8.3a3.2 3.2 0 1 1 6.4 0 3.2 3.2 0 0 1-6.4 0Z" fill="currentColor" />
-      <path d="M5.7 19.2c.4-3.1 2.3-5 5.7-5s5.3 1.9 5.7 5" fill="currentColor" />
-      {!active && <path d="M5 5l14 14" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" />}
-    </svg>
-  );
-}
+      <svg viewBox="0 0 24 24" aria-hidden="true" 
+        style={{ width: "18px", height: "18px", display: "block", color: active ? "#64748b" : "#ef4444",
+          fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round"
+        }}
+      >
+        {/* Icon Lingkaran Dicoret (Ban Icon) */}
+        <circle cx="12" cy="12" r="10" />
+        <path d="m4.9 4.9 14.2 14.2" />
+      </svg>
+    );
+  }
 
 function ActivityUserIcon() {
   return (
@@ -198,8 +229,12 @@ function SmkiDashboard() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string>("All");
+  const [selectedPosition, setSelectedPosition] = useState<string>("All");
+  const [selectedStatus, setSelectedStatus] = useState<string>("All");
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>(""); // State untuk Search Bar
+  const [currentPageNum, setCurrentPageNum] = useState<number>(1);
+  const itemsPerPage = 8;
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityError, setActivityError] = useState('');
@@ -214,10 +249,18 @@ function SmkiDashboard() {
   const [draftEndDate, setDraftEndDate] = useState('');
   const dateRangeDialogRef = useRef<HTMLDialogElement>(null);
   const dateRangeStartRef = useRef<HTMLInputElement>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
   
   const [isSmkiOpen, setIsSmkiOpen] = useState<boolean>(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const activeTab = searchParams.get('tab') === 'log-activity' ? 'log-activity' : 'account-maintains';
   const [currentUserFullName, setCurrentUserFullName] = useState<string>("Loading...");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [successModal, setSuccessModal] = useState<{ isOpen: boolean; name: string }>({
+    isOpen: false,
+    name: "",
+  });
 
   // State untuk Modal Edit
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -279,6 +322,8 @@ function SmkiDashboard() {
       }
     } catch (err) {
       console.error("Error Fetching Data:", err);
+    } finally {
+      setIsLoading(false); // <--- PASTIKAN INI ADA DI DALAM block finally AGAR SELALU MATI SETELAH FETCH SELESAI/GAGAL
     }
   };
 
@@ -304,9 +349,12 @@ function SmkiDashboard() {
         return;
       }
 
-      const destination = getLoginDestination(userData.position_id);
-      if (userData.departement_id !== IT_DEPARTMENT_ID) {
-        router.replace(destination || '/login');
+      const isITDepartment = userData.departement_id === IT_DEPARTMENT_ID;
+      const isITPosition = userData.position_id === "265c9357-105c-437c-a244-6897122f17c1"; // UUID posisi Information Technology
+
+      if (!isITDepartment && !isITPosition) {
+        // Alih-alih ke /login, arahkan kembali ke Landing Page utama
+        router.replace('/landing-page');
         return;
       }
 
@@ -396,19 +444,49 @@ function SmkiDashboard() {
   }, [router]);
 
   // Handler Logout
-  const handleLogout = async () => {
-    const { error } = await logoutWithActivity('Keluar dari aplikasi.');
-    if (error) { console.error('Gagal logout.'); return; }
-    router.push("/login");
-  };
+  async function handleLogout() {
+  if (signingOut) return;
+
+  setSigningOut(true);
+  setLogoutError('');
+
+  try {
+    // Catat aktivitas tanpa mengakhiri sesi login
+    await trackActivity(
+      'Logout',
+      'Kembali ke Landing Page dari dashboard MID.'
+    );
+
+    // Kembali ke Landing Page
+    window.location.href = '/landing-page';
+  } catch (error) {
+    console.error('Gagal kembali ke Landing Page:', error);
+    setLogoutError('Gagal kembali ke Landing Page. Silakan coba lagi.');
+    setSigningOut(false);
+  }
+}
 
   // Handler Filter Department & Search
   const filteredEmployees = employees.filter((emp) => {
     const matchesDept = selectedDepartment === "All" || emp.department.toLowerCase() === selectedDepartment.toLowerCase();
     const query = searchQuery.toLowerCase();
+    const matchesPos = selectedPosition === "All" || emp.position.toLowerCase() === selectedPosition.toLowerCase();
     const matchesSearch = !searchQuery || emp.name.toLowerCase().includes(query) || emp.email.toLowerCase().includes(query);
-    return matchesDept && matchesSearch;
+    const matchesStatus =
+      selectedStatus === "All" ||
+      (selectedStatus === "Active" && emp.isActive) ||
+      (selectedStatus === "Inactive" && !emp.isActive);
+    return matchesSearch && matchesDept && matchesPos && matchesStatus;
+  }).sort((a, b) => {
+    // Urutkan: Aktif (true / bernilai 1) didahulukan di atas Nonaktif (false / bernilai 0)
+    return (b.isActive === a.isActive) ? 0 : b.isActive ? 1 : -1;
   });
+
+    // Pagination Slicing (Tambahkan ini)
+  const indexOfLastItem = currentPageNum * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentEmployees = filteredEmployees.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage) || 1;
 
   const activityTotalPages = Math.max(1, Math.ceil(activityTotal / activityPageSize));
   const filterDateLabel = (date: string) => date.split('-').reverse().join('/');
@@ -478,6 +556,13 @@ function SmkiDashboard() {
       newPassword: "",
     });
     setErrorMessage("");
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setSelectedPosition("All");
+    setSelectedDepartment("All");
+    setSelectedStatus("All");
   };
 
   /* 4. UPDATE DATA EDIT KARYAWAN KE SUPABASE */
@@ -587,9 +672,80 @@ function SmkiDashboard() {
     <main style={{ width: "100vw", height: "100vh", display: "flex", background: "#000", overflow: "hidden", fontFamily: "Arial, Helvetica, sans-serif", margin: 0, padding: 0, boxSizing: "border-box" }}>
 
       {/* SIDEBAR */}
-      <aside style={{ width: "250px", height: "100vh", flexShrink: 0, position: "relative", padding: "24px 16px", background: "#0f2038", color: "#fff", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+      <aside style={{ 
+        width: isSidebarOpen ? "250px" : "0px", 
+        height: "100vh", 
+        flexShrink: 0, 
+        position: "relative", 
+        padding: isSidebarOpen ? "24px 16px" : "0px", 
+        background: "#0f2038", 
+        color: "#fff", 
+        display: "flex", 
+        flexDirection: "column", 
+        boxSizing: "border-box",
+        overflow: "visible", 
+        transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease" 
+      }}>
         
-        <CompanyLogo />
+        {/* 🔘 TOMBOL BULAT BIRU MELAYANG DI TEPI KANAN */}
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          style={{
+            position: "absolute",
+            right: "-18px",
+            top: "76px",
+            width: "36px",
+            height: "36px",
+            borderRadius: "50%",
+            background: "#055be5",
+            color: "#ffffff",
+            border: "3px solid #0f2038",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
+            zIndex: 100,
+            transition: "all 0.3s ease",
+          }}
+          aria-label={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
+          title={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
+        >
+          <svg 
+            viewBox="0 0 24 24" 
+            style={{ 
+              width: "18px", 
+              height: "18px", 
+              fill: "none", 
+              stroke: "currentColor", 
+              strokeWidth: 2.5, 
+              strokeLinecap: "round", 
+              strokeLinejoin: "round",
+              transform: isSidebarOpen ? "rotate(0deg)" : "rotate(180deg)",
+              transition: "transform 0.3s ease"
+            }}
+          >
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+
+        {isSidebarOpen && (
+          <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", overflow: "hidden" }}>
+            
+            {/* COMPANY LOGO */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", paddingBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.1)", whiteSpace: "nowrap" }}>
+              <div style={{ width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "transparent" }}>
+                <img 
+                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png" 
+                  alt="Logo ANDIMA" 
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }} 
+                />
+              </div>
+              <div>
+                <div style={{ color: "#ffffff", fontSize: "16px", fontWeight: 800, letterSpacing: "0.5px" }}>ANDIMA</div>
+                <div style={{ color: "#94a3b8", fontSize: "11px", marginTop: "1px" }}>Logistics Suite</div>
+              </div>
+            </div>
 
         <nav style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1, marginTop: "20px" }}>
           <div>
@@ -703,14 +859,19 @@ function SmkiDashboard() {
           </div>
         </nav>
 
-        <button
-          onClick={handleLogout}
-          style={{ width: "100%", height: "44px", borderRadius: "22px", border: "2px solid #f43f5e", background: "transparent", color: "#f43f5e", display: "flex",
-            alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "15px", fontWeight: 700, marginTop: "auto", transition: "all 0.2s ease",
-          }}
-        >
-          Logout
-        </button>
+        {/* TOMBOL LOGOUT */}
+          <button
+            onClick={handleLogout}
+            style={{ 
+              width: "100%", height: "44px", borderRadius: "22px", border: "2px solid #f43f5e", background: "transparent", color: "#f43f5e", display: "flex",
+              alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "15px", fontWeight: 700, marginTop: "auto", transition: "all 0.2s ease",
+            }}
+          >
+            Logout
+          </button>
+        </div>
+      )}
+
       </aside>
 
       {/* MAIN CONTENT AREA */}
@@ -905,109 +1066,92 @@ function SmkiDashboard() {
         ) : (
           <div style={{ flex: 1, padding: "20px 24px", overflowY: "auto", boxSizing: "border-box" }}>
             
-            {/* SEARCH BAR & FILTER BERJEJER DI KIRI/KANAN SESUAI UI BARU */}
-            <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center", gap: "12px", marginBottom: "14px", position: "relative" }}>
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-5 flex flex-wrap items-center gap-3">
               
-              {/* KOTAK SEARCH BAR */}
-              <div style={{
-                position: "relative",
-                width: "400px",
-                height: "36px",
-                backgroundColor: "#f8fafc",
-                border: "1px solid #94a3b8",
-                borderRadius: "20px",
-                display: "flex",
-                alignItems: "center",
-                padding: "0 14px",
-                boxSizing: "border-box",
-                flexShrink: 0,
-              }}>
-                <svg viewBox="0 0 24 24" style={{ width: "16px", height: "16px", fill: "none", stroke: "#94a3b8", strokeWidth: 2, marginRight: "8px", flexShrink: 0 }}>
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-
+              {/* 1. SEARCH INPUT BAR */}
+              <div className="relative flex-1 min-w-[280px]">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </div>
                 <input
                   type="text"
-                  placeholder="Search by name or email..."
+                  placeholder="Search by Employee's Name or Email"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    width: "100%",
-                    border: 0,
-                    background: "transparent",
-                    outline: "none",
-                    fontSize: "13px",
-                    color: "#0f172a",
-                  }}
+                  className="w-full h-10 pl-10 pr-4 bg-[#f1f3fe] text-xs font-medium text-slate-700 placeholder-slate-400 rounded-xl border border-transparent focus:border-purple-300 focus:bg-white focus:outline-none transition-all"
                 />
-
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
-                    style={{
-                      background: "transparent",
-                      border: 0,
-                      cursor: "pointer",
-                      color: "#94a3b8",
-                      fontSize: "14px",
-                      padding: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 text-xs font-bold"
                   >
                     ✕
                   </button>
                 )}
               </div>
 
-              {/* TOMBOL FILTER DEPARTEMEN */}
-              <div style={{ position: "relative" }}>
-                <button
-                  onClick={() => setIsFilterOpen(!isFilterOpen)}
-                  style={{
-                    width: "300px",
-                    height: "36px",
-                    padding: "0 16px",
-                    border: "1px solid #94a3b8",
-                    borderRadius: "20px",
-                    background: "#ffffff",
-                    color: "#64748b",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    boxSizing: "border-box",
-                    outline: "none",
-                  }}
-                >
-                  <span>{selectedDepartment === "All" ? "Select Departemen" : selectedDepartment}</span>
-                  <ChevronDownIcon />
-                </button>
+              {/* 2. FILTER DEPARTMENT (Dipindah ke Kiri) */}
+              <select
+                value={selectedDepartment}
+                onChange={(e) => {
+                  const newDept = e.target.value;
+                  setSelectedDepartment(newDept);
+                  // Reset position ke "All" jika posisi sebelumnya tidak sesuai dengan departemen baru
+                  if (newDept !== "All" && selectedPosition !== "All") {
+                    const validDept = VALID_POSITION_DEPARTMENTS[selectedPosition];
+                    if (validDept && validDept !== newDept && selectedPosition !== "Director") {
+                      setSelectedPosition("All");
+                    }
+                  }
+                }}
+                className="h-10 px-3.5 bg-white text-xs font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs"
+              >
+                <option value="All">All Departement</option>
+                {DEPARTMENT_OPTIONS.map((dept) => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
 
-                {isFilterOpen && (
-                  <div style={{ position: "absolute", left: 0, top: "42px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)", zIndex: 30, width: "220px", overflow: "hidden" }}>
-                    <button
-                      onClick={() => { setSelectedDepartment("All"); setIsFilterOpen(false); }}
-                      style={{ width: "100%", padding: "10px 16px", background: selectedDepartment === "All" ? "#f1f5f9" : "transparent", color: selectedDepartment === "All" ? "#0f172a" : "#475569", border: 0, textAlign: "left", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
-                    >
-                      All
-                    </button>
-                    {DEPARTMENT_OPTIONS.map((dept) => (
-                      <button
-                        key={dept}
-                        onClick={() => { setSelectedDepartment(dept); setIsFilterOpen(false); }}
-                        style={{ width: "100%", padding: "10px 16px", background: selectedDepartment === dept ? "#f1f5f9" : "transparent", color: selectedDepartment === dept ? "#0f172a" : "#475569", border: 0, textAlign: "left", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
-                      >
-                        {dept}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* 3. FILTER POSITION (Dipindah ke Kanan & Dibatasi Berdasarkan Departemen) */}
+              <select
+                value={selectedPosition}
+                onChange={(e) => setSelectedPosition(e.target.value)}
+                className="h-10 px-3.5 bg-white text-xs font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs"
+              >
+                <option value="All">All Position</option>
+                {POSITION_OPTIONS
+                  .filter(pos => selectedDepartment === "All" || pos === "Director" || VALID_POSITION_DEPARTMENTS[pos] === selectedDepartment)
+                  .map((pos) => (
+                    <option key={pos} value={pos}>{pos}</option>
+                  ))}
+              </select>
+
+              {/* 4. FILTER STATUS */}
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="h-10 px-3.5 bg-white text-xs font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs"
+              >
+                <option value="All">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+
+              {/* 5. TOMBOL RESET */}
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="h-10 px-3.5 flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-purple-600 bg-transparent hover:bg-slate-50 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-slate-200 ml-auto sm:ml-0"
+              >
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                <span>Reset</span>
+              </button>
 
             </div>
 
@@ -1021,8 +1165,8 @@ function SmkiDashboard() {
                 <div style={{ textAlign: "center" }}>ACTION</div>
               </div>
 
-              {filteredEmployees.length > 0 ? (
-                filteredEmployees.map((employee) => (
+              {currentEmployees.length > 0 ? (
+                currentEmployees.map((employee) => (
                   <div key={employee.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.2fr 1.2fr 0.6fr", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #f1f5f9", fontSize: "12px", color: !employee.isActive ? "#94a3b8" : "#1e293b", background: "#ffffff" }}>
                     
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 700 }}>
@@ -1059,123 +1203,421 @@ function SmkiDashboard() {
                 </div>
               )}
             </div>
+            
+            {/* PAGINATION DENGAN TRANSISI HALUS (SMOOTH FADE TRANSITION) */}
+            {filteredEmployees.length > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "0 4px", flexShrink: 0 }}>
+              <div style={{ fontSize: "12px", color: "#64748b" }}>
+                Showing <b>{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredEmployees.length)}</b> of <b>{filteredEmployees.length}</b> employees
+              </div>
 
-          </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                
+                {/* Tombol Previous dengan Ikon Panah Kiri */}
+                <button
+                  onClick={() => setCurrentPageNum((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPageNum === 1}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "10px",
+                    border: "1px solid #cbd5e1",
+                    background: currentPageNum === 1 ? "#f8fafc" : "#ffffff",
+                    color: currentPageNum === 1 ? "#94a3b8" : "#1e293b",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: currentPageNum === 1 ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    transition: "all 0.2s ease"
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" style={{ width: "14px", height: "14px", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }}>
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  Previous
+                </button>
+
+                {/* 3 Kotak Angka Halaman */}
+                {(() => {
+                  let startPage = 1;
+
+                  if (totalPages <= 3) {
+                    startPage = 1;
+                  } else if (currentPageNum === 1) {
+                    startPage = 1;
+                  } else if (currentPageNum === totalPages) {
+                    startPage = totalPages - 2;
+                  } else {
+                    startPage = currentPageNum - 1;
+                  }
+
+                  const visiblePages = [];
+                  for (let i = startPage; i < startPage + Math.min(3, totalPages); i++) {
+                    visiblePages.push(i);
+                  }
+
+                  return visiblePages.map((pageNum) => {
+                    const isActive = currentPageNum === pageNum;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPageNum(pageNum)}
+                        style={{
+                          width: "36px",
+                          height: "36px",
+                          borderRadius: "10px",
+                          border: isActive ? "none" : "1px solid #cbd5e1",
+                          background: isActive ? "#2563eb" : "#ffffff",
+                          color: isActive ? "#ffffff" : "#1e293b",
+                          fontSize: "13px",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                          boxShadow: isActive ? "0 4px 12px rgba(37, 99, 235, 0.3)" : "none",
+                        }}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  });
+                })()}
+
+                {/* Tombol Next dengan Ikon Panah Kanan */}
+                <button
+                  onClick={() => setCurrentPageNum((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPageNum === totalPages}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "10px",
+                    border: "1px solid #cbd5e1",
+                    background: currentPageNum === totalPages ? "#f8fafc" : "#ffffff",
+                    color: currentPageNum === totalPages ? "#94a3b8" : "#1e293b",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: currentPageNum === totalPages ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    transition: "all 0.2s ease"
+                  }}
+                >
+                  Next
+                  <svg viewBox="0 0 24 24" style={{ width: "14px", height: "14px", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }}>
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+                </div>  
+              </div>
+          )}
+        </div>
         )}
       </section>
 
       {/* EDIT KARYAWAN */}
       {editingEmployee && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
-          <div style={{ width: "100%", maxWidth: "520px", background: "#ffffff", borderRadius: "16px", padding: "28px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", boxSizing: "border-box" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "20px" }}>
+          <div 
+            className="[scrollbar-width:none] [&::-webkit-scrollbar]:hidden" 
+            style={{ width: "100%", maxWidth: "520px", maxHeight: "90vh", overflowY: "auto", background: "#ffffff", borderRadius: "16px", padding: "28px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", boxSizing: "border-box" }}
+          >
             
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
                 Edit Account ({editingEmployee.employeeId})
               </h3>
               <button
-                onClick={() => setEditingEmployee(null)}
+                onClick={() => {
+                  setEditingEmployee(null);
+                  setFieldErrors({});
+                }}
                 style={{ border: 0, background: "transparent", fontSize: "20px", cursor: "pointer", color: "#64748b" }}
               >
                 ✕
               </button>
             </div>
 
-            {errorMessage && (
-              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#ef4444", padding: "10px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: 600, marginBottom: "16px" }}>
-                {errorMessage}
-              </div>
-            )}
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                const errors: Record<string, string> = {};
 
-            <form onSubmit={handleSaveEdit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                // 1. Full Name
+                if (!editForm.name?.trim()) {
+                  errors.name = "Full Name is required.";
+                } else if (editForm.name.length > 50) {
+                  errors.name = "Full name cannot exceed 50 characters.";
+                }
+
+                // 2. Email Address (WAJIB @andima.co.id)
+                if (!editForm.email?.trim()) {
+                  errors.email = "Email address is required.";
+                } else {
+                  const emailRegex = /^[^\s@]+@andima\.co\.id$/;
+                  if (!emailRegex.test(editForm.email.trim())) {
+                    errors.email = "Email must use the @andima.co.id domain.";
+                  }
+                }
+
+                // 3. Password (Optional)
+                if (editForm.newPassword && editForm.newPassword.trim() !== "") {
+                  const newPass = editForm.newPassword.trim();
+                  const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).+$/;
+
+                  if (newPass.length < 8) {
+                    errors.newPassword = "The password must be at least 8 characters long.";
+                  } else if (newPass.length > 15) {
+                    errors.newPassword = "Reset Password must not exceed 15 characters.";
+                  } else if (!passwordRegex.test(newPass)) {
+                    errors.newPassword = "The password must contain letters, numbers, and special characters.";
+                  }
+                }
+
+                // 4. Phone Number
+                if (!editForm.phone?.trim()) {
+                  errors.phone = "Phone number is required.";
+                } else if (!/^\d*$/.test(editForm.phone.trim())) {
+                  errors.phone = "Phone Number must contain numbers only.";
+                } else if (editForm.phone.trim().length < 10 || editForm.phone.trim().length > 12) {
+                  errors.phone = "Phone Number must be between 10 and 12 digits.";
+                }
+
+                // 5. Employment Status
+                if (!editForm.department) {
+                  errors.department = "Please select a department.";
+                }
+                if (!editForm.position) {
+                  errors.position = "Please select a position.";
+                }
+
+                // Cek jika ada error
+                if (Object.keys(errors).length > 0) {
+                  setFieldErrors(errors);
+                  return;
+                }
+
+                setFieldErrors({});
+                handleSaveEdit(e);
+              }}
+              style={{ display: "flex", flexDirection: "column", gap: "14px" }}
+            >
+              {/* FULL NAME */}
               <div>
                 <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Full Name</label>
                 <input
                   type="text"
                   value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", boxSizing: "border-box" }}
+                  onChange={(e) => {
+                    setEditForm({ ...editForm, name: e.target.value });
+                    setFieldErrors((prev) => ({ ...prev, name: "" }));
+                  }}
+                  style={{ 
+                    width: "100%", 
+                    padding: "10px 12px", 
+                    borderRadius: "8px", 
+                    border: fieldErrors.name ? "1px solid #ef4444" : "1px solid #cbd5e1", 
+                    fontSize: "13px", 
+                    boxSizing: "border-box" 
+                  }}
                 />
+                {fieldErrors.name && (
+                  <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>
+                    {fieldErrors.name}
+                  </span>
+                )}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Email Address</label>
-                  <input
-                    type="email"
-                    value={editForm.email}
-                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", boxSizing: "border-box" }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Phone Number</label>
-                  <input
-                    type="text"
-                    value={editForm.phone}
-                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", boxSizing: "border-box" }}
-                  />
-                </div>
+              {/* EMAIL ADDRESS */}
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Email Address</label>
+                <input
+                  type="text"
+                  value={editForm.email}
+                  onChange={(e) => {
+                    setEditForm({ ...editForm, email: e.target.value });
+                    setFieldErrors((prev) => ({ ...prev, email: "" }));
+                  }}
+                  style={{ 
+                    width: "100%", 
+                    padding: "10px 12px", 
+                    borderRadius: "8px", 
+                    border: fieldErrors.email ? "1px solid #ef4444" : "1px solid #cbd5e1", 
+                    fontSize: "13px", 
+                    boxSizing: "border-box" 
+                  }}
+                />
+                {fieldErrors.email && (
+                  <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>
+                    {fieldErrors.email}
+                  </span>
+                )}
               </div>
 
+              {/* PHONE NUMBER */}
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Phone Number</label>
+                <input
+                  type="text"
+                  placeholder="Max. 12 digits (e.g. 08123456789)"
+                  value={editForm.phone}
+                  onChange={(e) => {
+                    setEditForm({ ...editForm, phone: e.target.value });
+                    setFieldErrors((prev) => ({ ...prev, phone: "" }));
+                  }}
+                  style={{ 
+                    width: "100%", 
+                    padding: "10px 12px", 
+                    borderRadius: "8px", 
+                    border: fieldErrors.phone ? "1px solid #ef4444" : "1px solid #cbd5e1", 
+                    fontSize: "13px", 
+                    boxSizing: "border-box" 
+                  }}
+                />
+                {fieldErrors.phone && (
+                  <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>
+                    {fieldErrors.phone}
+                  </span>
+                )}
+              </div>
+
+              {/* EMPLOYMENT STATUS */}
               <div>
                 <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Employment Status</label>
                 <select
                   value={editForm.employmentStatus}
-                  onChange={(e) => setEditForm({ ...editForm, employmentStatus: e.target.value as "Probation" | "Permanent" })}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", background: "#fff", boxSizing: "border-box" }}
+                  onChange={(e) => {
+                    setEditForm({ ...editForm, employmentStatus: e.target.value as "Probation" | "Permanent" });
+                    setFieldErrors((prev) => ({ ...prev, employmentStatus: "" }));
+                  }}
+                  style={{ 
+                    width: "100%", 
+                    padding: "10px 12px", 
+                    borderRadius: "8px", 
+                    border: fieldErrors.employmentStatus ? "1px solid #ef4444" : "1px solid #cbd5e1", 
+                    fontSize: "13px", 
+                    background: "#fff", 
+                    boxSizing: "border-box" 
+                  }}
                 >
                   <option value="Probation">Probation</option>
                   <option value="Permanent">Permanent</option>
                 </select>
+                {fieldErrors.employmentStatus && (
+                  <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>
+                    {fieldErrors.employmentStatus}
+                  </span>
+                )}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Position</label>
-                  <select
-                    value={editForm.position}
-                    onChange={(e) => setEditForm({ ...editForm, position: e.target.value })}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", background: "#fff", boxSizing: "border-box" }}
-                  >
-                    {POSITION_OPTIONS.map((pos) => (
-                      <option key={pos} value={pos}>{pos}</option>
-                    ))}
-                  </select>
-                </div>
-
+              {/* POSITION & DEPARTMENT */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", alignItems: "start" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Department</label>
                   <select
                     value={editForm.department}
-                    onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", background: "#fff", boxSizing: "border-box" }}
+                    onChange={(e) => {
+                      const newDept = e.target.value;
+                      const availablePositions = POSITION_OPTIONS.filter(pos => pos === "Director" || VALID_POSITION_DEPARTMENTS[pos] === newDept);
+                      const newPos = availablePositions.includes(editForm.position) ? editForm.position : "";
+                      
+                      setEditForm({ ...editForm, department: newDept, position: newPos });
+                      setFieldErrors((prev) => ({ ...prev, department: "", position: "" }));
+                    }}
+                    style={{ 
+                      width: "100%", 
+                      padding: "10px 12px", 
+                      borderRadius: "8px", 
+                      border: fieldErrors.department ? "1px solid #ef4444" : "1px solid #cbd5e1", 
+                      fontSize: "13px", 
+                      background: "#fff", 
+                      boxSizing: "border-box" 
+                    }}
                   >
+                    <option value="">Select Department</option>
                     {DEPARTMENT_OPTIONS.map((dept) => (
                       <option key={dept} value={dept}>{dept}</option>
                     ))}
                   </select>
+                  {fieldErrors.department && (
+                    <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>
+                      {fieldErrors.department}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Position</label>
+                  <select
+                    value={editForm.position}
+                    onChange={(e) => {
+                      setEditForm({ ...editForm, position: e.target.value });
+                      setFieldErrors((prev) => ({ ...prev, position: "" }));
+                    }}
+                    style={{ 
+                      width: "100%", 
+                      padding: "10px 12px", 
+                      borderRadius: "8px", 
+                      border: fieldErrors.position ? "1px solid #ef4444" : "1px solid #cbd5e1", 
+                      fontSize: "13px", 
+                      background: "#fff", 
+                      boxSizing: "border-box" 
+                    }}
+                  >
+                    <option value="">Select Position</option>
+                    {POSITION_OPTIONS
+                      .filter(pos => !editForm.department || pos === "Director" || VALID_POSITION_DEPARTMENTS[pos] === editForm.department)
+                      .map((pos) => (
+                        <option key={pos} value={pos}>{pos}</option>
+                      ))}
+                  </select>
+                  {fieldErrors.position && (
+                    <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>
+                      {fieldErrors.position}
+                    </span>
+                  )}
                 </div>
               </div>
 
+              {/* RESET PASSWORD (OPTIONAL) */}
               <div>
                 <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>
-                  RESET PASSWORD (Optional)
+                  Reset Password (Optional)
                 </label>
                 <input
                   type="password"
-                  placeholder="Enter new password"
+                  placeholder="Min. 10 chars (letters, numbers, symbols)"
                   value={editForm.newPassword || ""}
-                  onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "13px", boxSizing: "border-box" }}
+                  onChange={(e) => {
+                    setEditForm({ ...editForm, newPassword: e.target.value });
+                    setFieldErrors((prev) => ({ ...prev, newPassword: "" }));
+                  }}
+                  style={{ 
+                    width: "100%", 
+                    padding: "10px 12px", 
+                    borderRadius: "8px", 
+                    border: fieldErrors.newPassword ? "1px solid #ef4444" : "1px solid #cbd5e1", 
+                    fontSize: "13px", 
+                    boxSizing: "border-box" 
+                  }}
                 />
+                {fieldErrors.newPassword && (
+                  <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>
+                    {fieldErrors.newPassword}
+                  </span>
+                )}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "20px" }}>
+              {/* BUTTON ACTION */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "12px" }}>
                 <button
                   type="button"
-                  onClick={() => setEditingEmployee(null)}
+                  onClick={() => {
+                    setEditingEmployee(null);
+                    setFieldErrors({});
+                  }}
                   style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: "#1e293b", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s ease" }}
                 >
                   Cancel
@@ -1232,6 +1674,39 @@ function SmkiDashboard() {
         </div>
       )}
 
+      {/* MODAL SUKSES EDIT DATA */}
+      {successModal.isOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 70, padding: "20px" }}>
+          <div style={{ width: "100%", maxWidth: "380px", background: "#ffffff", borderRadius: "20px", padding: "32px 24px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", textAlign: "center", boxSizing: "border-box" }}>
+            
+            {/* ICON CENTANG HIJAU */}
+            <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "#dcfce7", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px auto" }}>
+              <svg viewBox="0 0 24 24" style={{ width: "32px", height: "32px", fill: "none", stroke: "currentColor", strokeWidth: 3, strokeLinecap: "round", strokeLinejoin: "round" }}>
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+
+            {/* JUDUL */}
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "20px", fontWeight: 800, color: "#0f172a" }}>
+              Data Berhasil Diperbarui
+            </h3>
+
+            {/* DESKRIPSI */}
+            <p style={{ fontSize: "13px", color: "#64748b", lineHeight: "1.5", margin: "0 0 24px 0" }}>
+              Perubahan pada akun <b>{successModal.name}</b> telah berhasil disimpan ke database.
+            </p>
+
+            {/* TOMBOL OK */}
+            <button
+              type="button"
+              onClick={() => setSuccessModal({ isOpen: false, name: "" })}
+              style={{ width: "100%", padding: "12px 20px", borderRadius: "12px", border: 0, background: "#2563eb", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer", boxShadow: "0 6px 20px rgba(37,99,235,0.35)", transition: "all 0.2s ease" }}
+            >
+              Ok
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

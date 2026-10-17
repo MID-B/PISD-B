@@ -22,7 +22,21 @@ function LoginContent() {
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [isPermanentlyBlocked, setIsPermanentlyBlocked] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<number>(0);
-  const [greeting, setGreeting] = useState<string>('Good Morning');
+  const [greeting, setGreeting] = useState<string>('Good Morning'); 
+  const [showPopup, setShowPopup] = useState<boolean>(false);
+
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'unauthorized') {
+      setShowPopup(true);
+      
+      // Otomatis tutup pop-up setelah 5 detik (opsional)
+      const timer = setTimeout(() => {
+        setShowPopup(false);
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -166,12 +180,9 @@ function LoginContent() {
       trackActivity('Login', 'Berhasil login ke aplikasi.');
       setSuccessMessage(`Login berhasil! Selamat datang, ${profileData.full_name || 'User'}. Mengalihkan...`);
 
+      // Mengarahkan langsung ke landing page modular setelah login berhasil
       window.setTimeout(() => {
-        if (targetRoute) {
-          router.replace(targetRoute);
-        } else {
-          router.replace('/404');
-        }
+        router.replace('/landing-page');
       }, 1200);
 
     } catch (err) {
@@ -182,7 +193,29 @@ function LoginContent() {
   };
 
   return (
-    <main className="relative min-h-screen w-full overflow-x-hidden bg-[#07111F] text-[#0D1B2A] selection:bg-[#3B6FF5] selection:text-white font-[family-name:var(--font-montserrat)]">
+    <main className="fixed inset-0 h-screen w-screen overflow-hidden bg-[#07111F] text-[#0D1B2A] selection:bg-[#3B6FF5] selection:text-white font-[family-name:var(--font-inter)]">
+
+      {/* POP-UP NOTIFIKASI DI TENGAH ATAS LAYAR */}
+      {showPopup && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-[#D9364F]/95 backdrop-blur-md text-white px-6 py-4.5 rounded-2xl shadow-[0_20px_50px_rgba(217,54,79,0.5)] border border-[#D9364F]/60 transition-all max-w-md w-[90%] sm:w-auto">
+          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <h4 className="font-bold text-xs tracking-wide uppercase font-[family-name:var(--font-poppins)]">Akses Ditolak</h4>
+            <p className="text-xs text-rose-100 font-medium mt-0.5">Silakan login terlebih dahulu untuk mengakses Dashboard.</p>
+          </div>
+          <button 
+            type="button"
+            onClick={() => setShowPopup(false)}
+            className="ml-2 text-rose-200 hover:text-white font-bold text-base transition-colors"
+          >
+          </button>
+        </div>
+      )}
+
       {/* 1. BACKGROUND GAMBAR LOGISTIK FULL SCREEN */}
       <div className="absolute inset-0 z-0">
         <img
@@ -213,9 +246,9 @@ function LoginContent() {
           />
         </div>
         {/* Frame Transparan dengan Warna #0F2342 */}
-          <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
+          <h1 className="font-[family-name:var(--font-poppins)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
             PT. ANDIMA<br />
-            <span className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
+            <span className="font-[family-name:var(--font-poppins)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
               TRANSPORTINDO
             </span>
           </h1>
@@ -225,27 +258,27 @@ function LoginContent() {
       <div className="relative z-10 min-h-screen w-full flex items-center justify-start px-6 py-8 sm:px-12 lg:px-20">
         <div className="w-full max-w-xl">
 
-          {/* FRAME LIQUID GLASS (GLASSMORPHISM ADVANCED) */}
-          <div className="p-8 sm:p-11 rounded-3xl bg-gradient-to-b from-white/85 via-white/70 to-white/60 backdrop-blur-2xl border border-white/80 shadow-[0_20px_50px_rgba(7,17,31,0.5),inset_0_2px_4px_rgba(255,255,255,0.9)] relative overflow-hidden">
+          {/* FRAME LIQUID GLASS */}
+           <div className="p-5 sm:p-7 rounded-3xl bg-gradient-to-b from-white/85 via-white/70 to-white/60 backdrop-blur-2xl border border-white/80 shadow-[0_20px_50px_rgba(7,17,31,0.5),inset_0_2px_4px_rgba(255,255,255,0.9)] relative overflow-y-auto max-h-[92vh] [scrollbar-width:none]">
             
             {/* Top Liquid Highlight Specular Glow */}
             <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-3/4 h-32 bg-gradient-to-b from-white/80 to-transparent blur-md pointer-events-none rounded-full" />
 
             {/* Greeting */}
             <div className="mb-7 text-left relative z-10">
-              <h2 className="font-[family-name:var(--font-syne)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
+              <h2 className="font-[family-name:var(--font-poppins)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
                 {greeting},
               </h2>
-              <p className="font-[family-name:var(--font-montserrat)] text-sm text-[#334155] mt-1.5 font-medium">
+              <p className="font-[family-name:var(--font-poppins)] text-sm text-[#334155] mt-1.5 font-medium">
                 Please sign in with your registered account to access the dashboard.
               </p>
             </div>
 
             {/* Form Fields */}
-            <form onSubmit={handleSubmit} className="space-y-6 font-[family-name:var(--font-montserrat)] relative z-10" noValidate>
+            <form onSubmit={handleSubmit} className="space-y-6 font-[family-name:var(--font-inter)] relative z-10" noValidate>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#0F172A] mb-2.5">
-                  Username / Email
+                  Email
                 </label>
                 <input
                   type="email"
@@ -318,7 +351,7 @@ function LoginContent() {
               <button
                 type="submit"
                 disabled={isLocked || isPermanentlyBlocked || isSigningIn}
-                className="w-full py-4 px-5 text-white font-extrabold rounded-xl text-sm tracking-wider uppercase transition-all mt-2 disabled:opacity-50 bg-[#3B6FF5] hover:bg-[#2B5CE5] shadow-[0_8px_25px_rgba(59,111,245,0.4)] active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed font-[family-name:var(--font-montserrat)]"
+                className="w-full py-4 px-5 text-white font-extrabold rounded-xl text-sm tracking-wider uppercase transition-all mt-2 disabled:opacity-50 bg-[#3B6FF5] hover:bg-[#2B5CE5] shadow-[0_8px_25px_rgba(59,111,245,0.4)] active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed font-[family-name:var(--font-poppins)]"
               >
                 {isPermanentlyBlocked
                   ? 'ACCOUNT BLOCKED'
@@ -327,19 +360,7 @@ function LoginContent() {
                   : isSigningIn ? 'SIGNING IN…' : 'LOGIN'}
               </button>
             </form>
-
-            <p className="relative z-10 mt-4 text-center text-sm text-[#334155]">
-              Not registered?{' '}
-              <Link href="/register" className="font-bold text-[#3B6FF5] hover:underline">Register</Link>
-            </p>
-
-            {/* Info Demo Credentials */}
-            <div className="mt-7 p-4 rounded-xl bg-white/60 backdrop-blur-md border border-white/80 text-xs text-[#334155] space-y-1 font-[family-name:var(--font-montserrat)] shadow-sm relative z-10">
-              <p className="font-bold text-[#3B6FF5]">Demo Credentials:</p>
-              <p>• Management: <span className="text-[#0D1B2A] font-semibold">manajemen@andima.co.id</span> | Pass: <span className="text-[#0D1B2A] font-semibold">Manajemen123!@#</span></p>
-            </div>
           </div>
-
         </div>
       </div>
     </main>

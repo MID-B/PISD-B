@@ -9,7 +9,12 @@ const rupiah = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'ID
 export const monthLabel = (value: string) => new Date(value + 'T00:00:00+07:00').toLocaleDateString('id-ID', { month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' });
 
 export function useSalesPerformanceTrend() {
-  const [period, setPeriod] = useState('3');
+  const [period, setPeriod] = useState('3'); // '3', '6', 'ytd'
+  const [selectedYear, setSelectedYear] = useState<string>('2026');
+  const [selectedMonth, setSelectedMonth] = useState<string>('2026-05');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+
   const [reports, setReports] = useState<Report[]>([]);
   const [chartLoading, setChartLoading] = useState(true);
   const [chartError, setChartError] = useState('');
@@ -40,12 +45,30 @@ export function useSalesPerformanceTrend() {
 
   const latest = reports.at(-1)?.period_month;
   const latestYear = latest?.slice(0, 4);
-  const cutoff = latest ? new Date(latest + 'T00:00:00Z') : null;
-  if (cutoff) cutoff.setUTCDate(1);
-  if (cutoff && period !== 'ytd') cutoff.setUTCMonth(cutoff.getUTCMonth() - Number(period) + 1);
-  const selected = reports.filter((row) => period === 'ytd'
-    ? row.period_month.slice(0, 4) === latestYear
-    : cutoff && row.period_month >= cutoff.toISOString().slice(0, 10));
+
+  // Logika Pemfilteran Data Berdasarkan Jenis Filter yang Dipilih
+  const selected = reports.filter((row) => {
+    const rowMonth = row.period_month; // Format 'YYYY-MM-DD' atau 'YYYY-MM'
+
+    if (period === 'year') {
+      return rowMonth.slice(0, 4) === selectedYear;
+    }
+    if (period === 'month') {
+      return rowMonth.slice(0, 7) === selectedMonth;
+    }
+    if (period === 'range') {
+      if (!startDate || !endDate) return true;
+      return rowMonth >= startDate && rowMonth <= endDate;
+    }
+
+    // Preset 3 atau 6 Bulan
+    const cutoff = latest ? new Date(latest + 'T00:00:00Z') : null;
+    if (cutoff) cutoff.setUTCDate(1);
+    if (cutoff) cutoff.setUTCMonth(cutoff.getUTCMonth() - Number(period) + 1);
+    
+    return cutoff && rowMonth >= cutoff.toISOString().slice(0, 10);
+  });
+
   const data = selected.map((row) => ({ month: monthLabel(row.period_month), profit: row.total_profit === null ? null : Number(row.total_profit) / 1000000 }));
   const first = selected[0]?.total_profit;
   const last = selected.at(-1)?.total_profit;
@@ -53,25 +76,98 @@ export function useSalesPerformanceTrend() {
     ? (Number(last) - Number(first)) / Math.abs(Number(first)) * 100 : null;
   const range = selected.length ? `${monthLabel(selected[0].period_month)} – ${monthLabel(selected[selected.length - 1].period_month)}` : '-';
 
-  return { period, setPeriod, selected, data, latestYear, growth, range, chartLoading, chartError, retry: () => setReload((value) => value + 1) };
+  return { 
+    period, setPeriod, 
+    selectedYear, setSelectedYear,
+    selectedMonth, setSelectedMonth,
+    startDate, setStartDate,
+    endDate, setEndDate,
+    selected, data, latestYear, growth, range, chartLoading, chartError, retry: () => setReload((value) => value + 1) 
+  };
 }
 
 export default function SalesPerformanceTrend({ model }: { model: ReturnType<typeof useSalesPerformanceTrend> }) {
-  const { period, setPeriod, data, latestYear, growth, range, chartLoading, chartError, retry } = model;
+  const { 
+    period, setPeriod, 
+    selectedYear, setSelectedYear,
+    selectedMonth, setSelectedMonth,
+    startDate, setStartDate,
+    endDate, setEndDate,
+    data, latestYear, growth, range, chartLoading, chartError, retry 
+  } = model;
+
   return (
-    <>
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+    <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <h2 id="sales-title" className="font-bold text-slate-800 text-base">Sales Performance Trend</h2>
             <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-wide">Total profit company sales report periode {range}.</p>
           </div>
-          <select aria-label="Sales report period" value={period} onChange={(event) => setPeriod(event.target.value)} className="self-start bg-white text-slate-700 text-xs font-medium px-3 py-2 rounded-full border border-purple-200 focus:outline-2 focus:outline-purple-500 cursor-pointer">
-            <option value="3">Last 3 Months</option><option value="6">Last 6 Months</option><option value="ytd">YTD{latestYear ? ` ${latestYear}` : ''}</option>
-          </select>
+
+          {/* KUMPULAN KONTROL FILTER */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* 1 DROPDOWN UTAMA */}
+            <select 
+              aria-label="Sales report period" 
+              value={period} 
+              onChange={(event) => setPeriod(event.target.value)} 
+              className="bg-white text-slate-700 text-xs font-medium px-3.5 py-2 rounded-xl border border-purple-200 focus:outline-2 focus:outline-purple-500 cursor-pointer shadow-2xs"
+            >
+              <option value="3">Per 3 Bulan</option>
+              <option value="6">Per 6 Bulan</option>
+              <option value="year">Per Tahun</option>
+              <option value="month">Per Bulan</option>
+              <option value="range">Rentang Tanggal</option>
+            </select>
+
+            {/* MUNCUL JIKA PILIH 'Per Tahun' */}
+            {period === 'year' && (
+              <select 
+                value={selectedYear} 
+                onChange={(event) => setSelectedYear(event.target.value)} 
+                className="bg-white text-slate-700 text-xs font-medium px-3 py-2 rounded-xl border border-purple-200 focus:outline-2 focus:outline-purple-500 cursor-pointer"
+              >
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+              </select>
+            )}
+
+            {/* MUNCUL JIKA PILIH 'Per Bulan' */}
+            {period === 'month' && (
+              <input 
+                type="month" 
+                value={selectedMonth} 
+                onChange={(event) => setSelectedMonth(event.target.value)} 
+                className="bg-white text-slate-700 text-xs font-medium px-3 py-1.5 rounded-xl border border-purple-200 focus:outline-2 focus:outline-purple-500 cursor-pointer"
+              />
+            )}
+
+            {/* MUNCUL JIKA PILIH 'Rentang Tanggal' */}
+            {period === 'range' && (
+              <div className="flex items-center gap-1.5">
+                <input 
+                  type="date" 
+                  value={startDate} 
+                  onChange={(event) => setStartDate(event.target.value)} 
+                  className="bg-white text-slate-700 text-xs font-medium px-2 py-1.5 rounded-lg border border-purple-200 focus:outline-2 focus:outline-purple-500"
+                />
+                <span className="text-xs text-slate-500">s/d</span>
+                <input 
+                  type="date" 
+                  value={endDate} 
+                  onChange={(event) => setEndDate(event.target.value)} 
+                  className="bg-white text-slate-700 text-xs font-medium px-2 py-1.5 rounded-lg border border-purple-200 focus:outline-2 focus:outline-purple-500"
+                />
+              </div>
+            )}
+          </div>
         </div>
+
         <div className="flex items-center justify-between mt-6 mb-4 text-[11px] text-slate-500">
           <span>Profit (dalam juta rupiah)</span><span className="flex items-center gap-2"><i className="h-3 w-3 rounded-sm bg-cyan-500" />Total Profit</span>
         </div>
+        
         <div className="h-64 sm:h-80 my-2" role="group" aria-label={`Sales performance chart, ${range}`}>
           {chartLoading ? <p role="status">Memuat grafik...</p> : chartError ? <p role="alert" className="text-sm text-red-600">{chartError}</p> : !data.length ? <p className="text-sm text-slate-500">Belum ada data grafik pada periode ini.</p> : (
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -85,12 +181,13 @@ export default function SalesPerformanceTrend({ model }: { model: ReturnType<typ
             </ResponsiveContainer>
           )}
         </div>
+
         <div className="border-t border-slate-100 pt-3 mt-5" aria-live="polite">
           <h3 className="text-xs font-semibold text-slate-700">Description</h3>
           <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{growth === null ? 'Perbandingan pertumbuhan tersedia jika terdapat minimal dua bulan dengan profit awal bukan nol.' : `Total profit ${growth < 0 ? 'menurun' : growth > 0 ? 'meningkat' : 'berubah'} ${Math.abs(growth).toLocaleString('id-ID', { maximumFractionDigits: 1 })}% selama periode ${range}.`}</p>
         </div>
       {chartError && <button type="button" onClick={retry} className="mt-4 text-sm text-blue-600 cursor-pointer">Coba lagi</button>}
-    </>
+    </div>
   );
 }
 

@@ -154,16 +154,21 @@ export async function recordLogin(): Promise<void> {
 
   const { data: log, error: logError } = await supabase
     .from("b3_log_login")
-    .insert({
-      register_id: register.id,
-      nama: register.full_name,
-      email: register.email,
-      position: positionData.title,
-      departement: departmentData.name,
-      tanggal_login: loginTime.tanggal,
-      waktu_login: loginTime.waktu,
-      last_seen_at: new Date().toISOString(),
-    })
+    .upsert(
+      {
+        register_id: register.id,
+        nama: register.full_name,
+        email: register.email,
+        position: positionData.title,
+        departement: departmentData.name,
+        tanggal_login: loginTime.tanggal,
+        waktu_login: loginTime.waktu,
+        last_seen_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "register_id, tanggal_login", // Mencegah error duplicate key
+      }
+    )
     .select("id")
     .single();
 
