@@ -1,4 +1,4 @@
-export type IssueStatus = 'To Do' | 'In Progress' | 'Open' | 'Pending' | 'Done';
+export type IssueStatus = 'To Do' | 'In Progress' | 'In Review' | 'Open' | 'Pending' | 'Done';
 export type IssuePriority = 'High' | 'Medium' | 'Low';
 
 export type Issue = {

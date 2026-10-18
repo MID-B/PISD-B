@@ -24,10 +24,10 @@ test('protected MID and SMKI pages redirect to login without a verified user', a
   const { proxy } = load('proxy.ts', {
     createServerClient: () => ({ auth: { getUser: async () => ({ data: { user: null }, error: null }) } }),
   });
-  for (const path of ['/dashboard', '/dashboard/sales-performance', '/smki/dashboard', '/smki/dashboard/loglogin']) {
+  for (const path of ['/dashboard', '/dashboard/sales-performance', '/smki/dashboard', '/smki/dashboard/loglogin', '/landing-page']) {
     const response = await proxy(new NextRequest(`http://localhost:3000${path}`));
     assert.equal(response.status, 307);
-    assert.equal(response.headers.get('location'), 'http://localhost:3000/login');
+    assert.equal(response.headers.get('location'), 'http://localhost:3000/login?error=unauthorized');
     assert.equal(response.headers.get('cache-control'), 'private, no-store');
   }
 });

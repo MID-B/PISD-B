@@ -129,13 +129,21 @@ test('client logout reaches the server before local signOut and tolerates log se
   const query = queryModule({ auth: {
     getSession: async () => ({ data: { session: { access_token: 'token' } } }),
     signOut: async () => { operations.push('local-clear'); return { error: null }; },
-  } }, async (_, options) => {
-    operations.push('server-request');
+  } }, async (url, options) => {
+    assert.equal(options.headers.Authorization, 'Bearer token');
+    if (url === '/api/login-log/logout') {
+      operations.push('login-log-request');
+      assert.equal(options.method, 'POST');
+      assert.equal(options.keepalive, true);
+      return { ok: true };
+    }
+    assert.equal(url, '/api/activity');
+    operations.push('activity-request');
     assert.equal(JSON.parse(options.body).logoutScope, 'local');
     return { ok: true };
   });
   assert.equal((await query.logoutWithActivity('Keluar', 'local')).error, null);
-  assert.equal(operations.join(','), 'server-request,local-clear');
+  assert.equal(operations.join(','), 'login-log-request,activity-request,local-clear');
   const offline = queryModule({ auth: {
     getSession: async () => ({ data: { session: { access_token: 'token' } } }),
     signOut: async () => ({ error: null }),

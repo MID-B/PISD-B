@@ -20,6 +20,7 @@ function formatRupiah(num: number) {
 
 const issueBadgeClasses: Record<IssueStatus, string> = {
   'In Progress': 'text-blue-600 bg-blue-50 border-blue-200',
+  'In Review': 'text-cyan-700 bg-cyan-50 border-cyan-200',
   Open: 'text-amber-600 bg-amber-50 border-amber-200',
   Pending: 'text-violet-600 bg-violet-50 border-violet-200',
   Done: 'text-emerald-600 bg-emerald-50 border-emerald-200',

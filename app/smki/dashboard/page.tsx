@@ -1,7 +1,8 @@
 "use client";
 
 import React, { Suspense, useState, useEffect, useRef } from "react";
-import { CalendarDays, ListFilter } from 'lucide-react';
+import { ListFilter, Search, X } from 'lucide-react';
+import Pagination from '@/components/pagination';
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getLoginDestination } from "@/lib/loginDestination";
@@ -160,14 +161,6 @@ function DisableIcon({ active }: { active: boolean }) {
     );
   }
 
-function ActivityUserIcon() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true" style={{ width: "15px", height: "15px", flexShrink: 0, fill: "currentColor" }}>
-      <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 1.5c-3.1 0-5.5 1.6-5.5 3.7V15h11v-1.8c0-2.1-2.4-3.7-5.5-3.7Z" />
-    </svg>
-  );
-}
-
 function ChevronDownIcon({ isOpen }: { isOpen?: boolean }) {
   return (
     <svg 
@@ -248,7 +241,6 @@ function SmkiDashboard() {
   const [draftStartDate, setDraftStartDate] = useState('');
   const [draftEndDate, setDraftEndDate] = useState('');
   const dateRangeDialogRef = useRef<HTMLDialogElement>(null);
-  const dateRangeStartRef = useRef<HTMLInputElement>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
   
@@ -893,7 +885,7 @@ function SmkiDashboard() {
                   style={{ width: "174px", height: "28px", padding: "0 10px", border: 0, borderRadius: "9px", background: "#f1f1f1", color: "#475569", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "11px", fontWeight: 500, cursor: "pointer", boxSizing: "border-box" }}
                 >
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {selectedDepartment === "All" ? "Semua departemen" : selectedDepartment}
+                    {selectedDepartment === "All" ? "All Departments" : selectedDepartment}
                   </span>
                   <ChevronDownIcon isOpen={isFilterOpen} />
                 </button>
@@ -906,7 +898,7 @@ function SmkiDashboard() {
                         onClick={() => { setSelectedDepartment(department); setActivityPage(1); setIsFilterOpen(false); }}
                         style={{ width: "100%", padding: "7px 10px", background: selectedDepartment === department ? "#f1f5f9" : "#ffffff", color: "#475569", border: 0, textAlign: "left", fontSize: "10px", fontWeight: 500, cursor: "pointer" }}
                       >
-                        {department}
+                        {department === "All" ? "All Departments" : department}
                       </button>
                     ))}
                   </div>
@@ -931,8 +923,8 @@ function SmkiDashboard() {
         </header>
 
         {activeTab === "log-activity" ? (
-          <div style={{ flex: 1, minHeight: 0, overflow: "auto", background: "#f1f3fc" }}>
-            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
+          <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "20px 24px", boxSizing: "border-box" }}>
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-5 flex flex-wrap items-center gap-3 text-xs text-slate-600">
                 <button
                   type="button"
                   aria-haspopup="dialog"
@@ -945,7 +937,7 @@ function SmkiDashboard() {
                 <dialog
                   ref={dateRangeDialogRef}
                   aria-labelledby="activity-date-range-title"
-                  className="fixed inset-0 m-auto w-[440px] max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white p-6 text-[#555555] shadow-xl backdrop:bg-slate-900/30"
+                  className="fixed inset-0 m-auto w-[480px] max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white p-6 text-[#555555] shadow-xl backdrop:bg-slate-900/30"
                   onClick={(event) => {
                     if (event.target !== event.currentTarget) return;
                     const rect = event.currentTarget.getBoundingClientRect();
@@ -959,43 +951,42 @@ function SmkiDashboard() {
                     dateRangeDialogRef.current?.close();
                   }}>
                     <h2 id="activity-date-range-title" className="text-[28px] font-bold leading-tight text-black">Filter</h2>
-                    <p className="mt-1.5 text-sm text-[#707070]">Select date range to search</p>
+                    <p className="mt-1.5 text-sm text-[#707070]">Pilih rentang tanggal aktivitas.</p>
                     <div className="mt-5">
-                      <p id="activity-date-range-label" className="mb-1.5 text-sm font-medium">Date Range</p>
-                      <div role="group" aria-labelledby="activity-date-range-label" className="flex min-h-14 items-center gap-2 rounded-lg border border-[#D9D9D9] px-3 py-2 focus-within:border-blue-400">
-                        <label className="min-w-0 flex-1">
-                          <span className="mb-1 block text-[10px] font-medium text-slate-500">Tanggal mulai</span>
-                          <input ref={dateRangeStartRef} type="date" value={draftStartDate} onChange={(event) => {
+                      <div role="group" aria-label="Rentang tanggal" className="grid grid-cols-1 gap-4 min-[440px]:grid-cols-2">
+                        <label className="block min-w-0">
+                          <span className="mb-2 block text-sm font-medium text-slate-700">Tanggal mulai</span>
+                          <input type="date" value={draftStartDate} onChange={(event) => {
                             const start = event.target.value;
                             setDraftStartDate(start);
                             if (start && draftEndDate && start > draftEndDate) setDraftEndDate('');
-                          }} className="w-full min-w-0 bg-transparent text-xs text-[#858585] focus-visible:outline-2 focus-visible:outline-blue-500 sm:text-sm [&::-webkit-calendar-picker-indicator]:hidden" />
+                          }} className="h-11 w-full min-w-0 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 [color-scheme:light]" />
                         </label>
-                        <span aria-hidden="true" className="text-[#858585]">–</span>
-                        <label className="min-w-0 flex-1">
-                          <span className="mb-1 block text-[10px] font-medium text-slate-500">Tanggal akhir</span>
-                          <input type="date" value={draftEndDate} min={draftStartDate || undefined} onChange={(event) => setDraftEndDate(event.target.value)} className="w-full min-w-0 bg-transparent text-xs text-[#858585] focus-visible:outline-2 focus-visible:outline-blue-500 sm:text-sm" />
+                        <label className="block min-w-0">
+                          <span className="mb-2 block text-sm font-medium text-slate-700">Tanggal akhir</span>
+                          <input type="date" value={draftEndDate} min={draftStartDate || undefined} onChange={(event) => setDraftEndDate(event.target.value)} className="h-11 w-full min-w-0 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 [color-scheme:light]" />
                         </label>
-                        <button type="button" aria-label="Buka kalender tanggal mulai" onClick={() => { dateRangeStartRef.current?.focus(); dateRangeStartRef.current?.showPicker?.(); }} className="ml-1 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded text-[#858585] hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-500">
-                          <CalendarDays aria-hidden="true" className="h-5 w-5" />
-                        </button>
                       </div>
-                      <p className="mt-2 text-[11px] leading-relaxed text-slate-500">Waktu Jakarta. Kosongkan tanggal akhir untuk melihat semua aktivitas sejak tanggal mulai.</p>
                     </div>
                     {draftStartDate && draftEndDate && draftStartDate > draftEndDate && <p role="alert" className="mt-2 text-xs text-red-600">Tanggal akhir harus sama atau setelah tanggal mulai.</p>}
                     <div className="mt-8 grid grid-cols-[1fr_1.4fr] gap-4">
-                      <button type="button" onClick={() => { setActivityStartDate(''); setActivityEndDate(''); setDraftStartDate(''); setDraftEndDate(''); setActivityPage(1); dateRangeDialogRef.current?.close(); }} className="h-12 cursor-pointer rounded-lg border border-[#B8B8B8] bg-white text-base font-semibold text-[#555555] hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-500">Reset</button>
+                      <button type="button" onClick={() => { setActivityStartDate(''); setActivityEndDate(''); setDraftStartDate(''); setDraftEndDate(''); setActivityPage(1); }} className="h-12 cursor-pointer rounded-lg border border-[#B8B8B8] bg-white text-base font-semibold text-[#555555] hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-500">Reset</button>
                       <button type="submit" disabled={Boolean(draftStartDate && draftEndDate && draftStartDate > draftEndDate)} className="h-12 cursor-pointer rounded-lg bg-[#386BF6] text-base font-semibold text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-40">Apply</button>
                     </div>
                   </form>
                 </dialog>
-                <input type="search" aria-label="Cari Log Activity berdasarkan nama, email, action, atau deskripsi" placeholder="Search..." value={activitySearch} onChange={(event) => { setActivitySearch(event.target.value); setActivityPage(1); }} className="h-9 w-full max-w-72 rounded-lg border border-slate-300 bg-slate-100 px-3 focus-visible:outline-2 focus-visible:outline-blue-500" />
+                <div className="relative flex-1 min-w-[280px]">
+                  <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input type="search" aria-label="Cari Log Activity berdasarkan nama, email, action, atau deskripsi" placeholder="Search by Employee's Name or Email" value={activitySearch} onChange={(event) => { setActivitySearch(event.target.value); setActivityPage(1); }} className="w-full h-10 pl-10 pr-10 bg-[#f1f3fe] text-xs font-medium text-slate-700 placeholder-slate-400 rounded-xl border border-transparent focus:border-purple-300 focus:bg-white focus:outline-none transition-all [&::-webkit-search-cancel-button]:hidden" />
+                  {activitySearch && <button type="button" aria-label="Clear search" onClick={() => { setActivitySearch(''); setActivityPage(1); }} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"><X aria-hidden="true" className="h-3.5 w-3.5" /></button>}
+                </div>
                 {activityRangeLabel && <p role="status" className="text-[11px] text-slate-500">{activityRangeLabel} (WIB){!activityLoading && !activityError && ` · ${activityTotal} aktivitas · ${activityStartDate ? 'dari tanggal mulai' : 'terbaru lebih dulu'}`}</p>}
               </div>
-              <table aria-label="Log Activity SMKI" className="w-full min-w-[1200px] table-fixed border-collapse text-left [&_th]:px-4 [&_th]:py-3 [&_th]:align-top [&_td]:px-4 [&_td]:py-4 [&_td]:align-top [&_td]:[overflow-wrap:anywhere]">
+              <div className="w-full overflow-x-auto rounded-md border border-slate-200 bg-white">
+              <table aria-label="Log Activity SMKI" className="w-full min-w-[1200px] table-fixed border-collapse text-left [&_th]:px-4 [&_th]:py-2.5 [&_th]:align-middle [&_td]:px-4 [&_td]:py-3 [&_td]:align-middle [&_td]:[overflow-wrap:anywhere]">
               <colgroup>
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "16%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "14%" }} />
                 <col style={{ width: "13%" }} />
                 <col style={{ width: "12%" }} />
                 <col style={{ width: "10%" }} />
@@ -1003,19 +994,19 @@ function SmkiDashboard() {
                 <col style={{ width: "17%" }} />
                 <col style={{ width: "10%" }} />
               </colgroup>
-              <thead className="sticky top-0 z-10 bg-[#f8f9ff] text-[11px] font-extrabold tracking-[0.2px] text-[#506487]">
-              <tr className="border-b border-[#e6eaf3]">
+              <thead style={{ fontFamily: "Arial, Helvetica, sans-serif", fontSize: "11px", fontWeight: 800, letterSpacing: "0.5px", color: "#64748b", background: "#f8fafc" }} className="[&_th]:font-extrabold [&_th]:whitespace-nowrap">
+              <tr className="border-b border-slate-200">
                 <th scope="col">EMPLOYEE&apos;S NAME</th>
-                <th scope="col">EMAIL</th>
+                <th scope="col">E-MAIL</th>
                 <th scope="col">DEPARTMENT</th>
                 <th scope="col">ROLE</th>
                 <th scope="col">IP ADDRESS</th>
-                <th scope="col">USER AGENT</th>
+                <th scope="col">BROWSER</th>
                 <th scope="col">DESCRIPTION</th>
                 <th scope="col" aria-sort={activityStartDate ? 'ascending' : 'descending'} className="whitespace-nowrap">DATE TIME</th>
               </tr>
               </thead>
-              <tbody className="bg-white text-xs leading-relaxed text-[#111827]">
+              <tbody style={{ fontFamily: "Arial, Helvetica, sans-serif", fontSize: "12px", fontWeight: 400, color: "#1e293b" }} className="bg-white">
               {activityLoading ? (
                 <tr><td colSpan={8}><div role="status" className="text-slate-500">Memuat Log Activity...</div></td></tr>
               ) : activityError ? (
@@ -1027,14 +1018,14 @@ function SmkiDashboard() {
                 activityLogs.map((activity) => {
                   const timestamp = new Date(activity.createdAt);
                   return (
-                    <tr key={activity.id} className="border-b border-[#e9edf5] hover:bg-slate-50">
-                      <td className="font-semibold"><div style={{ display: "flex", alignItems: "flex-start", gap: "8px", minWidth: 0 }}>
-                        <span className="mt-0.5 shrink-0"><ActivityUserIcon /></span>
+                    <tr key={activity.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50">
+                      <td className="font-bold"><div className="flex items-center gap-2.5 min-w-0">
+                        <span aria-hidden="true" className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-slate-300 text-[11px] font-bold text-slate-700">{activity.name.trim().charAt(0).toUpperCase() || '?'}</span>
                         <span className="min-w-0">{activity.name}</span>
                       </div></td>
-                      <td>{activity.email}</td>
-                      <td>{activity.department}</td>
-                      <td>{activity.role}</td>
+                      <td className="text-slate-500">{activity.email}</td>
+                      <td className="font-semibold text-slate-700">{activity.department}</td>
+                      <td className="font-semibold text-slate-700">{activity.role}</td>
                       <td>{activity.ipAddress}</td>
                       <td>{activity.userAgent}</td>
                       <td className="whitespace-pre-line">{activity.description}</td>
@@ -1052,14 +1043,11 @@ function SmkiDashboard() {
               )}
               </tbody>
             </table>
+            </div>
             {!activityLoading && !activityError && (
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
                 <p role="status">Menampilkan {activityTotal ? (activityPage - 1) * activityPageSize + 1 : 0}–{Math.min(activityPage * activityPageSize, activityTotal)} dari {activityTotal} aktivitas.</p>
-                <nav aria-label="Pagination Log Activity" className="flex items-center gap-3">
-                  <button type="button" disabled={activityPage <= 1} onClick={() => setActivityPage((page) => page - 1)} className="cursor-pointer rounded border border-slate-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40">Sebelumnya</button>
-                  <span>Halaman {activityPage} dari {activityTotalPages}</span>
-                  <button type="button" disabled={activityPage >= activityTotalPages} onClick={() => setActivityPage((page) => page + 1)} className="cursor-pointer rounded border border-slate-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40">Berikutnya</button>
-                </nav>
+                <Pagination label="Pagination Log Activity" page={activityPage} totalPages={activityTotalPages} onPageChange={setActivityPage} />
               </div>
             )}
           </div>

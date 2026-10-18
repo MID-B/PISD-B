@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Search } from 'lucide-react';
+import Pagination from '@/components/pagination';
 import DashboardShell from '../dashboard-shell';
 import { OutstandingPaymentsTable, useOutstandingPayments, type OutstandingSort, type OutstandingSortColumn } from '../outstanding-payments';
 import SalesPerformanceTrend, { useSalesPerformanceTrend } from '../sales-performance-trend';
@@ -64,25 +65,7 @@ export default function SalesPerformance() {
               <p role="status" className="text-xs text-slate-500">
                 Menampilkan {pageStart + 1}–{pageStart + visibleRows.length} dari {filteredRows.length} data
               </p>
-              <nav aria-label="Pagination Outstanding Payments" className="flex flex-wrap items-center gap-3 text-xs">
-                <button
-                  type="button"
-                  disabled={page === 1}
-                  onClick={() => setCurrentPage(page - 1)}
-                  className="cursor-pointer rounded-lg border border-slate-200 px-3 py-2 font-medium text-slate-700 hover:bg-violet-50 focus-visible:outline-2 focus-visible:outline-purple-500 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Sebelumnya
-                </button>
-                <span className="text-slate-500">Halaman {page} dari {totalPages}</span>
-                <button
-                  type="button"
-                  disabled={page === totalPages}
-                  onClick={() => setCurrentPage(page + 1)}
-                  className="cursor-pointer rounded-lg border border-slate-200 px-3 py-2 font-medium text-slate-700 hover:bg-violet-50 focus-visible:outline-2 focus-visible:outline-purple-500 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Berikutnya
-                </button>
-              </nav>
+              <Pagination label="Pagination Outstanding Payments" page={page} totalPages={totalPages} onPageChange={setCurrentPage} />
             </div>
           )}
         </section>
