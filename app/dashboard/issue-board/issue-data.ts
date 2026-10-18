@@ -1,3 +1,10 @@
+// lihat kode di baris 100 untuk manggil issue
+
+// jangan hapus import ini
+import { supabase } from '@/lib/supabaseClient';
+// jangan hapus import ini
+
+// kode lama
 export type IssueStatus = 'To Do' | 'In Progress' | 'In Review' | 'Open' | 'Pending' | 'Done';
 export type IssuePriority = 'High' | 'Medium' | 'Low';
 
@@ -87,3 +94,32 @@ export const fallbackIssues: IssueGroups = {
 };
 
 export const issues = [...fallbackIssues.hrms, ...fallbackIssues.crm, ...fallbackIssues.ccr];
+// kode lama
+
+
+// pakai ini untuk memanggil b1_vw_universal_issue
+export type UniversalIssue = {
+  source: string | null;
+  issue_code: string | null;
+  issue: string | null;
+  description: string | null;
+  note: string | null;
+  date: string | null;
+  status: string | null;
+  priority: string | null;
+  due_date: string | null;
+  pic_id: string | null;
+  pic_name: string | null;
+};
+
+export async function fetchUniversalIssues() {
+  const { data, error } = await supabase
+    .from('b1_vw_universal_issue')
+    .select('*')
+    .order('date', { ascending: false });
+
+  return {
+    data: (data ?? []) as UniversalIssue[],
+    error,
+  };
+}
