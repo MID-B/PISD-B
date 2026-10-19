@@ -434,7 +434,7 @@ function SmkiDashboard() {
     const query = searchQuery.toLowerCase().trim();
     const matchesPos = selectedPosition === "All" || emp.position.toLowerCase() === selectedPosition.toLowerCase();
     
-    // Perbaikan Search agar akurat mendeteksi nama maupun email tanpa terhalang case-sensitivity / spasi
+    // Pencarian mendeteksi nama lengkap ataupun email karyawan
     const matchesSearch = !query || 
       emp.name.toLowerCase().includes(query) || 
       emp.email.toLowerCase().includes(query);
@@ -579,8 +579,8 @@ function SmkiDashboard() {
       return;
     }
 
-    if (editForm.email.length > 50) {
-      setErrorMessage("Email Address must not exceed 50 characters.");
+    if (editForm.email.length > 30) {
+      setErrorMessage("Email Address must not exceed 30 characters.");
       return;
     }
 
@@ -594,6 +594,10 @@ function SmkiDashboard() {
 
       if (newPass.length < 8) {
         setErrorMessage("The password must be at least 8 characters long.");
+        return;
+      }
+      if (newPass.length > 15) {
+        setErrorMessage("Password cannot exceed 15 characters.");
         return;
       }
 
@@ -946,7 +950,7 @@ function SmkiDashboard() {
                 </div>
                 <input
                   type="text"
-                  placeholder="Search by Employee's Name or Email"
+                  placeholder="Search by Employee's Name"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full h-10 pl-10 pr-4 bg-[#f1f3fe] text-xs font-medium text-slate-700 placeholder-slate-400 rounded-xl border border-transparent focus:border-purple-300 focus:bg-white focus:outline-none transition-all"
@@ -1214,13 +1218,15 @@ function SmkiDashboard() {
                   }
                 }
 
-                // Perbaikan Validasi Password Reset: Diperlonggar tanpa batas maksimal ketat agar akun seperti Della Lui bisa masuk
+                // Validasi Password Reset dengan batasan maksimal 15 karakter
                 if (editForm.newPassword && editForm.newPassword.trim() !== "") {
                   const newPass = editForm.newPassword.trim();
                   const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).+$/;
 
                   if (newPass.length < 8) {
                     errors.newPassword = "The password must be at least 8 characters long.";
+                  } else if (newPass.length > 15) {
+                    errors.newPassword = "Password cannot exceed 15 characters.";
                   } else if (!passwordRegex.test(newPass)) {
                     errors.newPassword = "The password must contain letters, numbers, and special characters.";
                   }
