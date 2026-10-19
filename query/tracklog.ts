@@ -163,6 +163,8 @@ export async function recordLogin(): Promise<void> {
         departement: departmentData.name,
         tanggal_login: loginTime.tanggal,
         waktu_login: loginTime.waktu,
+        tanggal_logout: null,
+        waktu_logout: null, 
         last_seen_at: new Date().toISOString(),
       },
       {
