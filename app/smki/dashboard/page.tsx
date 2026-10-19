@@ -226,10 +226,9 @@ function SmkiDashboard() {
   const activeTab = searchParams.get('tab') === 'log-activity' ? 'log-activity' : 'account-maintains';
   const [currentUserFullName, setCurrentUserFullName] = useState<string>("Loading...");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [successModal, setSuccessModal] = useState<{ isOpen: boolean; name: string }>({
-    isOpen: false,
-    name: "",
-  });
+  
+  // State untuk Notifikasi / Pesan Sukses
+  const [successMessage, setSuccessMessage] = useState<string>("");
 
   // State untuk Modal Edit
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -432,9 +431,14 @@ function SmkiDashboard() {
 
   const filteredEmployees = employees.filter((emp) => {
     const matchesDept = selectedDepartment === "All" || emp.department.toLowerCase() === selectedDepartment.toLowerCase();
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.toLowerCase().trim();
     const matchesPos = selectedPosition === "All" || emp.position.toLowerCase() === selectedPosition.toLowerCase();
-    const matchesSearch = !searchQuery || emp.name.toLowerCase().includes(query) || emp.email.toLowerCase().includes(query);
+    
+    // Perbaikan Search agar akurat mendeteksi nama maupun email tanpa terhalang case-sensitivity / spasi
+    const matchesSearch = !query || 
+      emp.name.toLowerCase().includes(query) || 
+      emp.email.toLowerCase().includes(query);
+
     const matchesStatus =
       selectedStatus === "All" ||
       (selectedStatus === "Active" && emp.isActive) ||
@@ -497,6 +501,11 @@ function SmkiDashboard() {
           return emp;
         })
       );
+
+      // Pesan Sukses Aktivasi/Deaktivasi
+      setSuccessMessage(willBeActive ? `Akun ${statusConfirmEmployee.name} berhasil diaktifkan.` : `Akun ${statusConfirmEmployee.name} berhasil dinonaktifkan.`);
+      setTimeout(() => setSuccessMessage(""), 4000);
+
     } catch (err) {
       alert("Terjadi kesalahan sistem saat memperbarui status.");
     } finally {
@@ -524,6 +533,10 @@ function SmkiDashboard() {
       trackActivity('Delete', `Menghapus karyawan ${deleteConfirmEmployee.name} (${deleteConfirmEmployee.email}).`);
 
       setEmployees((prev) => prev.filter((emp) => emp.id !== targetId));
+      
+      setSuccessMessage(`Karyawan ${deleteConfirmEmployee.name} berhasil dihapus.`);
+      setTimeout(() => setSuccessMessage(""), 4000);
+
     } catch (err) {
       alert("Terjadi kesalahan sistem saat menghapus data.");
     } finally {
@@ -566,6 +579,11 @@ function SmkiDashboard() {
       return;
     }
 
+    if (editForm.email.length > 50) {
+      setErrorMessage("Email Address must not exceed 50 characters.");
+      return;
+    }
+
     if (!editForm.phone.trim()) {
       setErrorMessage("Phone number is required.");
       return;
@@ -581,7 +599,7 @@ function SmkiDashboard() {
 
       const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).+$/;
       if (!passwordRegex.test(newPass)) {
-        setErrorMessage("The password must contain a combination of letters, numbers, and special characters (such as &*^).");
+        setErrorMessage("The password must contain a combination of letters, numbers, and special characters.");
         return;
       }
     }
@@ -628,6 +646,11 @@ function SmkiDashboard() {
       trackActivity('Update', `Mengubah data akun ${editForm.name.trim()} (${editForm.email.trim()}).`);
       await fetchEmployeesFromSupabase();
       setEditingEmployee(null);
+
+      // Notifikasi Pesan Sukses Edit Karyawan
+      setSuccessMessage(`Data akun ${editForm.name.trim()} berhasil diperbarui.`);
+      setTimeout(() => setSuccessMessage(""), 4000);
+
     } catch (err) {
       setErrorMessage("Terjadi kesalahan sistem saat menyimpan data.");
     }
@@ -904,6 +927,14 @@ function SmkiDashboard() {
         ) : (
           <div style={{ flex: 1, padding: "20px 24px", overflowY: "auto", boxSizing: "border-box" }}>
             
+            {/* Banner Sukses Global */}
+            {successMessage && (
+              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", padding: "12px 16px", borderRadius: "12px", fontSize: "13px", fontWeight: 600, marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span>{successMessage}</span>
+                <button onClick={() => setSuccessMessage("")} style={{ background: "transparent", border: 0, color: "#16a34a", fontWeight: "bold", cursor: "pointer" }}>✕</button>
+              </div>
+            )}
+
             <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-5 flex flex-wrap items-center gap-3">
               
               <div className="relative flex-1 min-w-[280px]">
@@ -1174,6 +1205,8 @@ function SmkiDashboard() {
 
                 if (!editForm.email?.trim()) {
                   errors.email = "Email address is required.";
+                } else if (editForm.email.length > 30) {
+                  errors.email = "Email Address must not exceed 30 characters.";
                 } else {
                   const emailRegex = /^[^\s@]+@andima\.co\.id$/;
                   if (!emailRegex.test(editForm.email.trim())) {
@@ -1181,14 +1214,13 @@ function SmkiDashboard() {
                   }
                 }
 
+                // Perbaikan Validasi Password Reset: Diperlonggar tanpa batas maksimal ketat agar akun seperti Della Lui bisa masuk
                 if (editForm.newPassword && editForm.newPassword.trim() !== "") {
                   const newPass = editForm.newPassword.trim();
                   const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).+$/;
 
                   if (newPass.length < 8) {
                     errors.newPassword = "The password must be at least 8 characters long.";
-                  } else if (newPass.length > 15) {
-                    errors.newPassword = "Reset Password must not exceed 15 characters.";
                   } else if (!passwordRegex.test(newPass)) {
                     errors.newPassword = "The password must contain letters, numbers, and special characters.";
                   }
@@ -1328,7 +1360,7 @@ function SmkiDashboard() {
                 </label>
                 <input
                   type="password"
-                  placeholder="Min. 10 chars (letters, numbers, symbols)"
+                  placeholder="Min. 8 chars (letters, numbers, symbols)"
                   value={editForm.newPassword || ""}
                   onChange={(e) => {
                     setEditForm({ ...editForm, newPassword: e.target.value });
