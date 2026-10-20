@@ -211,16 +211,16 @@ export default function LogLoginPage() {
   }, [isLoading, selectedStartDate, selectedEndDate]);
 
   const handleLogout = async () => {
-    await recordLogout();
-    const { error } = await logoutWithActivity('Keluar dari aplikasi.');
-
-    if (error) {
-      alert("Gagal logout: " + error.message);
-      return;
-    }
-
-    router.replace("/login");
-  };
+      try {
+        // Cukup catat record logout tanpa menghapus sesi auth Supabase secara paksa
+        await recordLogout();
+      } catch (error) {
+        console.error('Gagal mencatat log logout:', error);
+      } finally {
+        // Langsung arahkan secara mutlak ke Landing Page
+        window.location.replace('/landing-page');
+      }
+    };
 
   if (isLoading) {
     return (
@@ -298,13 +298,28 @@ export default function LogLoginPage() {
           </div>
         </nav>
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          style={{ width: "100%", height: "44px", borderRadius: "22px", border: "2px solid #f43f5e", background: "transparent", color: "#f43f5e", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "15px", fontWeight: 700, marginTop: "auto", transition: "all 0.2s ease" }}
-        >
-          Logout
-        </button>
+  <button
+            type="button"
+            onClick={handleLogout} // <--- Memanggil fungsi handleLogout yang sudah diperbarui
+            style={{ 
+              width: "100%", 
+              height: "44px", 
+              borderRadius: "22px", 
+              border: "2px solid #f43f5e", 
+              background: "transparent", 
+              color: "#f43f5e", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center", 
+              cursor: "pointer", 
+              fontSize: "15px", 
+              fontWeight: 700, 
+              marginTop: "auto", 
+              transition: "all 0.2s ease" 
+            }}
+          >
+            Logout
+          </button>
       </aside>
 
       <section style={{ flex: 1, height: "100vh", background: "#ffffff", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" }}>

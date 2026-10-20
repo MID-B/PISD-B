@@ -190,44 +190,39 @@ export default function LandingPageHub() {
   }, [router]);
 
   useEffect(() => {
-    const checkUserAccess = async () => {
-     const urlParams = new URLSearchParams(window.location.search);
-     const isFromDashboard = urlParams.get("from_dashboard") === "true";
+      const checkUserAccess = async () => {
+        // 1. Ambil sesi secara langsung dari Supabase
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-      const { data: { session } } = await supabase.auth.getSession();
+        // 2. Jika tidak ada sesi atau terjadi error, pastikan langsung dibuang ke /login
+        if (sessionError || !session) {
+          router.replace("/login");
+          return;
+        }
 
-      if (!session && !isFromDashboard) {
-        router.replace("/login");
-        return;
-      }
+        let userId = session?.user?.id;
+        if (!userId) {
+          const { data: authData } = await supabase.auth.getUser();
+          userId = authData?.user?.id || ""; // <--- Tambahkan fallback string kosong di sini
+        }
 
-      if (isFromDashboard) {
-        sessionStorage.removeItem("return_to_hub");
-      }
+        if (!userId) {
+          router.replace("/login");
+          return;
+        }
 
-      let userId = session?.user?.id;
-      if (!userId) {
-        const { data: authData } = await supabase.auth.getUser();
-        userId = authData?.user?.id;
-      }
+        const { data: user, error } = await supabase
+          .from("b2_register")
+          .select("full_name, position_id, departement_id, is_active")
+          .eq("id", userId)
+          .maybeSingle();
 
-      if (!userId) {
-        router.replace("/login");
-        return;
-      }
-
-      const { data: user, error } = await supabase
-        .from("b2_register")
-        .select("full_name, position_id, departement_id, is_active")
-        .eq("id", userId)
-        .maybeSingle();
-
-      if (error || !user || user.is_active === false) {
-        alert("Sesi tidak valid atau akun dinonaktifkan.");
-        await supabase.auth.signOut();
-        router.replace("/login");
-        return;
-      }
+        if (error || !user || user.is_active === false) {
+          alert("Sesi tidak valid atau akun dinonaktifkan.");
+          await supabase.auth.signOut();
+          router.replace("/login");
+          return;
+        }
 
       const exactPositionName = UUID_POSITION_MAP[user.position_id] || "Employee";
 
@@ -244,8 +239,11 @@ export default function LandingPageHub() {
 
       // 1. DIREKTUR: Melihat semua modul KECUALI IT
       if (user.position_id === DIRECTOR_POSITION_ID) {
-        allowed = ALL_MODULES.filter((mod) => mod.id !== "it");
-      } 
+        allowed = ALL_MODULES.filter((mod) => {
+          return mod.id !== "it";
+      });
+    }
+      
       // 2. KHUSUS IT/SMKI: Hanya boleh melihat modul IT dan HRMS
       else if (
         user.departement_id === "8113ab6f-d5cc-4c94-bbf6-e08047931fab" || 

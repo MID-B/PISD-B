@@ -201,41 +201,40 @@ export async function recordLogout(): Promise<void> {
       return;
     }
 
-    const loginLogId =
-      typeof window === "undefined"
-        ? null
-        : window.sessionStorage.getItem(
-            LOGIN_LOG_SESSION_KEY
-          );
+    const logoutTime = getJakartaDateTime();
 
-    if (!loginLogId) {
+    // 1. Cari log login paling baru milik user yang belum logout (waktu_logout masih null)
+    const { data: latestLog, error: fetchError } = await supabase
+      .from("b3_log_login")
+      .select("id")
+      .eq("email", user.email)
+      .is("waktu_logout", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (fetchError || !latestLog) {
+      console.warn("Tidak ditemukan sesi login aktif untuk di-logout:", fetchError?.message);
       return;
     }
 
-    const logoutTime = getJakartaDateTime();
-
-    const { error } = await supabase
+    // 2. Update baris log login tersebut dengan tanggal & waktu logout
+    const { error: updateError } = await supabase
       .from("b3_log_login")
       .update({
         tanggal_logout: logoutTime.tanggal,
         waktu_logout: logoutTime.waktu,
       })
-      .eq("id", loginLogId)
-      .eq("email", user.email)
-      .is("waktu_logout", null);
+      .eq("id", latestLog.id);
 
-    if (error) {
-      console.error(
-        "Gagal mencatat logout:",
-        error
-      );
+    if (updateError) {
+      console.error("Gagal mencatat logout:", updateError.message);
       return;
     }
 
+    // 3. Bersihkan sessionStorage jika ada
     if (typeof window !== "undefined") {
-      window.sessionStorage.removeItem(
-        LOGIN_LOG_SESSION_KEY
-      );
+      window.sessionStorage.removeItem(LOGIN_LOG_SESSION_KEY);
     }
   } catch (error) {
     console.error("Error recordLogout:", error);
