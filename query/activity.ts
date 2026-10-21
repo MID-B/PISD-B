@@ -94,6 +94,43 @@ export function trackActivity(action: ActivityAction, description: string): void
   void prepareActivity(action, description).then((send) => send()).catch(() => console.error('Gagal mencatat Log Activity.'));
 }
 
+// kode sementara
+export async function trackActivityAndWait(
+  action: ActivityAction,
+  description: string
+): Promise<void> {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    if (error || !session) {
+      console.error('Sesi tidak tersedia untuk mencatat Log Activity.');
+      return;
+    }
+
+    const response = await fetch('/api/activity', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action,
+        description: sanitizeActivityDescription(description),
+      }),
+      keepalive: true,
+      signal: AbortSignal.timeout(3000),
+    });
+
+    if (!response.ok) {
+      console.error('Gagal mencatat Log Activity:', response.status);
+    }
+  } catch (error) {
+    console.error('Gagal mencatat Log Activity:', error);
+  }
+}
+//kode sementara
+
+
 export async function logoutWithActivity(description: string, scope: 'global' | 'local' = 'global') {
   try {
     const { data: { session }, error } = await supabase.auth.getSession();

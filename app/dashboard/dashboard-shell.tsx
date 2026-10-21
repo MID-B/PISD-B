@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
-import { trackActivity } from '@/query/activity';
+import { trackActivityAndWait } from '@/query/activity';
 
 type DashboardShellProps = {
   activePage: 'dashboard' | 'sales-performance' | 'issue-board';
@@ -46,15 +46,15 @@ function ClipboardIcon() {
 
 function ChevronDownIcon({ isOpen }: { isOpen?: boolean }) {
   return (
-    <svg 
-      viewBox="0 0 24 24" 
-      style={{ 
-        width: "14px", 
-        height: "14px", 
-        fill: "none", 
-        stroke: "currentColor", 
-        strokeWidth: 2, 
-        strokeLinecap: "round", 
+    <svg
+      viewBox="0 0 24 24"
+      style={{
+        width: "14px",
+        height: "14px",
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: 2,
+        strokeLinecap: "round",
         strokeLinejoin: "round",
         transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
         transition: "transform 0.2s ease"
@@ -85,28 +85,60 @@ export default function DashboardShell({ activePage, headerActions, children }: 
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  
-async function handleLogout() {
-  if (signingOut) return;
 
-  setSigningOut(true);
-  setLogoutError('');
+  async function handleLogout() {
+    if (signingOut) return;
 
-  try {
-    // Catat aktivitas tanpa mengakhiri sesi login
-    await trackActivity(
-      'Logout',
-      'Kembali ke Landing Page dari dashboard MID.'
-    );
+    setSigningOut(true);
+    setLogoutError('');
 
-    // Kembali ke Landing Page
-    window.location.href = '/landing-page';
-  } catch (error) {
-    console.error('Gagal kembali ke Landing Page:', error);
-    setLogoutError('Gagal kembali ke Landing Page. Silakan coba lagi.');
-    setSigningOut(false);
+    //mencatat waktu logout untuk MID usahakan tolong jangan diganggu
+    try {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error('Gagal mengambil sesi untuk mencatat waktu logout.');
+      } else if (session) {
+        const response = await fetch('/api/login-log/logout', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          cache: 'no-store',
+          signal: AbortSignal.timeout(4000),
+        });
+
+        const result = (await response.json().catch(() => null)) as {
+          logged?: boolean;
+        } | null;
+
+        if (!response.ok || result?.logged !== true) {
+          console.error('Waktu logout gagal dicatat di Log Login.');
+        }
+      }
+    } catch (error) {
+      console.error('Gagal mencatat waktu logout di Log Login:', error);
+    }
+    //mencatat waktu logout untuk MID usahakan tolong jangan diganggu
+
+    try {
+      // Catat aktivitas tanpa mengakhiri sesi login
+      await trackActivityAndWait(
+        'Logout',
+        'Kembali ke Landing Page dari dashboard MID.'
+      );
+
+      // Kembali ke Landing Page
+      window.location.href = '/landing-page';
+    } catch (error) {
+      console.error('Gagal kembali ke Landing Page:', error);
+      setLogoutError('Gagal kembali ke Landing Page. Silakan coba lagi.');
+      setSigningOut(false);
+    }
   }
-}
 
 
   useEffect(() => {
@@ -166,19 +198,19 @@ async function handleLogout() {
     <main style={{ width: "100vw", height: "100vh", display: "flex", background: "#000", overflow: "hidden", fontFamily: "Arial, Helvetica, sans-serif", margin: 0, padding: 0, boxSizing: "border-box" }}>
 
       {/* SIDEBAR */}
-      <aside style={{ 
+      <aside style={{
         width: isSidebarOpen ? "250px" : "0px", // Ditutup 100% rapat jadi 0px
-        height: "100vh", 
-        flexShrink: 0, 
-        position: "relative", 
+        height: "100vh",
+        flexShrink: 0,
+        position: "relative",
         padding: isSidebarOpen ? "24px 16px" : "0px", // Padding 0 saat ditutup
-        background: "#0f2038", 
-        color: "#fff", 
-        display: "flex", 
-        flexDirection: "column", 
+        background: "#0f2038",
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
         boxSizing: "border-box",
         overflow: "visible", // PENTING: Jangan 'hidden' agar tombol bulat melayang tidak terpotong!
-        transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease" 
+        transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease"
       }}>
 
         {/* 🔘 TOMBOL BULAT BIRU MELAYANG UTUH */}
@@ -205,15 +237,15 @@ async function handleLogout() {
           aria-label={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
           title={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
         >
-          <svg 
-            viewBox="0 0 24 24" 
-            style={{ 
-              width: "18px", 
-              height: "18px", 
-              fill: "none", 
-              stroke: "currentColor", 
-              strokeWidth: 2.5, 
-              strokeLinecap: "round", 
+          <svg
+            viewBox="0 0 24 24"
+            style={{
+              width: "18px",
+              height: "18px",
+              fill: "none",
+              stroke: "currentColor",
+              strokeWidth: 2.5,
+              strokeLinecap: "round",
               strokeLinejoin: "round",
               transform: isSidebarOpen ? "rotate(0deg)" : "rotate(180deg)",
               transition: "transform 0.3s ease"
@@ -226,14 +258,14 @@ async function handleLogout() {
         {/* HANYA TAMPILKAN KONTEN JIKA SIDEBAR DIBUKA */}
         {isSidebarOpen && (
           <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", overflow: "hidden" }}>
-            
+
             {/* LOGO & TITLE */}
             <div style={{ display: "flex", alignItems: "center", gap: "12px", paddingBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.1)", whiteSpace: "nowrap" }}>
               <div style={{ width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <img 
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png" 
-                  alt="Logo ANDIMA" 
-                  style={{ width: "100%", height: "100%", objectFit: "contain" }} 
+                <img
+                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png"
+                  alt="Logo ANDIMA"
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
                 />
               </div>
               <div>
@@ -271,7 +303,7 @@ async function handleLogout() {
                 {isMenuOpen && (
                   <div style={{ position: "relative", marginTop: "12px", paddingLeft: "16px" }}>
                     <div style={{ position: "absolute", left: "6px", top: "0", bottom: "8px", width: "1px", backgroundColor: "rgba(255, 255, 255, 0.2)" }} />
-                    
+
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                       {/* Contoh untuk Dashboard (aktif pakai kotak abu-abu) */}
                       <Link href="/dashboard" className={`flex items-center gap-3 py-2 px-3 text-sm rounded-xl transition-all ${activePage === 'dashboard' ? 'bg-[#2b3748] text-white border border-slate-600 shadow-sm font-semibold' : 'text-slate-300 hover:text-white hover:bg-white/5'}`}>
@@ -299,8 +331,8 @@ async function handleLogout() {
               onClick={handleLogout}
               disabled={signingOut}
               style={{
-                width: "100%", height: "44px", borderRadius: "22px", border: "2px solid #f43f5e", background: "transparent", 
-                color: "#f43f5e", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", 
+                width: "100%", height: "44px", borderRadius: "22px", border: "2px solid #f43f5e", background: "transparent",
+                color: "#f43f5e", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
                 fontSize: "15px", fontWeight: 700, marginTop: "auto", transition: "all 0.2s ease"
               }}
             >

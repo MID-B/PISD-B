@@ -6,7 +6,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getLoginDestination } from "@/lib/loginDestination";
 import { IT_DEPARTMENT_ID } from '@/lib/activity';
-import { logoutWithActivity, trackActivity } from '@/query/activity';
+import { logoutWithActivity, trackActivity, trackActivityAndWait, } 
+from '@/query/activity';
+import LogLogin from "@/app/smki/log-login";
 
 /* MASTER DATA OPTIONS */
 const DEPARTMENT_OPTIONS = [
@@ -148,15 +150,16 @@ function EditIcon() {
 
 function DisableIcon({ active }: { active: boolean }) {
   return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" 
-        style={{ width: "18px", height: "18px", display: "block", color: active ? "#64748b" : "#ef4444",
-          fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round"
-        }}
-      >
-        <circle cx="12" cy="12" r="10" />
-        <path d="m4.9 4.9 14.2 14.2" />
-      </svg>
-    );
+    <svg viewBox="0 0 24 24" aria-hidden="true"
+      style={{
+        width: "18px", height: "18px", display: "block", color: active ? "#64748b" : "#ef4444",
+        fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round"
+      }}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="m4.9 4.9 14.2 14.2" />
+    </svg>
+  );
 }
 
 function DeleteIcon() {
@@ -172,15 +175,15 @@ function DeleteIcon() {
 
 function ChevronDownIcon({ isOpen }: { isOpen?: boolean }) {
   return (
-    <svg 
-      viewBox="0 0 24 24" 
-      style={{ 
-        width: "14px", 
-        height: "14px", 
-        fill: "none", 
-        stroke: "currentColor", 
-        strokeWidth: 2, 
-        strokeLinecap: "round", 
+    <svg
+      viewBox="0 0 24 24"
+      style={{
+        width: "14px",
+        height: "14px",
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: 2,
+        strokeLinecap: "round",
         strokeLinejoin: "round",
         transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
         transition: "transform 0.2s ease"
@@ -206,13 +209,19 @@ function SmkiDashboard() {
   const itemsPerPage = 8;
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
-  
+
   const [isSmkiOpen, setIsSmkiOpen] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
-  const activeTab = searchParams.get('tab') === 'log-activity' ? 'log-activity' : 'account-maintains';
+  const requestedTab = searchParams.get("tab");
+  const activeTab =
+    requestedTab === "log-activity"
+      ? "log-activity"
+      : requestedTab === "log-login"
+        ? "log-login"
+        : "account-maintains";
   const [currentUserFullName, setCurrentUserFullName] = useState<string>("Loading...");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  
+
   // State untuk Notifikasi / Pesan Sukses
   const [successMessage, setSuccessMessage] = useState<string>("");
 
@@ -356,8 +365,40 @@ function SmkiDashboard() {
     setSigningOut(true);
     setLogoutError('');
 
+    //mencatat waktu logout untuk SMKI usahakan tolong jangan diganggu
     try {
-      await trackActivity(
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error('Gagal mengambil sesi untuk mencatat waktu logout.');
+      } else if (session) {
+        const response = await fetch('/api/login-log/logout', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          cache: 'no-store',
+          signal: AbortSignal.timeout(4000),
+        });
+
+        const result = (await response.json().catch(() => null)) as {
+          logged?: boolean;
+        } | null;
+
+        if (!response.ok || result?.logged !== true) {
+          console.error('Waktu logout gagal dicatat di Log Login.');
+        }
+      }
+    } catch (error) {
+      console.error('Gagal mencatat waktu logout di Log Login:', error);
+    }
+    //mencatat waktu logout untuk SMKI usahakan tolong jangan diganggu
+
+    try {
+      await trackActivityAndWait(
         'Logout',
         'Kembali ke Landing Page dari dashboard MID.'
       );
@@ -373,10 +414,10 @@ function SmkiDashboard() {
     const matchesDept = selectedDepartment === "All" || emp.department.toLowerCase() === selectedDepartment.toLowerCase();
     const query = searchQuery.toLowerCase().trim();
     const matchesPos = selectedPosition === "All" || emp.position.toLowerCase() === selectedPosition.toLowerCase();
-    
+
     // Pencarian mendeteksi nama lengkap ataupun email karyawan
-    const matchesSearch = !query || 
-      emp.name.toLowerCase().includes(query) || 
+    const matchesSearch = !query ||
+      emp.name.toLowerCase().includes(query) ||
       emp.email.toLowerCase().includes(query);
 
     const matchesStatus =
@@ -419,10 +460,10 @@ function SmkiDashboard() {
         alert("Gagal memperbarui status keaktifan di database: " + error.message);
         return;
       }
-      
-      if (!data?.length) { 
+
+      if (!data?.length) {
         alert("Gagal memperbarui status: Akun tidak ditemukan atau dibatasi oleh policy database.");
-        return; 
+        return;
       }
 
       trackActivity(willBeActive ? 'Activate' : 'Deactivate', `${willBeActive ? 'Mengaktifkan' : 'Menonaktifkan'} akun ${statusConfirmEmployee.name} (${statusConfirmEmployee.email}).`);
@@ -467,7 +508,7 @@ function SmkiDashboard() {
       trackActivity('Delete', `Menghapus karyawan ${deleteConfirmEmployee.name} (${deleteConfirmEmployee.email}).`);
 
       setEmployees((prev) => prev.filter((emp) => emp.id !== targetId));
-      
+
       setSuccessMessage(`Karyawan ${deleteConfirmEmployee.name} berhasil dihapus.`);
       setTimeout(() => setSuccessMessage(""), 4000);
 
@@ -556,13 +597,13 @@ function SmkiDashboard() {
       };
 
       if (editForm.newPassword && editForm.newPassword.trim() !== "") {
-        updateData.password = editForm.newPassword.trim(); 
+        updateData.password = editForm.newPassword.trim();
       }
 
       let query = supabase
         .from("b2_register")
         .update(updateData);
-        
+
       if (editingEmployee?.id) {
         query = query.eq("id", editingEmployee.id);
       } else {
@@ -606,21 +647,21 @@ function SmkiDashboard() {
     <main style={{ width: "100vw", height: "100vh", display: "flex", background: "#000", overflow: "hidden", fontFamily: "Arial, Helvetica, sans-serif", margin: 0, padding: 0, boxSizing: "border-box" }}>
 
       {/* SIDEBAR */}
-      <aside style={{ 
-        width: isSidebarOpen ? "250px" : "0px", 
-        height: "100vh", 
-        flexShrink: 0, 
-        position: "relative", 
-        padding: isSidebarOpen ? "24px 16px" : "0px", 
-        background: "#0f2038", 
-        color: "#fff", 
-        display: "flex", 
-        flexDirection: "column", 
+      <aside style={{
+        width: isSidebarOpen ? "250px" : "0px",
+        height: "100vh",
+        flexShrink: 0,
+        position: "relative",
+        padding: isSidebarOpen ? "24px 16px" : "0px",
+        background: "#0f2038",
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
         boxSizing: "border-box",
-        overflow: "visible", 
-        transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease" 
+        overflow: "visible",
+        transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease"
       }}>
-        
+
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           style={{
@@ -643,15 +684,15 @@ function SmkiDashboard() {
           }}
           aria-label={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
         >
-          <svg 
-            viewBox="0 0 24 24" 
-            style={{ 
-              width: "18px", 
-              height: "18px", 
-              fill: "none", 
-              stroke: "currentColor", 
-              strokeWidth: 2.5, 
-              strokeLinecap: "round", 
+          <svg
+            viewBox="0 0 24 24"
+            style={{
+              width: "18px",
+              height: "18px",
+              fill: "none",
+              stroke: "currentColor",
+              strokeWidth: 2.5,
+              strokeLinecap: "round",
               strokeLinejoin: "round",
               transform: isSidebarOpen ? "rotate(0deg)" : "rotate(180deg)",
               transition: "transform 0.3s ease"
@@ -663,13 +704,13 @@ function SmkiDashboard() {
 
         {isSidebarOpen && (
           <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", overflow: "hidden" }}>
-            
+
             <div style={{ display: "flex", alignItems: "center", gap: "12px", paddingBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.1)", whiteSpace: "nowrap" }}>
               <div style={{ width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "transparent" }}>
-                <img 
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png" 
-                  alt="Logo ANDIMA" 
-                  style={{ width: "100%", height: "100%", objectFit: "contain" }} 
+                <img
+                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png"
+                  alt="Logo ANDIMA"
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
                 />
               </div>
               <div>
@@ -715,7 +756,7 @@ function SmkiDashboard() {
                         backgroundColor: "rgba(255, 255, 255, 0.2)",
                       }}
                     />
-                    
+
                     <button
                       onClick={() => router.push('/smki/dashboard')}
                       style={{
@@ -763,19 +804,20 @@ function SmkiDashboard() {
                     </button>
 
                     <button
-                      onClick={() => router.push("/smki/dashboard/loglogin")}
+                      onClick={() => router.push("/smki/dashboard?tab=log-login")}
                       style={{
                         width: "100%",
                         padding: "10px 14px",
                         border: 0,
                         borderRadius: "10px",
-                        backgroundColor: "transparent",
-                        color: "#94a3b8",
+                        backgroundColor:
+                          activeTab === "log-login" ? "rgba(255, 255, 255, 0.15)" : "transparent",
+                        color: activeTab === "log-login" ? "#ffffff" : "#94a3b8",
                         display: "flex",
                         alignItems: "center",
                         gap: "10px",
                         fontSize: "13px",
-                        fontWeight: 500,
+                        fontWeight: activeTab === "log-login" ? 700 : 500,
                         cursor: "pointer",
                         textAlign: "left",
                         transition: "all 0.2s ease",
@@ -791,7 +833,7 @@ function SmkiDashboard() {
 
             <button
               onClick={handleLogout}
-              style={{ 
+              style={{
                 width: "100%", height: "44px", borderRadius: "22px", border: "2px solid #f43f5e", background: "transparent", color: "#f43f5e", display: "flex",
                 alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "15px", fontWeight: 700, marginTop: "auto", transition: "all 0.2s ease",
               }}
@@ -810,7 +852,11 @@ function SmkiDashboard() {
             <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>ANDIMA SMKI</span>
             <span style={{ color: "#cbd5e1" }}>|</span>
             <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
-              {activeTab === "log-activity" ? "Log Activity" : "Account Maintains"}
+              {activeTab === "log-activity"
+                ? "Log Activity"
+                : activeTab === "log-login"
+                  ? "Log Login"
+                  : "Account Maintains"}
             </span>
 
           </div>
@@ -831,9 +877,9 @@ function SmkiDashboard() {
         </header>
 
         <LogActivity active={activeTab === 'log-activity'} />
-        {activeTab !== "log-activity" && (
+        {activeTab === "account-maintains" && (
           <div style={{ flex: 1, padding: "20px 24px", overflowY: "auto", boxSizing: "border-box" }}>
-            
+
             {/* Banner Sukses Global */}
             {successMessage && (
               <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", padding: "12px 16px", borderRadius: "12px", fontSize: "13px", fontWeight: 600, marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -843,7 +889,7 @@ function SmkiDashboard() {
             )}
 
             <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-5 flex flex-wrap items-center gap-3">
-              
+
               <div className="relative flex-1 min-w-[280px]">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                   <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round">
@@ -940,7 +986,7 @@ function SmkiDashboard() {
               {currentEmployees.length > 0 ? (
                 currentEmployees.map((employee) => (
                   <div key={employee.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.1fr 1.1fr 0.8fr", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #f1f5f9", fontSize: "12px", color: !employee.isActive ? "#94a3b8" : "#1e293b", background: "#ffffff" }}>
-                    
+
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 700 }}>
                       <span style={{ width: "26px", height: "26px", borderRadius: "50%", background: "#cbd5e1", color: "#334155", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, flexShrink: 0 }}>
                         {employee.initial}
@@ -978,112 +1024,113 @@ function SmkiDashboard() {
                 </div>
               )}
             </div>
-            
+
             {filteredEmployees.length > 0 && (
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "0 4px", flexShrink: 0 }}>
-              <div style={{ fontSize: "12px", color: "#64748b" }}>
-                Showing <b>{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredEmployees.length)}</b> of <b>{filteredEmployees.length}</b> employees
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "0 4px", flexShrink: 0 }}>
+                <div style={{ fontSize: "12px", color: "#64748b" }}>
+                  Showing <b>{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredEmployees.length)}</b> of <b>{filteredEmployees.length}</b> employees
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <button
+                    onClick={() => setCurrentPageNum((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPageNum === 1}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: "10px",
+                      border: "1px solid #cbd5e1",
+                      background: currentPageNum === 1 ? "#f8fafc" : "#ffffff",
+                      color: currentPageNum === 1 ? "#94a3b8" : "#1e293b",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: currentPageNum === 1 ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px"
+                    }}
+                  >
+                    Previous
+                  </button>
+
+                  {(() => {
+                    let startPage = 1;
+                    if (totalPages <= 3) {
+                      startPage = 1;
+                    } else if (currentPageNum === 1) {
+                      startPage = 1;
+                    } else if (currentPageNum === totalPages) {
+                      startPage = totalPages - 2;
+                    } else {
+                      startPage = currentPageNum - 1;
+                    }
+
+                    const visiblePages = [];
+                    for (let i = startPage; i < startPage + Math.min(3, totalPages); i++) {
+                      visiblePages.push(i);
+                    }
+
+                    return visiblePages.map((pageNum) => {
+                      const isActive = currentPageNum === pageNum;
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPageNum(pageNum)}
+                          style={{
+                            width: "36px",
+                            height: "36px",
+                            borderRadius: "10px",
+                            border: isActive ? "none" : "1px solid #cbd5e1",
+                            background: isActive ? "#2563eb" : "#ffffff",
+                            color: isActive ? "#ffffff" : "#1e293b",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    });
+                  })()}
+
+                  <button
+                    onClick={() => setCurrentPageNum((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPageNum === totalPages}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: "10px",
+                      border: "1px solid #cbd5e1",
+                      background: currentPageNum === totalPages ? "#f8fafc" : "#ffffff",
+                      color: currentPageNum === totalPages ? "#94a3b8" : "#1e293b",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: currentPageNum === totalPages ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px"
+                    }}
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <button
-                  onClick={() => setCurrentPageNum((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPageNum === 1}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: "10px",
-                    border: "1px solid #cbd5e1",
-                    background: currentPageNum === 1 ? "#f8fafc" : "#ffffff",
-                    color: currentPageNum === 1 ? "#94a3b8" : "#1e293b",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    cursor: currentPageNum === 1 ? "not-allowed" : "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px"
-                  }}
-                >
-                  Previous
-                </button>
-
-                {(() => {
-                  let startPage = 1;
-                  if (totalPages <= 3) {
-                    startPage = 1;
-                  } else if (currentPageNum === 1) {
-                    startPage = 1;
-                  } else if (currentPageNum === totalPages) {
-                    startPage = totalPages - 2;
-                  } else {
-                    startPage = currentPageNum - 1;
-                  }
-
-                  const visiblePages = [];
-                  for (let i = startPage; i < startPage + Math.min(3, totalPages); i++) {
-                    visiblePages.push(i);
-                  }
-
-                  return visiblePages.map((pageNum) => {
-                    const isActive = currentPageNum === pageNum;
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPageNum(pageNum)}
-                        style={{
-                          width: "36px",
-                          height: "36px",
-                          borderRadius: "10px",
-                          border: isActive ? "none" : "1px solid #cbd5e1",
-                          background: isActive ? "#2563eb" : "#ffffff",
-                          color: isActive ? "#ffffff" : "#1e293b",
-                          fontSize: "13px",
-                          fontWeight: 700,
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  });
-                })()}
-
-                <button
-                  onClick={() => setCurrentPageNum((prev) => Math.min(prev + 1, totalPages))}
-                  disabled={currentPageNum === totalPages}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: "10px",
-                    border: "1px solid #cbd5e1",
-                    background: currentPageNum === totalPages ? "#f8fafc" : "#ffffff",
-                    color: currentPageNum === totalPages ? "#94a3b8" : "#1e293b",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    cursor: currentPageNum === totalPages ? "not-allowed" : "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px"
-                  }}
-                >
-                  Next
-                </button>
-                </div>  
-              </div>
-          )}
-        </div>
+            )}
+          </div>
         )}
+        {activeTab === "log-login" && <LogLogin />}
       </section>
 
       {/* EDIT KARYAWAN */}
       {editingEmployee && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "20px" }}>
-          <div 
-            className="[scrollbar-width:none] [&::-webkit-scrollbar]:hidden" 
+          <div
+            className="[scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={{ width: "100%", maxWidth: "520px", maxHeight: "90vh", overflowY: "auto", background: "#ffffff", borderRadius: "16px", padding: "28px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", boxSizing: "border-box" }}
           >
-            
+
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
                 Edit Account ({editingEmployee.employeeId})
@@ -1099,7 +1146,7 @@ function SmkiDashboard() {
               </button>
             </div>
 
-            <form 
+            <form
               onSubmit={(e) => {
                 e.preventDefault();
                 const errors: Record<string, string> = {};
@@ -1228,7 +1275,7 @@ function SmkiDashboard() {
                       const newDept = e.target.value;
                       const availablePositions = POSITION_OPTIONS.filter(pos => pos === "Director" || VALID_POSITION_DEPARTMENTS[pos] === newDept);
                       const newPos = availablePositions.includes(editForm.position) ? editForm.position : "";
-                      
+
                       setEditForm({ ...editForm, department: newDept, position: newPos });
                       setFieldErrors((prev) => ({ ...prev, department: "", position: "" }));
                     }}
@@ -1392,6 +1439,7 @@ function SmkiDashboard() {
           </div>
         </div>
       )}
+
     </main>
   );
 }
