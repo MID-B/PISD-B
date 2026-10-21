@@ -1,13 +1,12 @@
 "use client";
 
-import React, { Suspense, useState, useEffect, useRef } from "react";
-import { ListFilter, Search, X, CalendarDays } from 'lucide-react';
-import Pagination from '@/components/pagination';
+import React, { Suspense, useState, useEffect } from "react";
+import LogActivity from '@/app/smki/log-activity';
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getLoginDestination } from "@/lib/loginDestination";
 import { IT_DEPARTMENT_ID } from '@/lib/activity';
-import { getActivities, getActivityById, matchesActivity, logoutWithActivity, trackActivity, type ActivityLog } from '@/query/activity';
+import { logoutWithActivity, trackActivity } from '@/query/activity';
 
 /* MASTER DATA OPTIONS */
 const DEPARTMENT_OPTIONS = [
@@ -205,20 +204,6 @@ function SmkiDashboard() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPageNum, setCurrentPageNum] = useState<number>(1);
   const itemsPerPage = 8;
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
-  const [activityLoading, setActivityLoading] = useState(true);
-  const [activityError, setActivityError] = useState('');
-  const [activityReload, setActivityReload] = useState(0);
-  const [activityPage, setActivityPage] = useState(1);
-  const activityPageSize = 10;
-  const [activityTotal, setActivityTotal] = useState(0);
-  const [activitySearch, setActivitySearch] = useState('');
-  const [activityStartDate, setActivityStartDate] = useState('');
-  const [activityEndDate, setActivityEndDate] = useState('');
-  const [draftStartDate, setDraftStartDate] = useState('');
-  const [draftEndDate, setDraftEndDate] = useState('');
-  const dateRangeDialogRef = useRef<HTMLDialogElement>(null);
-  const dateRangeStartRef = useRef<HTMLInputElement>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
   
@@ -339,52 +324,6 @@ function SmkiDashboard() {
     checkITUserAndFetchData();
   }, [router]);
 
-  useEffect(() => {
-    if (isLoading || activeTab !== 'log-activity') return;
-    let disposed = false;
-    let revision = 0;
-    const filters = {
-      page: activityPage, pageSize: activityPageSize, search: activitySearch,
-      startDate: activityStartDate, endDate: activityEndDate,
-      ascending: Boolean(activityStartDate),
-      departmentId: selectedDepartment === 'All' ? undefined : DEPARTMENT_UUID_MAP[selectedDepartment],
-    };
-    async function loadActivity(showLoading = true) {
-      const request = ++revision;
-      if (showLoading) { setActivityLoading(true); setActivityError(''); }
-      try {
-        const result = await getActivities(filters);
-        if (disposed || request !== revision) return;
-        const lastPage = Math.max(1, Math.ceil(result.total / activityPageSize));
-        if (activityPage > lastPage) { setActivityPage(lastPage); return; }
-        setActivityLogs(result.rows);
-        setActivityTotal(result.total);
-        setActivityError('');
-      } catch (error) {
-        if (!disposed && request === revision) {
-          setActivityError(`Gagal membaca b1_activity: ${error instanceof Error ? error.message : 'Koneksi database gagal.'}`);
-        }
-      } finally {
-        if (!disposed && request === revision) setActivityLoading(false);
-      }
-    }
-    const channel = supabase.channel('smki-log-activity')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'b1_activity' }, (payload) => {
-        void (async () => {
-          try {
-            const activity = await getActivityById(String(payload.new.id));
-            if (disposed || !activity || !matchesActivity(activity, filters)) return;
-            await loadActivity(false);
-          } catch { console.error('Gagal memperbarui Log Activity melalui Realtime.'); }
-        })();
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED' && !disposed) void loadActivity(false);
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.error('Koneksi Realtime Log Activity gagal.');
-      });
-    void loadActivity();
-    return () => { disposed = true; void supabase.removeChannel(channel); };
-  }, [isLoading, activeTab, activityReload, activityPage, activityPageSize, activitySearch, activityStartDate, activityEndDate, selectedDepartment]);
 
   useEffect(() => {
     const getLocalDateString = () => {
@@ -454,12 +393,6 @@ function SmkiDashboard() {
   const currentEmployees = filteredEmployees.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage) || 1;
 
-  const activityTotalPages = Math.max(1, Math.ceil(activityTotal / activityPageSize));
-  const filterDateLabel = (date: string) => date.split('-').reverse().join('/');
-  const activityRangeLabel = activityStartDate && activityEndDate
-    ? `${filterDateLabel(activityStartDate)} - ${filterDateLabel(activityEndDate)}`
-    : activityStartDate ? `Mulai ${filterDateLabel(activityStartDate)}`
-      : activityEndDate ? `Sampai ${filterDateLabel(activityEndDate)}` : '';
 
   const handleOpenStatusConfirm = (emp: Employee) => {
     setStatusConfirmEmployee(emp);
@@ -872,42 +805,14 @@ function SmkiDashboard() {
       {/* MAIN CONTENT AREA */}
       <section style={{ flex: 1, height: "100vh", background: "#ffffff", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" }}>
 
-        <header style={{ width: "100%", height: activeTab === "log-activity" ? "42px" : "56px", padding: activeTab === "log-activity" ? "0 16px" : "0 24px", background: "#ffffff", borderBottom: "1px solid #e2e8f0", color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxSizing: "border-box", gap: "12px" }}>
+        <header style={{ width: "100%", height: "56px", padding: "0 24px", background: "#ffffff", borderBottom: "1px solid #e2e8f0", color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxSizing: "border-box", gap: "12px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
             <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>ANDIMA SMKI</span>
             <span style={{ color: "#cbd5e1" }}>|</span>
             <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
               {activeTab === "log-activity" ? "Log Activity" : "Account Maintains"}
             </span>
-            {activeTab === "log-activity" && (
-              <div style={{ position: "relative", marginLeft: "clamp(12px, 3vw, 32px)" }}>
-                <button
-                  type="button"
-                  aria-expanded={isFilterOpen}
-                  onClick={() => setIsFilterOpen(!isFilterOpen)}
-                  style={{ width: "174px", height: "28px", padding: "0 10px", border: 0, borderRadius: "9px", background: "#f1f1f1", color: "#475569", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "11px", fontWeight: 500, cursor: "pointer", boxSizing: "border-box" }}
-                >
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {selectedDepartment === "All" ? "All Departments" : selectedDepartment}
-                  </span>
-                  <ChevronDownIcon isOpen={isFilterOpen} />
-                </button>
-                {isFilterOpen && (
-                  <div style={{ position: "absolute", left: 0, top: "32px", background: "#ffffff", border: "1px solid #e2e8f0", boxShadow: "0 4px 10px rgba(15,23,42,0.12)", zIndex: 30, width: "220px", overflow: "hidden" }}>
-                    {["All", ...DEPARTMENT_OPTIONS].map((department) => (
-                      <button
-                        key={department}
-                        type="button"
-                        onClick={() => { setSelectedDepartment(department); setActivityPage(1); setIsFilterOpen(false); }}
-                        style={{ width: "100%", padding: "7px 10px", background: selectedDepartment === department ? "#f1f5f9" : "#ffffff", color: "#475569", border: 0, textAlign: "left", fontSize: "10px", fontWeight: 500, cursor: "pointer" }}
-                      >
-                        {department === "All" ? "All Departments" : department}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -925,140 +830,8 @@ function SmkiDashboard() {
           </div>
         </header>
 
-        {activeTab === "log-activity" ? (
-          <div style={{ flex: 1, minHeight: 0, overflow: "auto", background: "#f1f3fc" }}>
-            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
-                <button
-                  type="button"
-                  aria-haspopup="dialog"
-                  onClick={() => { setDraftStartDate(activityStartDate); setDraftEndDate(activityEndDate); dateRangeDialogRef.current?.showModal(); }}
-                  className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border bg-white px-3 text-xs font-medium focus-visible:outline-2 focus-visible:outline-blue-500 ${activityStartDate || activityEndDate ? 'border-blue-300 text-blue-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}
-                >
-                  <ListFilter aria-hidden="true" className="h-3.5 w-3.5" />Filters
-                  {(activityStartDate || activityEndDate) && <span aria-label="Filter tanggal aktif" className="h-1.5 w-1.5 rounded-full bg-blue-600" />}
-                </button>
-                <dialog
-                  ref={dateRangeDialogRef}
-                  aria-labelledby="activity-date-range-title"
-                  className="fixed inset-0 m-auto w-[440px] max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white p-6 text-[#555555] shadow-xl backdrop:bg-slate-900/30"
-                  onClick={(event) => {
-                    if (event.target !== event.currentTarget) return;
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) event.currentTarget.close();
-                  }}
-                >
-                  <form onSubmit={(event) => {
-                    event.preventDefault();
-                    if (draftStartDate && draftEndDate && draftStartDate > draftEndDate) return;
-                    setActivityStartDate(draftStartDate); setActivityEndDate(draftEndDate); setActivityPage(1);
-                    dateRangeDialogRef.current?.close();
-                  }}>
-                    <h2 id="activity-date-range-title" className="text-[28px] font-bold leading-tight text-black">Filter</h2>
-                    <p className="mt-1.5 text-sm text-[#707070]">Select date range to search</p>
-                    <div className="mt-5">
-                      <p id="activity-date-range-label" className="mb-1.5 text-sm font-medium">Date Range</p>
-                      <div role="group" aria-labelledby="activity-date-range-label" className="flex min-h-14 items-center gap-2 rounded-lg border border-[#D9D9D9] px-3 py-2 focus-within:border-blue-400">
-                        <label className="min-w-0 flex-1">
-                          <span className="mb-1 block text-[10px] font-medium text-slate-500">Tanggal mulai</span>
-                          <input ref={dateRangeStartRef} type="date" value={draftStartDate} onChange={(event) => {
-                            const start = event.target.value;
-                            setDraftStartDate(start);
-                            if (start && draftEndDate && start > draftEndDate) setDraftEndDate('');
-                          }} className="w-full min-w-0 bg-transparent text-xs text-[#858585] focus-visible:outline-2 focus-visible:outline-blue-500 sm:text-sm [&::-webkit-calendar-picker-indicator]:hidden" />
-                        </label>
-                        <span aria-hidden="true" className="text-[#858585]">–</span>
-                        <label className="min-w-0 flex-1">
-                          <span className="mb-1 block text-[10px] font-medium text-slate-500">Tanggal akhir</span>
-                          <input type="date" value={draftEndDate} min={draftStartDate || undefined} onChange={(event) => setDraftEndDate(event.target.value)} className="w-full min-w-0 bg-transparent text-xs text-[#858585] focus-visible:outline-2 focus-visible:outline-blue-500 sm:text-sm" />
-                        </label>
-                        <button type="button" aria-label="Buka kalender tanggal mulai" onClick={() => { dateRangeStartRef.current?.focus(); dateRangeStartRef.current?.showPicker?.(); }} className="ml-1 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded text-[#858585] hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-500">
-                          <CalendarDays aria-hidden="true" className="h-5 w-5" />
-                        </button>
-                      </div>
-                      <p className="mt-2 text-[11px] leading-relaxed text-slate-500">Waktu Jakarta. Kosongkan tanggal akhir untuk melihat semua aktivitas sejak tanggal mulai.</p>
-                    </div>
-                    {draftStartDate && draftEndDate && draftStartDate > draftEndDate && <p role="alert" className="mt-2 text-xs text-red-600">Tanggal akhir harus sama atau setelah tanggal mulai.</p>}
-                    <div className="mt-8 grid grid-cols-[1fr_1.4fr] gap-4">
-                      <button type="button" onClick={() => { setActivityStartDate(''); setActivityEndDate(''); setDraftStartDate(''); setDraftEndDate(''); setActivityPage(1); dateRangeDialogRef.current?.close(); }} className="h-12 cursor-pointer rounded-lg border border-[#B8B8B8] bg-white text-base font-semibold text-[#555555] hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-500">Reset</button>
-                      <button type="submit" disabled={Boolean(draftStartDate && draftEndDate && draftStartDate > draftEndDate)} className="h-12 cursor-pointer rounded-lg bg-[#386BF6] text-base font-semibold text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-40">Apply</button>
-                    </div>
-                  </form>
-                </dialog>
-                <input type="search" aria-label="Cari Log Activity berdasarkan nama, email, action, atau deskripsi" placeholder="Search..." value={activitySearch} onChange={(event) => { setActivitySearch(event.target.value); setActivityPage(1); }} className="h-9 w-full max-w-72 rounded-lg border border-slate-300 bg-slate-100 px-3 focus-visible:outline-2 focus-visible:outline-blue-500" />
-                {activityRangeLabel && <p role="status" className="text-[11px] text-slate-500">{activityRangeLabel} (WIB){!activityLoading && !activityError && ` · ${activityTotal} aktivitas · ${activityStartDate ? 'dari tanggal mulai' : 'terbaru lebih dulu'}`}</p>}
-              </div>
-              <table aria-label="Log Activity SMKI" className="w-full min-w-[1200px] table-fixed border-collapse text-left [&_th]:px-4 [&_th]:py-3 [&_th]:align-top [&_td]:px-4 [&_td]:py-4 [&_td]:align-top [&_td]:[overflow-wrap:anywhere]">
-              <colgroup>
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "16%" }} />
-                <col style={{ width: "13%" }} />
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "10%" }} />
-                <col style={{ width: "10%" }} />
-                <col style={{ width: "17%" }} />
-                <col style={{ width: "10%" }} />
-              </colgroup>
-              <thead className="sticky top-0 z-10 bg-[#f8f9ff] text-[11px] font-extrabold tracking-[0.2px] text-[#506487]">
-              <tr className="border-b border-[#e6eaf3]">
-                <th scope="col">EMPLOYEE&apos;S NAME</th>
-                <th scope="col">EMAIL</th>
-                <th scope="col">DEPARTMENT</th>
-                <th scope="col">ROLE</th>
-                <th scope="col">IP ADDRESS</th>
-                <th scope="col">USER AGENT</th>
-                <th scope="col">DESCRIPTION</th>
-                <th scope="col" aria-sort={activityStartDate ? 'ascending' : 'descending'} className="whitespace-nowrap">DATE TIME</th>
-              </tr>
-              </thead>
-              <tbody className="bg-white text-xs leading-relaxed text-[#111827]">
-              {activityLoading ? (
-                <tr><td colSpan={8}><div role="status" className="text-slate-500">Memuat Log Activity...</div></td></tr>
-              ) : activityError ? (
-                <tr><td colSpan={8}><div role="alert" className="text-red-600">
-                  <p>{activityError}</p>
-                  <button type="button" onClick={() => setActivityReload((value) => value + 1)} className="mt-2 cursor-pointer text-blue-600">Coba lagi</button>
-                </div></td></tr>
-              ) : activityLogs.length > 0 ? (
-                activityLogs.map((activity) => {
-                  const timestamp = new Date(activity.createdAt);
-                  return (
-                    <tr key={activity.id} className="border-b border-[#e9edf5] hover:bg-slate-50">
-                      <td className="font-semibold"><div style={{ display: "flex", alignItems: "flex-start", gap: "8px", minWidth: 0 }}>
-                        <span className="mt-0.5 shrink-0"><AccountIcon /></span>
-                        <span className="min-w-0">{activity.name}</span>
-                      </div></td>
-                      <td>{activity.email}</td>
-                      <td>{activity.department}</td>
-                      <td>{activity.role}</td>
-                      <td>{activity.ipAddress}</td>
-                      <td>{activity.userAgent}</td>
-                      <td className="whitespace-pre-line">{activity.description}</td>
-                      <td><div style={{ display: "flex", flexDirection: "column", whiteSpace: "nowrap" }}>
-                        <span>{activity.createdAt ? timestamp.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Jakarta" }) : "-"}</span>
-                        <span>{activity.createdAt ? timestamp.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Jakarta" }) : "-"}</span>
-                      </div></td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr><td colSpan={8} className="text-slate-500">
-                  Tidak ada aktivitas yang sesuai dengan pencarian dan filter.
-                </td></tr>
-              )}
-              </tbody>
-            </table>
-            {!activityLoading && !activityError && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3 text-xs text-slate-600">
-                <p role="status">Menampilkan {activityTotal ? (activityPage - 1) * activityPageSize + 1 : 0}–{Math.min(activityPage * activityPageSize, activityTotal)} dari {activityTotal} aktivitas.</p>
-                <nav aria-label="Pagination Log Activity" className="flex items-center gap-3">
-                  <button type="button" disabled={activityPage <= 1} onClick={() => setActivityPage((page) => page - 1)} className="cursor-pointer rounded border border-slate-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40">Sebelumnya</button>
-                  <span>Halaman {activityPage} dari {activityTotalPages}</span>
-                  <button type="button" disabled={activityPage >= activityTotalPages} onClick={() => setActivityPage((page) => page + 1)} className="cursor-pointer rounded border border-slate-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40">Berikutnya</button>
-                </nav>
-              </div>
-            )}
-          </div>
-        ) : (
+        <LogActivity active={activeTab === 'log-activity'} />
+        {activeTab !== "log-activity" && (
           <div style={{ flex: 1, padding: "20px 24px", overflowY: "auto", boxSizing: "border-box" }}>
             
             {/* Banner Sukses Global */}
