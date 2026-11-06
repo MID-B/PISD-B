@@ -153,6 +153,7 @@ export default function LogLoginPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const dateRangeDialogRef = useRef<HTMLDialogElement>(null);
   const [loginLogs, setLoginLogs] = useState<LoginLogRecord[]>([]);
+  const [totalLoginLogs, setTotalLoginLogs] = useState(0);
   const [isLogsLoading, setIsLogsLoading] = useState(true);
   const [logsError, setLogsError] = useState("");
 
@@ -166,25 +167,9 @@ export default function LogLoginPage() {
     ]),
   ];
 
-  const filteredLoginLogs = loginLogs.filter((log) => {
-    const matchesName = (log.nama || "")
-      .toLocaleLowerCase()
-      .includes(nameSearch.trim().toLocaleLowerCase());
-
-    const matchesDepartment =
-      !selectedDepartment ||
-      normalizeDepartmentName(log.departement).toLocaleLowerCase() ===
-      normalizeDepartmentName(selectedDepartment).toLocaleLowerCase();
-
-    return matchesName && matchesDepartment;
-  });
-
   const pageSize = 10;
-  const totalPages = Math.max(1, Math.ceil(filteredLoginLogs.length / pageSize));
-  const pageLoginLogs = filteredLoginLogs.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  const totalPages = Math.max(1, Math.ceil(totalLoginLogs / pageSize));
+  const pageLoginLogs = loginLogs;
 
 
   useEffect(() => {
@@ -225,14 +210,25 @@ export default function LogLoginPage() {
       setIsLogsLoading(true);
       setLogsError("");
       try {
-        const logs = await fetchLoginLogs(selectedStartDate || undefined, selectedEndDate || undefined);
+        const result = await fetchLoginLogs({
+          page: currentPage,
+          pageSize,
+          startDate: selectedStartDate || undefined,
+          endDate: selectedEndDate || undefined,
+          nameSearch,
+          department: selectedDepartment
+            ? normalizeDepartmentName(selectedDepartment)
+            : undefined,
+        });
         if (isCurrent) {
-          setLoginLogs(logs);
+          setLoginLogs(result.rows);
+          setTotalLoginLogs(result.total);
         }
       } catch (error) {
         console.error("Gagal memuat riwayat login:", error);
         if (isCurrent) {
           setLoginLogs([]);
+          setTotalLoginLogs(0);
           setLogsError(error instanceof Error ? error.message : "Gagal memuat riwayat login.");
         }
       } finally {
@@ -246,7 +242,7 @@ export default function LogLoginPage() {
     return () => {
       isCurrent = false;
     };
-  }, [isLoading, selectedStartDate, selectedEndDate]);
+  }, [isLoading, selectedStartDate, selectedEndDate, nameSearch, selectedDepartment, currentPage, pageSize]);
 
   const handleLogout = async () => {
     try {
@@ -311,10 +307,13 @@ export default function LogLoginPage() {
           </svg>
 
           <input
-            aria-label="Search by employee name"
+            aria-label="Search by employee name or email"
             value={nameSearch}
-            onChange={(event) => setNameSearch(event.target.value)}
-            placeholder="Search by Employee's Name"
+            onChange={(event) => {
+              setNameSearch(event.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Search by Employee's Name or Email"
             className="h-full w-full border-0 bg-transparent text-xs font-medium text-slate-700 outline-none placeholder:text-slate-400"
           />
         </label>
@@ -324,7 +323,10 @@ export default function LogLoginPage() {
         <select
           aria-label="Filter by department"
           value={selectedDepartment}
-          onChange={(event) => setSelectedDepartment(event.target.value)}
+          onChange={(event) => {
+            setSelectedDepartment(event.target.value);
+            setCurrentPage(1);
+          }}
           className="h-10 w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-medium text-slate-700 shadow-2xs focus:border-purple-400 focus:outline-none sm:w-56"
         >
           <option value="">All Department</option>
@@ -542,7 +544,7 @@ export default function LogLoginPage() {
             ))
           ) : (
             <div style={{ padding: "24px 16px", color: "#94a3b8", fontSize: "12px" }}>
-              {loginLogs.length ? "No login records match these filters." : selectedStartDate || selectedEndDate ? "No login records in this date range." : "No login records yet."}
+              {nameSearch || selectedDepartment ? "No login records match these filters." : selectedStartDate || selectedEndDate ? "No login records in this date range." : "No login records yet."}
             </div>
           )}
         </div>
@@ -552,18 +554,18 @@ export default function LogLoginPage() {
       {!isLogsLoading && !logsError && (
         <p className="px-1 pt-3 text-xs text-slate-500">
           Showing{" "}
-          {filteredLoginLogs.length === 0
+          {totalLoginLogs === 0
             ? 0
             : (currentPage - 1) * pageSize + 1}
           -
-          {Math.min(currentPage * pageSize, filteredLoginLogs.length)} of{" "}
-          {filteredLoginLogs.length} logins
+          {Math.min(currentPage * pageSize, totalLoginLogs)} of{" "}
+          {totalLoginLogs} logins
         </p>
       )}
       {/* membuat informasi data dalam satu halaman dan total data */}
 
       {/* cuman ubah ini untuk ambil pagination */}
-      {!isLogsLoading && !logsError && filteredLoginLogs.length > 0 && (
+      {!isLogsLoading && !logsError && totalLoginLogs > 0 && (
         <div style={{ display: "flex", justifyContent: "flex-end", padding: "16px 4px" }}>
           <Pagination
             label="Login log pagination"
