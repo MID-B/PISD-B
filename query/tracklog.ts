@@ -39,39 +39,77 @@ export type LoginLogRecord = {
   waktu_logout: string | null;
 };
 
-export async function fetchLoginLogs(
-  startDate?: string,
-  endDate?: string
-): Promise<LoginLogRecord[]> {
+export type LoginLogFilters = {
+  page?: number;
+  pageSize?: number;
+  startDate?: string;
+  endDate?: string;
+  nameSearch?: string;
+  emailSearch?: string;
+  department?: string;
+};
+
+export async function fetchLoginLogs({
+  page = 1,
+  pageSize = 10,
+  startDate,
+  endDate,
+  nameSearch = '',
+  emailSearch = '',
+  department = '',
+}: LoginLogFilters = {}): Promise<{
+  rows: LoginLogRecord[];
+  total: number;
+}> {
+  const size = [10, 25, 50].includes(pageSize) ? pageSize : 10;
+  const safePage = Math.max(1, Math.floor(page));
+  const from = (safePage - 1) * size;
+  const to = from + size - 1;
+
   let query = supabase
-    .from("b3_log_login")
-    .select(`
-      id,
-      register_id,
-      nama,
-      email,
-      "position",
-      departement,
-      tanggal_login,
-      waktu_login,
-      tanggal_logout,
-      waktu_logout
-    `);
+    .from('b3_log_login')
+    .select(
+      `
+        id,
+        register_id,
+        nama,
+        email,
+        "position",
+        departement,
+        tanggal_login,
+        waktu_login,
+        tanggal_logout,
+        waktu_logout
+      `,
+      { count: 'exact' },
+    );
 
-  if (startDate) query = query.gte("tanggal_login", startDate);
-  if (endDate) query = query.lte("tanggal_login", endDate);
+  if (startDate) query = query.gte('tanggal_login', startDate);
+  if (endDate) query = query.lte('tanggal_login', endDate);
 
-  const { data, error } = await query
-    .order("tanggal_login", { ascending: false })
-    .order("waktu_login", { ascending: false });
-
-  if (error) {
-    throw new Error(
-      `Gagal mengambil log login: ${error.message}`
+  const search = nameSearch.trim();
+  if (search) {
+    query = query.or(
+      `nama.ilike.%${search}%,email.ilike.%${search}%`,
     );
   }
 
-  return (data ?? []) as LoginLogRecord[];
+  const dept = department.trim();
+  if (dept) query = query.ilike('departement', dept);
+
+  const { data, error, count } = await query
+    .order('tanggal_login', { ascending: false })
+    .order('waktu_login', { ascending: false })
+    .range(from, to);
+
+  if (error) {
+    throw new Error(`Gagal mengambil log login: ${error.message}`);
+  }
+
+  return {
+    rows: (data ?? []) as LoginLogRecord[],
+    total: count ?? 0,
+  };
 }
 
 export async function recordLogin(): Promise<void> {
@@ -82,8 +120,7 @@ export async function recordLogin(): Promise<void> {
 
   if (userError || !user?.email) {
     throw new Error(
-      `Tidak dapat membaca pengguna yang login: ${
-        userError?.message ?? "email pengguna tidak tersedia"
+      `Tidak dapat membaca pengguna yang login: ${userError?.message ?? "email pengguna tidak tersedia"
       }`
     );
   }
@@ -102,8 +139,7 @@ export async function recordLogin(): Promise<void> {
 
   if (registerError || !register) {
     throw new Error(
-      `Gagal membaca profil b2_register: ${
-        registerError?.message ?? "profil tidak ditemukan"
+      `Gagal membaca profil b2_register: ${registerError?.message ?? "profil tidak ditemukan"
       }`
     );
   }
@@ -128,9 +164,8 @@ export async function recordLogin(): Promise<void> {
 
   if (positionError || !positionData?.title) {
     throw new Error(
-      `Gagal membaca posisi dari d3_positions: ${
-        positionError?.message ??
-        "posisi tidak ditemukan atau tidak diizinkan oleh RLS/Data API"
+      `Gagal membaca posisi dari d3_positions: ${positionError?.message ??
+      "posisi tidak ditemukan atau tidak diizinkan oleh RLS/Data API"
       }`
     );
   }
@@ -143,9 +178,8 @@ export async function recordLogin(): Promise<void> {
 
   if (departmentError || !departmentData?.name) {
     throw new Error(
-      `Gagal membaca departemen dari d3_departments: ${
-        departmentError?.message ??
-        "departemen tidak ditemukan atau tidak diizinkan oleh RLS/Data API"
+      `Gagal membaca departemen dari d3_departments: ${departmentError?.message ??
+      "departemen tidak ditemukan atau tidak diizinkan oleh RLS/Data API"
       }`
     );
   }
@@ -164,7 +198,7 @@ export async function recordLogin(): Promise<void> {
         tanggal_login: loginTime.tanggal,
         waktu_login: loginTime.waktu,
         tanggal_logout: null,
-        waktu_logout: null, 
+        waktu_logout: null,
         last_seen_at: new Date().toISOString(),
       },
       {
@@ -176,8 +210,7 @@ export async function recordLogin(): Promise<void> {
 
   if (logError || !log) {
     throw new Error(
-      `Gagal menyimpan riwayat login: ${
-        logError?.message ?? "ID log tidak dikembalikan"
+      `Gagal menyimpan riwayat login: ${logError?.message ?? "ID log tidak dikembalikan"
       }`
     );
   }
