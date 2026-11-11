@@ -83,7 +83,7 @@ const ALL_MODULES: ModuleCard[] = [
     bgLight: "#E6F9F0",
     borderColor: "#BDF2D5",
     accentColor: "#10B981",
-    textColor: "#065F46",
+    textColor: "#0b8e69",
   },
   {
     id: "customer_success",
