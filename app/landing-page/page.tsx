@@ -16,7 +16,6 @@ import {
   Building2,
   HeartHandshake
 } from "lucide-react";
-import router from "next/dist/shared/lib/router/router";
 
 /* UUID POSISI DIREKTUR & DEPARTEMEN */
 const DIRECTOR_POSITION_ID = "4acac2d4-8441-4cd8-bcd3-cf3ce4ca0ee0";
@@ -164,7 +163,7 @@ export default function LandingPageHub() {
         clearInterval(interval);
         // Hapus sesi atau paksa keluar ke halaman login/landing page ulang
         supabase.auth.signOut();
-        window.location.href = "/login";
+        window.location.href = "/landing-page"; 
       }
     }, 10000); // Cek setiap 10 detik
 
@@ -172,31 +171,13 @@ export default function LandingPageHub() {
   }, []);
   
   useEffect(() => {
-    // 1. Tambahkan event listener untuk hapus sesi pas ditutup
-    const handleBeforeUnload = () => {
-      supabase.auth.signOut();
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    const checkUserAccess = async () => {
-       // ... kode pengecekan akses yang sudah ada ...
-    };
-
-    checkUserAccess();
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [router]);
-
-  useEffect(() => {
       const checkUserAccess = async () => {
         // 1. Ambil sesi secara langsung dari Supabase
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         // 2. Jika tidak ada sesi atau terjadi error, pastikan langsung dibuang ke /login
         if (sessionError || !session) {
-          router.replace("/login");
+          router.replace("/landing-page");
           return;
         }
 

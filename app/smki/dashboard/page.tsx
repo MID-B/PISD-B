@@ -352,7 +352,7 @@ function SmkiDashboard() {
         clearInterval(interval);
         const { error } = await logoutWithActivity('Sesi berakhir karena hari berganti.');
         if (error) { console.error('Gagal logout saat hari berganti.'); return; }
-        router.push("/login?reason=day_changed");
+        router.push('/landing-page?reason=day_changed');
       }
     }, 5000);
 
@@ -399,14 +399,14 @@ function SmkiDashboard() {
 
     try {
       await trackActivityAndWait(
-        'Logout',
-        'Kembali ke Landing Page dari dashboard MID.'
+        'Register',
+        'Kembali ke Landing Page dari dashboard SMKI.'
       );
-      window.location.href = '/landing-page';
+      router.push('/landing-page');
     } catch (error) {
       console.error('Gagal kembali ke Landing Page:', error);
       setLogoutError('Gagal kembali ke Landing Page. Silakan coba lagi.');
-      setSigningOut(false);
+      router.push('/landing-page');
     }
   }
 
@@ -888,89 +888,108 @@ function SmkiDashboard() {
               </div>
             )}
 
-            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-5 flex flex-wrap items-center gap-3">
-
-              <div className="relative flex-1 min-w-[280px]">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
+            {/* CONTAINER FILTER */}
+            <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs mb-5 flex items-center justify-between gap-1.5 w-full min-w-0">
+              {/* Search + Dropdown Filters + Button Reset */}
+              <div className="flex items-center gap-1.5 flex-1 shrink min-w-0">
+                
+                {/* 1. Input Search */}
+                <div className="relative flex-1 min-w-0">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search by Employee's Name"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full h-9 pl-10 pr-7 bg-[#f1f3fe] text-[11px] font-medium text-slate-700 placeholder-slate-400 rounded-xl border border-transparent focus:border-purple-300 focus:bg-white focus:outline-none transition-all truncate"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  placeholder="Search by Employee's Name"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-10 pl-10 pr-4 bg-[#f1f3fe] text-xs font-medium text-slate-700 placeholder-slate-400 rounded-xl border border-transparent focus:border-purple-300 focus:bg-white focus:outline-none transition-all"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 text-xs font-bold"
-                  >
-                    ✕
-                  </button>
-                )}
+
+                {/* 2. Filter Department */}
+                <select
+                  value={selectedDepartment}
+                  onChange={(e) => {
+                    const newDept = e.target.value;
+                    setSelectedDepartment(newDept);
+                    if (newDept !== "All" && selectedPosition !== "All") {
+                      const validDept = VALID_POSITION_DEPARTMENTS[selectedPosition];
+                      if (validDept && validDept !== newDept && selectedPosition !== "Director") {
+                        setSelectedPosition("All");
+                      }
+                    }
+                  }}
+                  className="h-9 px-2 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 min-w-0 truncate"
+                >
+                  <option value="All">All Departement</option>
+                  {DEPARTMENT_OPTIONS.map((dept) => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+
+                {/* 3. Filter Position */}
+                <select
+                  value={selectedPosition}
+                  onChange={(e) => setSelectedPosition(e.target.value)}
+                  className="h-9 px-2 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 min-w-0 truncate"
+                >
+                  <option value="All">All Position</option>
+                  {POSITION_OPTIONS
+                    .filter(pos => selectedDepartment === "All" || pos === "Director" || VALID_POSITION_DEPARTMENTS[pos] === selectedDepartment)
+                    .map((pos) => (
+                      <option key={pos} value={pos}>{pos}</option>
+                    ))}
+                </select>
+
+                {/* 4. Filter Status */}
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="h-9 px-1.5 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 min-w-0 truncate"
+                >
+                  <option value="All">All Status</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+
+                {/* 5. Button Reset */}
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="h-9 px-2.5 flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-purple-600 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer border border-slate-200 shrink-0"
+                >
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  <span>Reset</span>
+                </button>
               </div>
 
-              {/* FILTER DEPARTMENT */}
-              <select
-                value={selectedDepartment}
-                onChange={(e) => {
-                  const newDept = e.target.value;
-                  setSelectedDepartment(newDept);
-                  if (newDept !== "All" && selectedPosition !== "All") {
-                    const validDept = VALID_POSITION_DEPARTMENTS[selectedPosition];
-                    if (validDept && validDept !== newDept && selectedPosition !== "Director") {
-                      setSelectedPosition("All");
-                    }
-                  }
-                }}
-                className="h-10 px-3.5 bg-white text-xs font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs"
-              >
-                <option value="All">All Departement</option>
-                {DEPARTMENT_OPTIONS.map((dept) => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
-
-              {/* FILTER POSITION */}
-              <select
-                value={selectedPosition}
-                onChange={(e) => setSelectedPosition(e.target.value)}
-                className="h-10 px-3.5 bg-white text-xs font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs"
-              >
-                <option value="All">All Position</option>
-                {POSITION_OPTIONS
-                  .filter(pos => selectedDepartment === "All" || pos === "Director" || VALID_POSITION_DEPARTMENTS[pos] === selectedDepartment)
-                  .map((pos) => (
-                    <option key={pos} value={pos}>{pos}</option>
-                  ))}
-              </select>
-
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="h-10 px-3.5 bg-white text-xs font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs"
-              >
-                <option value="All">All Status</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-
+              {/* Button + Add Employee */}
               <button
                 type="button"
-                onClick={handleResetFilters}
-                className="h-10 px-3.5 flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-purple-600 bg-transparent hover:bg-slate-50 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-slate-200 ml-auto sm:ml-0"
+                onClick={() => router.push('/register')}
+                className="h-9 px-3 flex items-center gap-1.5 text-[11px] font-bold text-white bg-[#055be5] hover:bg-[#0344b0] active:scale-95 rounded-xl transition-all shadow-md shrink-0 cursor-pointer whitespace-nowrap ml-1"
               >
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
+                <svg viewBox="0 0 24 24" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }}>
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="8.5" cy="7" r="4" />
                 </svg>
-                <span>Reset</span>
+                <span>+ Add Employee</span>
               </button>
-
             </div>
 
             {/* TABEL DATA KARYAWAN */}

@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { trackActivityAndWait } from '@/query/activity';
+import { useRouter } from 'next/navigation';
 
 type DashboardShellProps = {
   activePage: 'dashboard' | 'sales-performance' | 'issue-board';
@@ -79,6 +80,7 @@ type HeaderProfile = { name: string; position: string };
 const guestProfile: HeaderProfile = { name: 'Guest', position: 'Belum login' };
 
 export default function DashboardShell({ activePage, headerActions, children }: DashboardShellProps) {
+  const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
   const [profile, setProfile] = useState<HeaderProfile>({ name: 'Memuat…', position: '' });
@@ -127,12 +129,12 @@ export default function DashboardShell({ activePage, headerActions, children }: 
     try {
       // Catat aktivitas tanpa mengakhiri sesi login
       await trackActivityAndWait(
-        'Logout',
+        'Register',
         'Kembali ke Landing Page dari dashboard MID.'
       );
 
       // Kembali ke Landing Page
-      window.location.href = '/landing-page';
+      router.push('/landing-page');
     } catch (error) {
       console.error('Gagal kembali ke Landing Page:', error);
       setLogoutError('Gagal kembali ke Landing Page. Silakan coba lagi.');
@@ -140,10 +142,27 @@ export default function DashboardShell({ activePage, headerActions, children }: 
     }
   }
 
-
   useEffect(() => {
     let disposed = false;
     let revision = 0;
+
+    if (typeof window !== 'undefined') {
+      const today = new Date().toLocaleDateString('en-CA'); // Format YYYY-MM-DD
+      const lastLoginDate = localStorage.getItem('last_login_date');
+
+      if (lastLoginDate && lastLoginDate !== today) {
+        console.warn('Hari telah berganti. Sesi otomatis diakhiri.');
+        localStorage.removeItem('last_login_date');
+        void supabase.auth.signOut().then(() => {
+          window.location.href = '/login?reason=day_changed';
+        });
+        return;
+      }
+
+      if (!lastLoginDate) {
+        localStorage.setItem('last_login_date', today);
+      }
+    }
 
     async function loadProfile(request: number) {
       const isCurrent = () => !disposed && request === revision;
@@ -376,7 +395,10 @@ export default function DashboardShell({ activePage, headerActions, children }: 
         </header>
 
         {/* KONTEN HALAMAN */}
-        <main style={{ flex: 1, padding: "24px", overflowY: "auto", boxSizing: "border-box", background: "#f1f3fc" }}>
+        <main style={{flex: 1, minHeight: 0, padding: activePage === 'dashboard' ? "8px" : "24px",
+            overflowY: activePage === 'dashboard' ? "hidden" : "auto", boxSizing: "border-box", background: "#f1f3fc",
+          }}
+        >
           {children}
         </main>
       </section>

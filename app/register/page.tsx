@@ -280,13 +280,15 @@ export default function RegisterPage() {
         }
 
         // 4. Berhasil
-        if (authData.session) trackActivity('Register', 'Berhasil mendaftarkan akun.');
+        if (authData.session) {
+          trackActivity('Create', `Berhasil mendaftarkan akun karyawan baru: ${fullName.trim()} (${emailLower}).`);
+        }
         setSuccessMessage(
-          `Registration successful! Your ID is ${autoEmployeeId}. Redirecting to login page...`
+          `Registration successful! Employee ID: ${autoEmployeeId}. Redirecting to SMKI Dashboard...`
         );
 
         setTimeout(() => {
-          router.replace('/login');
+          router.replace('/smki/dashboard'); // Kembali ke SMKI Dashboard!
         }, 1500);
 
       } catch (err: unknown) {

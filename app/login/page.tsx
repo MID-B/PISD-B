@@ -177,6 +177,7 @@ function LoginContent() {
       }
 
       setLoginAttempts(0);
+      sessionStorage.setItem('tab-auth', 'true');
       trackActivity('Login', 'Berhasil login ke aplikasi.');
       setSuccessMessage(`Login berhasil! Selamat datang, ${profileData.full_name || 'User'}. Mengalihkan...`);
 

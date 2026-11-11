@@ -86,7 +86,13 @@ export function useSalesPerformanceTrend() {
   };
 }
 
-export default function SalesPerformanceTrend({ model }: { model: ReturnType<typeof useSalesPerformanceTrend> }) {
+export default function SalesPerformanceTrend({ 
+    model, 
+    compact = true 
+  }: { 
+    model: ReturnType<typeof useSalesPerformanceTrend>; 
+    compact?: boolean; 
+  }) {
   const { 
     period, setPeriod, 
     selectedYear, setSelectedYear,
@@ -97,7 +103,7 @@ export default function SalesPerformanceTrend({ model }: { model: ReturnType<typ
   } = model;
 
   return (
-    <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+    <div className={`bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between ${compact ? 'h-full p-2.5' : 'p-6'}`}>
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <h2 id="sales-title" className="font-bold text-slate-800 text-base">Sales Performance Trend</h2>
@@ -168,13 +174,17 @@ export default function SalesPerformanceTrend({ model }: { model: ReturnType<typ
           <span>Profit (dalam juta rupiah)</span><span className="flex items-center gap-2"><i className="h-3 w-3 rounded-sm bg-cyan-500" />Total Profit</span>
         </div>
         
-        <div className="h-64 sm:h-80 my-2" role="group" aria-label={`Sales performance chart, ${range}`}>
+        <div className={`w-full ${compact ? 'flex-1 min-h-[85px]' : 'h-72 my-2'}`} role="group" aria-label={`Sales performance chart, ${range}`}>
           {chartLoading ? <p role="status">Memuat grafik...</p> : chartError ? <p role="alert" className="text-sm text-red-600">{chartError}</p> : !data.length ? <p className="text-sm text-slate-500">Belum ada data grafik pada periode ini.</p> : (
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-              <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }} accessibilityLayer>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#64748B' }} tickMargin={8} />
-                <YAxis width={80} tick={{ fontSize: 12, fill: '#64748B' }} tickFormatter={(value: number) => `Rp${value}M`} />
+              <LineChart 
+                data={data} 
+                margin={compact ? { top: 5, right: 10, left: -25, bottom: 2 } : { top: 10, right: 20, left: 0, bottom: 5 }} 
+                accessibilityLayer
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: compact ? 9 : 12, fill: '#64748B' }} tickMargin={compact ? 2 : 8} />
+                <YAxis width={compact ? 45 : 80} tick={{ fontSize: compact ? 9 : 12, fill: '#64748B' }} tickFormatter={(value: number) => `Rp${value}M`} />
                 <Tooltip formatter={(value) => [rupiah.format(Number(value) * 1000000), 'Total Profit']} />
                 <Line type="monotone" dataKey="profit" name="Total Profit" stroke="#06B6D4" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
               </LineChart>
@@ -182,9 +192,11 @@ export default function SalesPerformanceTrend({ model }: { model: ReturnType<typ
           )}
         </div>
 
-        <div className="border-t border-slate-100 pt-3 mt-5" aria-live="polite">
-          <h3 className="text-xs font-semibold text-slate-700">Description</h3>
-          <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{growth === null ? 'Perbandingan pertumbuhan tersedia jika terdapat minimal dua bulan dengan profit awal bukan nol.' : `Total profit ${growth < 0 ? 'menurun' : growth > 0 ? 'meningkat' : 'berubah'} ${Math.abs(growth).toLocaleString('id-ID', { maximumFractionDigits: 1 })}% selama periode ${range}.`}</p>
+        <div className={`border-t border-slate-100 ${compact ? 'pt-1 mt-1' : 'pt-4 mt-6'} shrink-0`} aria-live="polite">
+          {!compact && <h3 className="text-xs font-semibold text-slate-700 mb-1">Description</h3>}
+          <p className={`${compact ? 'text-[8px]' : 'text-[11px]'} text-slate-500 truncate leading-tight`}>
+            {growth === null ? 'Perbandingan pertumbuhan tersedia jika terdapat minimal dua bulan profit.' : `Total profit ${growth < 0 ? 'menurun' : growth > 0 ? 'meningkat' : 'berubah'} ${Math.abs(growth).toLocaleString('id-ID', { maximumFractionDigits: 1 })}% selama periode ${range}.`}
+          </p>
         </div>
       {chartError && <button type="button" onClick={retry} className="mt-4 text-sm text-blue-600 cursor-pointer">Coba lagi</button>}
     </div>

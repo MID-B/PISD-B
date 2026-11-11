@@ -25,31 +25,39 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const { data: { user }, error } = await supabase.auth.getUser();
-
   const pathname = request.nextUrl.pathname;
 
-  if (user && pathname === '/login') {
-    const redirectUrl = new URL('/landing-page', request.url);
+  // Cek keberadaan kuki auth Supabase
+  const allCookies = request.cookies.getAll();
+  const hasAuthCookie = allCookies.some(
+    (cookie) => cookie.name.includes('auth-token') || cookie.name.startsWith('sb-')
+  );
+
+  // 2. Rute yang dilindungi (Dashboard & SMKI)
+  const isDashboardRoute = pathname === '/dashboard' || pathname.startsWith('/dashboard/')
+    || pathname === '/smki/dashboard' || pathname.startsWith('/smki/dashboard/');
+
+  // Jika tidak ada user dan mencoba akses rute tersebut
+  if (isDashboardRoute && !hasAuthCookie) {
+    const redirectUrl = new URL('/login?error=unauthorized', request.url);
     const res = NextResponse.redirect(redirectUrl);
     response.cookies.getAll().forEach((cookie) => res.cookies.set(cookie));
     res.headers.set('Cache-Control', 'private, no-store');
     return res;
   }
 
-  // 2. Rute yang dilindungi (Dashboard & SMKI)
-  const isDashboardRoute = pathname === '/dashboard' || pathname.startsWith('/dashboard/')
-    || pathname === '/smki/dashboard' || pathname.startsWith('/smki/dashboard/')
-    || pathname === '/landing-page' || pathname.startsWith('/landing-page/');
+  const isStrictDashboard = pathname.startsWith('/dashboard') || pathname.startsWith('/smki/dashboard');
 
-  // Jika tidak ada user dan mencoba akses rute tersebut
-  if ((error || !user) && (isDashboardRoute || pathname === '/landing-page')) {
-    const redirectUrl = new URL('/login?error=unauthorized', request.url);
-    const res = NextResponse.redirect(redirectUrl);
-
-    response.cookies.getAll().forEach((cookie) => res.cookies.set(cookie));
-    res.headers.set('Cache-Control', 'private, no-store');
-    return res;
+  if (isStrictDashboard && hasAuthCookie) {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error || !user) {
+      const redirectUrl = new URL('/login?error=invalid_session', request.url);
+      const res = NextResponse.redirect(redirectUrl);
+      response.cookies.getAll().forEach((cookie) => res.cookies.set(cookie));
+      res.headers.set('Cache-Control', 'private, no-store');
+      return res;
+    }
   }
 
   response.headers.set('Cache-Control', 'private, no-store');

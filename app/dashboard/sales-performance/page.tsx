@@ -43,7 +43,7 @@ export default function SalesPerformance() {
   return (
     <DashboardShell activePage="sales-performance">
       <section aria-labelledby="sales-title" className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200/80">
-        <SalesPerformanceTrend model={trend} />
+        <SalesPerformanceTrend model={trend} compact={false} />
         <section aria-labelledby="sales-details" className="border-t border-slate-100 mt-8 pt-6">
           <div className="mb-6 w-full max-w-[460px]">
             <h3 id="sales-details" className="text-lg font-bold text-slate-800 uppercase tracking-wide">Outstanding Payment Information</h3>
