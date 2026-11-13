@@ -1,224 +1,233 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
-import { Search, X, CalendarDays, RotateCcw } from 'lucide-react';
-import Pagination from '@/components/pagination';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { CalendarDays, RotateCcw, Search, X } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import { getActivities, getActivityById, matchesActivity, type ActivityLog as ActivityLogRow } from '@/query/activity';
+import { loadAccountHistories } from './data';
+import {
+  detailPage, displayActivityDescription, displayDateTime, filterAccountSummaries, firstMatchingPage, initials, jakartaDay, sessionMatchesDate,
+  type AccountHistory,
+} from './model';
 
-const DEPARTMENT_OPTIONS = [
-  "Human Resources",
-  "Information Technology",
-  "Finance, Accounting & Tax",
-  "Commercial & Customer Success",
+const DEPARTMENTS = [
+  { id: '6e116b24-22fe-4b8f-be7e-2159b99022bd', name: 'Human Resources' },
+  { id: '8113ab6f-d5cc-4c94-bbf6-e08047931fab', name: 'Information Technology' },
+  { id: '1653db5f-2b64-418f-b28b-68cb7b9dae8e', name: 'Finance, Accounting & Tax' },
+  { id: '97ac5d35-5da2-4f5d-9d36-78500f403cc7', name: 'Commercial & Customer Success' },
 ];
+type HistoryTab = 'activity' | 'login';
+const ACCOUNT_PAGE_SIZE = 10;
 
-const DEPARTMENT_UUID_MAP: Record<string, string> = {
-  "Human Resources": "6e116b24-22fe-4b8f-be7e-2159b99022bd",
-  "Information Technology": "8113ab6f-d5cc-4c94-bbf6-e08047931fab",
-  "Finance, Accounting & Tax": "1653db5f-2b64-418f-b28b-68cb7b9dae8e",
-  "Commercial & Customer Success": "97ac5d35-5da2-4f5d-9d36-78500f403cc7",
-};
+function Status({ online, isActive }: { online: boolean; isActive: boolean }) {
+  const textColor = !isActive ? 'text-red-600' : online ? 'text-emerald-600' : 'text-slate-500';
+  const dotColor = !isActive ? 'bg-red-500' : online ? 'bg-emerald-500' : 'bg-slate-300';
+  return <span className={`inline-flex items-center gap-1.5 whitespace-nowrap font-semibold ${textColor}`}>
+    <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
+    {!isActive ? 'Deactive' : online ? 'Online' : 'Offline'}
+  </span>;
+}
+
+function HistoryPagination({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (page: number) => void }) {
+  const start = Math.max(1, Math.min(page - 1, totalPages - 4));
+  const numbers = Array.from({ length: Math.min(5, totalPages) }, (_, index) => start + index);
+  const buttonClass = 'inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-900 cursor-pointer hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-40';
+  return <nav aria-label="Pagination riwayat akun" className="flex items-center gap-1.5">
+    <button type="button" aria-label="Halaman sebelumnya" disabled={page <= 1} onClick={() => onChange(page - 1)} className={buttonClass}>&lsaquo;</button>
+    {numbers.map((number) => <button key={number} type="button" aria-label={`Halaman ${number}`} aria-current={number === page ? 'page' : undefined} onClick={() => onChange(number)} className={number === page ? 'inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-blue-600 bg-blue-600 px-2 text-xs font-semibold text-white cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500' : buttonClass}>{number}</button>)}
+    <button type="button" aria-label="Halaman berikutnya" disabled={page >= totalPages} onClick={() => onChange(page + 1)} className={buttonClass}>&rsaquo;</button>
+  </nav>;
+}
 
 export default function LogActivity({ active }: { active: boolean }) {
-  const [selectedDepartment, setSelectedDepartment] = useState('All');
-  const [activityLogs, setActivityLogs] = useState<ActivityLogRow[]>([]);
-  const [activityLoading, setActivityLoading] = useState(true);
-  const [activityError, setActivityError] = useState('');
-  const [activityReload, setActivityReload] = useState(0);
-  const [activityPage, setActivityPage] = useState(1);
-  const activityPageSize = 10;
-  const [activityTotal, setActivityTotal] = useState(0);
-  const [activitySearch, setActivitySearch] = useState('');
-  const [activityStartDate, setActivityStartDate] = useState('');
-  const [activityEndDate, setActivityEndDate] = useState('');
-  const [draftStartDate, setDraftStartDate] = useState('');
-  const [draftEndDate, setDraftEndDate] = useState('');
-  const dateRangeDialogRef = useRef<HTMLDialogElement>(null);
+  const [accounts, setAccounts] = useState<AccountHistory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reload, setReload] = useState(0);
+  const [search, setSearch] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
+  const [date, setDate] = useState('');
+  const [requestedAccountPage, setRequestedAccountPage] = useState(1);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [tab, setTab] = useState<HistoryTab>('activity');
+  const [requestedPage, setRequestedPage] = useState(1);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     if (!active) return;
-    let disposed = false;
-    let revision = 0;
-    const filters = {
-      page: activityPage, pageSize: activityPageSize, search: activitySearch,
-      startDate: activityStartDate, endDate: activityEndDate,
-      ascending: Boolean(activityStartDate),
-      departmentId: selectedDepartment === 'All' ? undefined : DEPARTMENT_UUID_MAP[selectedDepartment],
-    };
-    async function loadActivity(showLoading = true) {
-      const request = ++revision;
-      if (showLoading) { setActivityLoading(true); setActivityError(''); }
+    const controller = new AbortController();
+    let pending = false;
+    async function load() {
+      if (pending || controller.signal.aborted) return;
+      pending = true;
       try {
-        const result = await getActivities(filters);
-        if (disposed || request !== revision) return;
-        const lastPage = Math.max(1, Math.ceil(result.total / activityPageSize));
-        if (activityPage > lastPage) { setActivityPage(lastPage); return; }
-        setActivityLogs(result.rows);
-        setActivityTotal(result.total);
-        setActivityError('');
-      } catch (error) {
-        if (!disposed && request === revision) {
-          setActivityError(`Gagal membaca b1_activity: ${error instanceof Error ? error.message : 'Koneksi database gagal.'}`);
-        }
+        const result = await loadAccountHistories(controller.signal);
+        if (!controller.signal.aborted) { setAccounts(result); setError(''); }
+      } catch (failure) {
+        if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Koneksi database gagal.');
       } finally {
-        if (!disposed && request === revision) setActivityLoading(false);
+        pending = false;
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
-    const channel = supabase.channel('smki-log-activity')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'b1_activity' }, (payload) => {
-        void (async () => {
-          try {
-            const activity = await getActivityById(String(payload.new.id));
-            if (disposed || !activity || !matchesActivity(activity, filters)) return;
-            await loadActivity(false);
-          } catch { console.error('Gagal memperbarui Log Activity melalui Realtime.'); }
-        })();
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED' && !disposed) void loadActivity(false);
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.error('Koneksi Realtime Log Activity gagal.');
-      });
-    void loadActivity();
-    return () => { disposed = true; void supabase.removeChannel(channel); };
-  }, [active, activityReload, activityPage, activityPageSize, activitySearch, activityStartDate, activityEndDate, selectedDepartment]);
+    const refresh = () => { if (document.visibilityState !== 'hidden') void load(); };
+    void load();
+    const channel = supabase.channel('smki-account-activity')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'b1_activity' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'b3_log_login' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'b2_register' }, refresh)
+      .subscribe();
+    // Polling also refreshes login status if b3_log_login is not published to Realtime.
+    const interval = window.setInterval(refresh, 30_000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+      void supabase.removeChannel(channel);
+    };
+  }, [active, reload]);
 
-  const activityTotalPages = Math.max(1, Math.ceil(activityTotal / activityPageSize));
-  const filterDateLabel = (date: string) => date.split('-').reverse().join('/');
-  const activityRangeLabel = activityStartDate && activityEndDate
-    ? `${filterDateLabel(activityStartDate)} - ${filterDateLabel(activityEndDate)}`
-    : activityStartDate ? `Mulai ${filterDateLabel(activityStartDate)}`
-      : activityEndDate ? `Sampai ${filterDateLabel(activityEndDate)}` : '';
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (active && selectedId) {
+      if (!dialog?.open) dialog?.showModal();
+    } else if (dialog?.open) dialog.close();
+  }, [active, selectedId]);
+
+  const rows = useMemo(() => filterAccountSummaries(accounts, { search, departmentId, date }), [accounts, search, departmentId, date]);
+  const accountTotalPages = Math.max(1, Math.ceil(rows.length / ACCOUNT_PAGE_SIZE));
+  const accountPage = Math.min(requestedAccountPage, accountTotalPages);
+  const accountOffset = (accountPage - 1) * ACCOUNT_PAGE_SIZE;
+  const visibleAccounts = rows.slice(accountOffset, accountOffset + ACCOUNT_PAGE_SIZE);
+  const departments = useMemo(() => {
+    const choices = new Map(DEPARTMENTS.map((department) => [department.id, department.name]));
+    for (const account of accounts) if (account.department !== '-') choices.set(account.departmentId || `name:${account.department}`, account.department);
+    return [...choices].map(([id, name]) => ({ id, name }));
+  }, [accounts]);
+  const selected = accounts.find((account) => account.id === selectedId);
+  const latestSession = selected?.sessions[0];
+  const activityPage = detailPage(selected?.activities ?? [], requestedPage);
+  const loginPage = detailPage(selected?.sessions ?? [], requestedPage);
+  const currentPage = tab === 'activity' ? activityPage : loginPage;
+  const total = tab === 'activity' ? selected?.activities.length ?? 0 : selected?.sessions.length ?? 0;
+  const matchCount = !selected || !date ? 0 : tab === 'activity'
+    ? selected.activities.filter((activity) => jakartaDay(activity.created_at) === date).length
+    : selected.sessions.filter((session) => sessionMatchesDate(session, date)).length;
+
+  function openAccount(account: AccountHistory) {
+    const activityMatch = (activity: AccountHistory['activities'][number]) => jakartaDay(activity.created_at) === date;
+    const showLogin = account.activities.length === 0 || Boolean(date && !account.activities.some(activityMatch)
+      && account.sessions.some((session) => sessionMatchesDate(session, date)));
+    setTab(showLogin ? 'login' : 'activity');
+    setRequestedPage(!date ? 1 : showLogin
+      ? firstMatchingPage(account.sessions, (session) => sessionMatchesDate(session, date))
+      : firstMatchingPage(account.activities, activityMatch));
+    setSelectedId(account.id);
+  }
+  function changeTab(next: HistoryTab) {
+    setTab(next);
+    if (!selected || !date) { setRequestedPage(1); return; }
+    setRequestedPage(next === 'activity'
+      ? firstMatchingPage(selected.activities, (activity) => jakartaDay(activity.created_at) === date)
+      : firstMatchingPage(selected.sessions, (session) => sessionMatchesDate(session, date)));
+  }
 
   return (
-    <div hidden={!active} style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "20px 24px", boxSizing: "border-box" }}>
-            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-5 flex flex-wrap items-center gap-3 text-xs text-slate-600">
-                <div className="relative flex-1 min-w-[240px]">
-                  <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input type="search" aria-label="Search Log Activity" placeholder="Search by Employee's Name or Email" value={activitySearch} onChange={(event) => { setActivitySearch(event.target.value); setActivityPage(1); }} className="w-full h-10 pl-10 pr-10 bg-[#f1f3fe] text-xs font-medium text-slate-700 placeholder-slate-400 rounded-xl border border-transparent focus:border-purple-300 focus:bg-white focus:outline-none transition-all [&::-webkit-search-cancel-button]:hidden" />
-                  {activitySearch && <button type="button" aria-label="Clear search" onClick={() => { setActivitySearch(''); setActivityPage(1); }} className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"><X aria-hidden="true" className="h-3.5 w-3.5" /></button>}
-                </div>
-                <select aria-label="Filter Log Activity by department" value={selectedDepartment} onChange={(event) => { setSelectedDepartment(event.target.value); setActivityPage(1); }} className="h-10 w-full sm:w-56 px-3.5 bg-white text-xs font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs">
-                  <option value="All">All Department</option>
-                  {DEPARTMENT_OPTIONS.map((department) => <option key={department} value={department}>{department}</option>)}
-                </select>
-                <button type="button" aria-haspopup="dialog" onClick={() => { setDraftStartDate(activityStartDate); setDraftEndDate(activityEndDate); dateRangeDialogRef.current?.showModal(); }} className={`flex h-10 w-full sm:w-56 items-center justify-between gap-2 rounded-xl border bg-white px-3.5 text-xs font-medium cursor-pointer shadow-2xs focus-visible:outline-2 focus-visible:outline-purple-400 ${activityRangeLabel ? 'border-purple-300 text-slate-700' : 'border-slate-200 text-slate-700'}`}>
-                  <span className="truncate">{activityRangeLabel || 'Date'}</span>
-                  <CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-500" />
-                </button>
-                <button type="button" onClick={() => { setActivitySearch(''); setSelectedDepartment('All'); setActivityStartDate(''); setActivityEndDate(''); setDraftStartDate(''); setDraftEndDate(''); setActivityPage(1); }} className="h-10 px-3.5 flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-purple-600 bg-transparent hover:bg-slate-50 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-slate-200">
-                  <RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />Reset
-                </button>
-                <dialog
-                  ref={dateRangeDialogRef}
-                  aria-labelledby="activity-date-range-title"
-                  className="fixed inset-0 m-auto w-[480px] max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white p-6 text-[#555555] shadow-xl backdrop:bg-slate-900/30"
-                  onClick={(event) => {
-                    if (event.target !== event.currentTarget) return;
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) event.currentTarget.close();
-                  }}
-                >
-                  <form onSubmit={(event) => {
-                    event.preventDefault();
-                    if (draftStartDate && draftEndDate && draftStartDate > draftEndDate) return;
-                    setActivityStartDate(draftStartDate); setActivityEndDate(draftEndDate); setActivityPage(1);
-                    dateRangeDialogRef.current?.close();
-                  }}>
-                    <h2 id="activity-date-range-title" className="text-[28px] font-bold leading-tight text-black">Filter</h2>
-                    <p className="mt-1.5 text-sm text-[#707070]">Pilih rentang tanggal aktivitas.</p>
-                    <div className="mt-5">
-                      <div role="group" aria-label="Rentang tanggal" className="grid grid-cols-1 gap-4 min-[440px]:grid-cols-2">
-                        <label className="block min-w-0">
-                          <span className="mb-2 block text-sm font-medium text-slate-700">Tanggal mulai</span>
-                          <input type="date" value={draftStartDate} onChange={(event) => {
-                            const start = event.target.value;
-                            setDraftStartDate(start);
-                            if (start && draftEndDate && start > draftEndDate) setDraftEndDate('');
-                          }} className="h-11 w-full min-w-0 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 [color-scheme:light]" />
-                        </label>
-                        <label className="block min-w-0">
-                          <span className="mb-2 block text-sm font-medium text-slate-700">Tanggal akhir</span>
-                          <input type="date" value={draftEndDate} min={draftStartDate || undefined} onChange={(event) => setDraftEndDate(event.target.value)} className="h-11 w-full min-w-0 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 [color-scheme:light]" />
-                        </label>
-                      </div>
-                    </div>
-                    {draftStartDate && draftEndDate && draftStartDate > draftEndDate && <p role="alert" className="mt-2 text-xs text-red-600">Tanggal akhir harus sama atau setelah tanggal mulai.</p>}
-                    <div className="mt-8 grid grid-cols-[1fr_1.4fr] gap-4">
-                      <button type="button" onClick={() => { setActivityStartDate(''); setActivityEndDate(''); setDraftStartDate(''); setDraftEndDate(''); setActivityPage(1); }} className="h-12 cursor-pointer rounded-lg border border-[#B8B8B8] bg-white text-base font-semibold text-[#555555] hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-500">Reset</button>
-                      <button type="submit" disabled={Boolean(draftStartDate && draftEndDate && draftStartDate > draftEndDate)} className="h-12 cursor-pointer rounded-lg bg-[#386BF6] text-base font-semibold text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-40">Apply</button>
-                    </div>
-                  </form>
-                </dialog>
+    <div hidden={!active} className="min-h-0 flex-1 overflow-auto bg-[#f1f3fc] px-4 py-5 sm:px-6" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+      <div className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+        <div className="relative min-w-[200px] flex-1">
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input type="search" aria-label="Cari akun berdasarkan nama atau email" placeholder="Search by Employee's Name or Email" value={search} onChange={(event) => { setSearch(event.target.value); setRequestedAccountPage(1); }} className="h-10 w-full rounded-xl border border-transparent bg-[#f1f3fe] pl-10 pr-4 text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:border-purple-300 focus:bg-white focus:outline-none" />
+        </div>
+        <select aria-label="Filter departemen" value={departmentId} onChange={(event) => { setDepartmentId(event.target.value); setRequestedAccountPage(1); }} className="h-10 w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-medium text-slate-700 shadow-2xs focus:border-purple-400 focus:outline-none sm:w-56">
+          <option value="">All Department</option>
+          {departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
+        </select>
+        <div className={`relative flex h-10 shrink-0 items-center rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-2xs focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100 ${date ? 'w-40 justify-between px-3.5' : 'w-10 justify-center'}`}>
+          {date && <span aria-hidden="true">{date.split('-').reverse().join('/')}</span>}
+          <CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0" />
+          <input type="date" aria-label="Filter Date" value={date} onClick={(event) => {
+            try { event.currentTarget.showPicker?.(); } catch { /* Keep native date input available when the browser cannot open its picker. */ }
+          }} onChange={(event) => { setDate(event.target.value); setRequestedAccountPage(1); }} className="absolute inset-0 h-full w-full cursor-pointer opacity-0 [color-scheme:light]" />
+        </div>
+        <button type="button" onClick={() => { setSearch(''); setDepartmentId(''); setDate(''); setRequestedAccountPage(1); }} className="flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-transparent px-3.5 text-xs font-semibold text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-purple-600 focus-visible:outline-2 focus-visible:outline-blue-500"><RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />Reset</button>
+      </div>
+      {error && <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">Gagal memuat Log Activity: {error} <button type="button" onClick={() => setReload((value) => value + 1)} className="cursor-pointer underline">Coba lagi</button></div>}
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table aria-label="Daftar akun Log Activity" className="w-full min-w-[850px] table-fixed border-collapse text-left text-xs text-slate-800 [&_td]:px-4 [&_td]:py-4 [&_th]:px-4 [&_th]:py-3">
+          <colgroup><col className="w-[25%]" /><col className="w-[22%]" /><col className="w-[28%]" /><col className="w-[16%]" /><col className="w-[9%]" /></colgroup>
+          <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-extrabold tracking-[0.5px] text-slate-500 [&_th]:font-extrabold">
+            <tr><th scope="col">EMPLOYEE&apos;S NAME</th><th scope="col">DEPARTMENT</th><th scope="col">LAST ACTIVITY</th><th scope="col" aria-sort="descending">LAST DATE</th><th scope="col">STATUS</th></tr>
+          </thead>
+          <tbody>
+            {loading ? <tr><td colSpan={5} role="status">Memuat Log Activity...</td></tr> : rows.length === 0 ? <tr><td colSpan={5} className="text-slate-500">{error ? 'Data belum dapat ditampilkan.' : 'Tidak ada akun dengan aktivitas sesuai filter.'}</td></tr> : visibleAccounts.map((account) => <tr key={account.id} onClick={() => openAccount(account)} className="cursor-pointer border-b border-slate-100 last:border-b-0 hover:bg-slate-50 focus-within:bg-slate-50">
+              <td><button type="button" aria-haspopup="dialog" aria-label={`Lihat riwayat ${account.name}`} onClick={(event) => { event.stopPropagation(); openAccount(account); }} className="flex w-full cursor-pointer items-center gap-2.5 rounded text-left font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-300 text-[11px] text-slate-700">{initials(account.name)}</span><span className="break-words">{account.name}</span></button></td>
+              <td className="break-words font-semibold text-slate-700">{account.department}</td>
+              <td className="whitespace-pre-wrap break-words">{displayActivityDescription(account.lastEvent.description)}</td>
+              <td>{displayDateTime(account.lastEvent.createdAt)}</td>
+              <td><Status online={account.online} isActive={account.isActive} /></td>
+            </tr>)}
+          </tbody>
+        </table>
+      </div>
+      {!loading && <footer className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <p role="status" className="text-[11px] text-slate-500">Menampilkan {rows.length ? accountOffset + 1 : 0}&ndash;{Math.min(accountOffset + ACCOUNT_PAGE_SIZE, rows.length)} dari {rows.length} akun</p>
+        <HistoryPagination page={accountPage} totalPages={accountTotalPages} onChange={setRequestedAccountPage} />
+      </footer>}
+
+      <dialog ref={dialogRef} aria-label={selected ? `Detail akun ${selected.name}` : 'Detail akun'} onClose={() => setSelectedId(null)} onClick={(event) => {
+        if (event.target !== event.currentTarget) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) event.currentTarget.close();
+      }} className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[1120px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 text-slate-900 shadow-2xl backdrop:bg-slate-700/60">
+        <button type="button" aria-label="Tutup detail akun" onClick={() => dialogRef.current?.close()} className="absolute right-2 top-2 z-20 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-500"><X aria-hidden="true" className="h-4 w-4" /></button>
+        {selected && <div className="grid gap-6 p-6 md:grid-cols-[220px_minmax(0,1fr)]">
+          <aside aria-label="Profil akun" className="min-w-0 text-xs">
+            <div aria-hidden="true" className="mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full bg-[#dbe3f0] text-5xl font-bold text-slate-900">{initials(selected.name)}</div>
+            <dl className="space-y-4 [&_dt]:mb-1 [&_dt]:text-slate-500 [&_dd]:break-words [&_dd]:font-semibold">
+              <div><dt>Nama</dt><dd>{selected.name}</dd></div>
+              <div><dt>Departemen</dt><dd>{selected.department}</dd></div>
+              <div><dt>Email</dt><dd>{selected.email}</dd></div>
+              <div><dt>Role</dt><dd>{selected.role}</dd></div>
+            </dl>
+            <section aria-label="Sesi terakhir" className="mt-5 rounded-xl border border-slate-200 bg-[#f1f4fa] p-3">
+              <div className="mb-4 flex items-center justify-between gap-2"><h3 className="text-[11px] font-bold">SESI TERAKHIR</h3><Status online={selected.online} isActive={selected.isActive} /></div>
+              <dl className="space-y-3 [&_dt]:mb-1 [&_dt]:text-slate-500 [&_dd]:font-semibold"><div><dt>Login</dt><dd>{displayDateTime(latestSession?.loginAt ?? null)}</dd></div><div><dt>Logout</dt><dd>{displayDateTime(latestSession?.logoutAt ?? null)}</dd></div></dl>
+            </section>
+          </aside>
+          <section aria-label="Riwayat akun" className="flex h-[560px] min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200">
+            <div className="flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-x-3 border-b border-slate-200 px-4">
+              <div role="tablist" aria-label="Jenis riwayat" className="flex self-stretch">
+                <button id="account-activity-tab" type="button" role="tab" aria-selected={tab === 'activity'} aria-controls="account-history-panel" onClick={() => changeTab('activity')} className={`cursor-pointer border-b-2 px-2 py-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-blue-500 ${tab === 'activity' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500'}`}>Activity ({selected.activities.length})</button>
+                <button id="account-login-tab" type="button" role="tab" aria-selected={tab === 'login'} aria-controls="account-history-panel" onClick={() => changeTab('login')} className={`cursor-pointer border-b-2 px-2 py-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-blue-500 ${tab === 'login' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500'}`}>Login History ({selected.sessions.length})</button>
               </div>
-              <div className="w-full overflow-x-auto rounded-md border border-slate-200 bg-white">
-              <table aria-label="Log Activity SMKI" className="w-full min-w-[1200px] table-fixed border-collapse text-left [&_th]:px-4 [&_th]:py-2.5 [&_th]:align-middle [&_td]:px-4 [&_td]:py-3 [&_td]:align-middle [&_td]:[overflow-wrap:anywhere]">
-              <colgroup>
-                <col style={{ width: "14%" }} />
-                <col style={{ width: "14%" }} />
-                <col style={{ width: "13%" }} />
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "10%" }} />
-                <col style={{ width: "10%" }} />
-                <col style={{ width: "17%" }} />
-                <col style={{ width: "10%" }} />
-              </colgroup>
-              <thead style={{ fontFamily: "Arial, Helvetica, sans-serif", fontSize: "11px", fontWeight: 800, letterSpacing: "0.5px", color: "#64748b", background: "#f8fafc" }} className="[&_th]:font-extrabold [&_th]:whitespace-nowrap">
-              <tr className="border-b border-slate-200">
-                <th scope="col">EMPLOYEE&apos;S NAME</th>
-                <th scope="col">E-MAIL</th>
-                <th scope="col">DEPARTMENT</th>
-                <th scope="col">ROLE</th>
-                <th scope="col">IP ADDRESS</th>
-                <th scope="col">BROWSER</th>
-                <th scope="col">DESCRIPTION</th>
-                <th scope="col" aria-sort={activityStartDate ? 'ascending' : 'descending'} className="whitespace-nowrap">DATE TIME</th>
-              </tr>
-              </thead>
-              <tbody style={{ fontFamily: "Arial, Helvetica, sans-serif", fontSize: "12px", fontWeight: 400, color: "#1e293b" }} className="bg-white">
-              {activityLoading ? (
-                <tr><td colSpan={8}><div role="status" className="text-slate-500">Memuat Log Activity...</div></td></tr>
-              ) : activityError ? (
-                <tr><td colSpan={8}><div role="alert" className="text-red-600">
-                  <p>{activityError}</p>
-                  <button type="button" onClick={() => setActivityReload((value) => value + 1)} className="mt-2 cursor-pointer text-blue-600">Coba lagi</button>
-                </div></td></tr>
-              ) : activityLogs.length > 0 ? (
-                activityLogs.map((activity) => {
-                  const timestamp = new Date(activity.createdAt);
-                  return (
-                    <tr key={activity.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50">
-                      <td className="font-bold"><div className="flex items-center gap-2.5 min-w-0">
-                        <span aria-hidden="true" className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full bg-slate-300 text-[11px] font-bold text-slate-700">{activity.name.trim().charAt(0).toUpperCase() || '?'}</span>
-                        <span className="min-w-0">{activity.name}</span>
-                      </div></td>
-                      <td className="text-slate-500">{activity.email}</td>
-                      <td className="font-semibold text-slate-700">{activity.department}</td>
-                      <td className="font-semibold text-slate-700">{activity.role}</td>
-                      <td>{activity.ipAddress}</td>
-                      <td>{activity.userAgent}</td>
-                      <td className="whitespace-pre-line">{activity.description}</td>
-                      <td><div style={{ display: "flex", flexDirection: "column", whiteSpace: "nowrap" }}>
-                        <span>{activity.createdAt ? timestamp.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Jakarta" }) : "-"}</span>
-                        <span>{activity.createdAt ? timestamp.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Jakarta" }) : "-"}</span>
-                      </div></td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr><td colSpan={8} className="text-slate-500">
-                  Tidak ada aktivitas yang sesuai dengan pencarian dan filter.
-                </td></tr>
-              )}
-              </tbody>
-            </table>
+              {date && <p role="status" className="my-2 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] text-slate-900">{matchCount} sesuai filter tanggal {date}</p>}
             </div>
-            {!activityLoading && !activityError && (
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-slate-500">
-                <p role="status">Showing <b>{activityTotal ? (activityPage - 1) * activityPageSize + 1 : 0}-{Math.min(activityPage * activityPageSize, activityTotal)}</b> of <b>{activityTotal}</b> activities</p>
-                <div className="[&_svg]:hidden [&_button]:rounded-[10px] [&_button]:text-[13px] [&_button[aria-current=page]]:shadow-none"><Pagination label="Pagination Log Activity" page={activityPage} totalPages={activityTotalPages} onPageChange={setActivityPage} /></div>
-              </div>
-            )}
-          </div>
+            <div id="account-history-panel" role="tabpanel" aria-labelledby={tab === 'activity' ? 'account-activity-tab' : 'account-login-tab'} tabIndex={0} className="min-h-0 flex-1 overflow-auto focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-500">
+              {tab === 'activity' ? <table aria-label="Riwayat aktivitas akun" className="w-full min-w-[580px] table-fixed border-collapse text-left text-xs [&_td]:px-4 [&_td]:py-4 [&_th]:px-4 [&_th]:py-3">
+                <colgroup><col className="w-[19%]" /><col className="w-[15%]" /><col className="w-[40%]" /><col className="w-[26%]" /></colgroup>
+                <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] tracking-wide text-slate-600"><tr className="border-b border-slate-200"><th scope="col">IP ADDRESS</th><th scope="col">BROWSER</th><th scope="col">DESCRIPTION</th><th scope="col">DATE TIME</th></tr></thead>
+                <tbody>{activityPage.rows.length ? activityPage.rows.map((activity) => {
+                  const highlighted = Boolean(date && jakartaDay(activity.created_at) === date);
+                  return <tr key={activity.id} className={`border-b border-slate-200 ${highlighted ? 'bg-amber-100' : 'bg-white'}`}><td className={`break-words ${highlighted ? 'shadow-[inset_4px_0_0_#2563eb]' : ''}`}>{activity.ip_address || '-'}</td><td className="break-words">{activity.browser}</td><td className="whitespace-pre-wrap break-words">{displayActivityDescription(activity.description)}</td><td>{displayDateTime(activity.created_at)}</td></tr>;
+                }) : <tr><td colSpan={4} className="text-slate-500">Belum ada aktivitas.</td></tr>}</tbody>
+              </table> : <table aria-label="Riwayat login akun" className="w-full min-w-[420px] table-fixed border-collapse text-left text-xs [&_td]:px-4 [&_td]:py-4 [&_th]:px-4 [&_th]:py-3">
+                <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] tracking-wide text-slate-600"><tr className="border-b border-slate-200"><th scope="col">LOGIN</th><th scope="col">LOGOUT</th></tr></thead>
+                <tbody>{loginPage.rows.length ? loginPage.rows.map((session) => {
+                  const highlighted = sessionMatchesDate(session, date);
+                  return <tr key={session.id} className={`border-b border-slate-200 ${highlighted ? 'bg-amber-100' : 'bg-white'}`}><td className={highlighted ? 'shadow-[inset_4px_0_0_#2563eb]' : ''}>{displayDateTime(session.loginAt)}</td><td>{displayDateTime(session.logoutAt)}</td></tr>;
+                }) : <tr><td colSpan={2} className="text-slate-500">Belum ada riwayat login.</td></tr>}</tbody>
+              </table>}
+            </div>
+            <footer className="sticky bottom-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3">
+              <p role="status" className="text-[11px] text-slate-500">Menampilkan {currentPage.start}&ndash;{currentPage.end} dari {total} {tab === 'activity' ? 'aktivitas' : 'sesi login'}</p>
+              <HistoryPagination page={currentPage.page} totalPages={currentPage.totalPages} onChange={setRequestedPage} />
+            </footer>
+          </section>
+        </div>}
+      </dialog>
+    </div>
   );
 }

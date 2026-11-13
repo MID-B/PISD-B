@@ -8,7 +8,6 @@ import { getLoginDestination } from "@/lib/loginDestination";
 import { IT_DEPARTMENT_ID } from '@/lib/activity';
 import { logoutWithActivity, trackActivity, trackActivityAndWait, } 
 from '@/query/activity';
-import LogLogin from "@/app/smki/log-login";
 
 /* MASTER DATA OPTIONS */
 const DEPARTMENT_OPTIONS = [
@@ -129,16 +128,6 @@ function ActivityIcon() {
   );
 }
 
-function LoginIcon() {
-  return (
-    <svg viewBox="0 0 24 24" style={{ width: "20px", height: "20px", flexShrink: 0, fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}>
-      <circle cx="12" cy="12" r="9" />
-      <circle cx="12" cy="9" r="2.5" />
-      <path d="M7.5 18c.7-2.8 2.2-4.2 4.5-4.2s3.8 1.4 4.5 4.2" />
-    </svg>
-  );
-}
-
 function EditIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" style={{ width: "18px", height: "18px", display: "block", color: "#475569", fill: "currentColor" }}>
@@ -213,12 +202,8 @@ function SmkiDashboard() {
   const [isSmkiOpen, setIsSmkiOpen] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const requestedTab = searchParams.get("tab");
-  const activeTab =
-    requestedTab === "log-activity"
-      ? "log-activity"
-      : requestedTab === "log-login"
-        ? "log-login"
-        : "account-maintains";
+  const activeTab = requestedTab === "log-activity" || requestedTab === "log-login"
+    ? "log-activity" : "account-maintains";
   const [currentUserFullName, setCurrentUserFullName] = useState<string>("Loading...");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -803,29 +788,7 @@ function SmkiDashboard() {
                       <span>Log Activity</span>
                     </button>
 
-                    <button
-                      onClick={() => router.push("/smki/dashboard?tab=log-login")}
-                      style={{
-                        width: "100%",
-                        padding: "10px 14px",
-                        border: 0,
-                        borderRadius: "10px",
-                        backgroundColor:
-                          activeTab === "log-login" ? "rgba(255, 255, 255, 0.15)" : "transparent",
-                        color: activeTab === "log-login" ? "#ffffff" : "#94a3b8",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        fontSize: "13px",
-                        fontWeight: activeTab === "log-login" ? 700 : 500,
-                        cursor: "pointer",
-                        textAlign: "left",
-                        transition: "all 0.2s ease",
-                      }}
-                    >
-                      <LoginIcon />
-                      <span>Log Login</span>
-                    </button>
+
                   </div>
                 )}
               </div>
@@ -852,11 +815,7 @@ function SmkiDashboard() {
             <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>ANDIMA SMKI</span>
             <span style={{ color: "#cbd5e1" }}>|</span>
             <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
-              {activeTab === "log-activity"
-                ? "Log Activity"
-                : activeTab === "log-login"
-                  ? "Log Login"
-                  : "Account Maintains"}
+              {activeTab === "log-activity" ? "Log Activity" : "Account Maintains"}
             </span>
 
           </div>
@@ -1139,7 +1098,6 @@ function SmkiDashboard() {
             )}
           </div>
         )}
-        {activeTab === "log-login" && <LogLogin />}
       </section>
 
       {/* EDIT KARYAWAN */}
