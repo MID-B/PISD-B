@@ -11,9 +11,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
-    // Memaksa sign out saat tab ditutup atau localhost dimatikan
-    supabase.auth.signOut();
-  });
-}
+// if (typeof window !== 'undefined') {
+//   window.addEventListener('beforeunload', () => {
+//     // Memaksa sign out saat tab ditutup atau localhost dimatikan
+//     supabase.auth.signOut();
+//   });
+// }

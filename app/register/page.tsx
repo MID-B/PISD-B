@@ -170,16 +170,16 @@ export default function RegisterPage() {
       }
 
       // Validasi Password
-      const hasLetter = /[a-zA-Z]/.test(password);
-      const hasNumber = /[0-9]/.test(password);
-      const hasSpecialChar =
-        /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+      const cleanPassword = password ? password.trim() : "";
+      const hasLetter = /[a-zA-Z]/.test(cleanPassword);
+      const hasNumber = /\d/.test(cleanPassword);
+      const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(cleanPassword);
 
       if (!password) {
         errors.password = 'Password is required.';
-      } else if (password.length < 10) {
-        errors.password = 'Password must be at least 10 characters long.';
-      } else if (password.length > 15) {
+      } else if (cleanPassword.length < 8) {
+        errors.password = 'The password must be at least 8 characters long.';
+      } else if (cleanPassword.length > 15) {
         errors.password = 'Password cannot exceed 15 characters.';
       } else if (!hasLetter || !hasNumber || !hasSpecialChar) {
         errors.password =
@@ -370,7 +370,7 @@ export default function RegisterPage() {
               <div className="relative w-full">
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Min. 10 chars (letters, numbers, symbols)"
+                  placeholder="Min. 8 chars (letters, numbers, symbols)"
                   value={password}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => {
                     setPassword(e.target.value);

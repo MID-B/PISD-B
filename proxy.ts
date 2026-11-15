@@ -25,54 +25,52 @@ export async function proxy(request: NextRequest) {
     }
   );
 
+  const { data: { user } } = await supabase.auth.getUser();
+
   const pathname = request.nextUrl.pathname;
 
-  // Cek keberadaan kuki auth Supabase
-  const allCookies = request.cookies.getAll();
-  const hasAuthCookie = allCookies.some(
-    (cookie) => cookie.name.includes('auth-token') || cookie.name.startsWith('sb-')
-  );
+  const isRoot = pathname === '/';
+  const isLoginRoute = pathname === '/login';
+  const isLandingRoute = pathname === '/landing-page' || pathname.startsWith('/landing-page/');
+  const isDashboardRoute = pathname === '/dashboard' || pathname.startsWith('/dashboard/') || pathname === '/smki/dashboard' || pathname.startsWith('/smki/dashboard/');
 
-  // 2. Rute yang dilindungi (Dashboard & SMKI)
-  const isDashboardRoute = pathname === '/dashboard' || pathname.startsWith('/dashboard/')
-    || pathname === '/smki/dashboard' || pathname.startsWith('/smki/dashboard/');
+  function redirect(path: string) {
+    const url = request.nextUrl.clone(); 
+    url.pathname = path;
 
-  // Jika tidak ada user dan mencoba akses rute tersebut
-  if (isDashboardRoute && !hasAuthCookie) {
-    const redirectUrl = new URL('/login?error=unauthorized', request.url);
-    const res = NextResponse.redirect(redirectUrl);
-    response.cookies.getAll().forEach((cookie) => res.cookies.set(cookie));
-    res.headers.set('Cache-Control', 'private, no-store');
-    return res;
+    const redirectResponse = NextResponse.redirect(url);
+
+    response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+    redirectResponse.headers.set('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+
+    return redirectResponse;
   }
 
-  const isStrictDashboard = pathname.startsWith('/dashboard') || pathname.startsWith('/smki/dashboard');
-
-  if (isStrictDashboard && hasAuthCookie) {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error || !user) {
-      const redirectUrl = new URL('/login?error=invalid_session', request.url);
-      const res = NextResponse.redirect(redirectUrl);
-      response.cookies.getAll().forEach((cookie) => res.cookies.set(cookie));
-      res.headers.set('Cache-Control', 'private, no-store');
-      return res;
-    }
+  // 1. Pintu Utama (/): Buka web pertama kali langsung lempar ke /login
+  if (isRoot) {
+    return redirect(user ? '/landing-page' : '/login');
   }
 
-  response.headers.set('Cache-Control', 'private, no-store');
+  // 2. Proteksi Halaman Landing Page & Dashboard: Kalau BELUM LOGIN, tidak boleh masuk (lempar ke /login)
+  if ((isLandingRoute || isDashboardRoute) && !user) {
+    return redirect('/login');
+  }
+
+  // 3. Kalau SUDAH LOGIN tapi iseng buka /login -> Lempar ke landing page (sebagai penghubung)
+  if (isLoginRoute && user) {
+    return redirect('/landing-page');
+  }
+
+  response.headers.set('Cache-Control', 'private, no-store, must-revalidate');
   return response;
 }
 
-// Tambahkan '/login' dan '/landing-page' ke dalam matcher supaya terpantau
 export const config = {
   matcher: [
+    '/',
     '/login',
-    '/landing-page',
     '/landing-page/:path*',
-    '/dashboard',
     '/dashboard/:path*',
-    '/smki/dashboard',
     '/smki/dashboard/:path*',
   ],
 };

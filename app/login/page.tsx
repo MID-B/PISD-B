@@ -71,10 +71,16 @@ function LoginContent() {
   };
 
   const validatePasswordStrength = (passVal: string): boolean => {
-    const hasLetter = /[a-zA-Z]/.test(passVal);
-    const hasDigit = /\d/.test(passVal);
-    const hasSpecial = /[^a-zA-Z0-9]/.test(passVal);
-    return passVal.length >= 8 && hasLetter && hasDigit && hasSpecial;
+    const trimmed = passVal.trim();
+
+    // Cek panjang 8 - 15 karakter
+    if (trimmed.length < 8 || trimmed.length > 15) {
+      return false;
+    }
+
+    // Cek apakah sudah memenuhi semua syarat (huruf, angka, dan simbol lengkap)
+    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).+$/;
+    return passwordRegex.test(trimmed);
   };
 
   const handleFailedAttempt = (customMessage: string) => {
@@ -117,9 +123,18 @@ function LoginContent() {
       return;
     }
 
+    const cleanPassword = password.trim();
+    if (cleanPassword.length < 8) {
+      setErrorMessage('The password must be at least 8 characters long.');
+      return;
+    }
+    if (cleanPassword.length > 15) {
+      setErrorMessage('Password cannot exceed 15 characters.');
+      return;
+    }
     if (!validatePasswordStrength(password)) {
       setErrorMessage(
-        'Password must be at least 10 characters long and contain a mix of letters, numbers, and special characters.'
+        'The password must contain a combination of letters, numbers, and special characters.'
       );
       return;
     }
