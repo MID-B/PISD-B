@@ -1,219 +1,171 @@
-'use client';
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, ListFilter, ChevronDown, RotateCcw, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, CalendarDays, Search, RotateCcw, Table2, X } from 'lucide-react';
+import Pagination from '@/components/pagination';
 import DashboardShell from '../dashboard-shell';
-import { supabase } from '@/lib/supabaseClient';
+import { loadBoardIssues } from './board-data';
+import { DepartmentChart, DueDateChart, PriorityCharts } from './board-charts';
+import {
+  STATUSES, PRIORITIES, PAGE_SIZE, boardDateError, currentIssueDay, filterBoard, searchBoard, sortBoard,
+  sourceKey, sourceColor, normalizeStatus, priorityKey, priorityStyle, issueDay,
+  formatIssueDate as formatDate, statusStyle as getStatusStyle, summarizeBoard,
+  type ViewIssue, type BoardFilters, type BoardSort, type SortColumn,
+} from './board-model';
 
-type ViewIssue = {
-  source: string | null;
-  issue_code: string | null;
-  issue: string | null;
-  description: string | null;
-  note: string | null;
-  date: string | null;
-  status: string | null;
-  priority: string | null;
-  due_date: string | null;
-  pic_id: string | null;
-  pic_name: string | null;
-};
+const initialFilters: BoardFilters = { source: '', status: '', priority: '', start: '', end: '' };
+const initialSort: BoardSort = { column: 'date', ascending: false };
+const panelClass = 'flex min-w-0 flex-col rounded-2xl border border-slate-200/80 bg-white p-3 shadow-xs';
+const inputClass = 'h-9 cursor-pointer rounded-lg border border-slate-200 bg-[#F5F5FA] px-3 text-xs font-medium text-slate-700 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500';
+const columns: { key: SortColumn; label: string }[] = [
+  { key: 'issue_code', label: 'Ticket Code' }, { key: 'source', label: 'Department / Source' },
+  { key: 'issue', label: 'Issue' }, { key: 'pic_name', label: 'PIC' },
+  { key: 'date', label: 'Date & Time Received' }, { key: 'priority', label: 'Priority' },
+  { key: 'due_date', label: 'Due Date' }, { key: 'status', label: 'Status' },
+];
 
-const statuses = [
-  { name: 'IN PROGRESS', label: 'In Progress', color: '#3981FF', background: '#EFF6FF', cardText: '#1E40AF', description: 'Issue sedang dikerjakan' },
-  { name: 'IN REVIEW', label: 'In Review', color: '#06B6D4', background: '#ECFEFF', cardText: '#155E75', description: 'Issue sedang ditinjau' },
-  { name: 'OPEN', label: 'Open', color: '#F59E0B', background: '#FFFBEB', cardText: '#92400E', description: 'Issue baru yang perlu ditindaklanjuti' },
-  { name: 'PENDING', label: 'Pending', color: '#9560FF', background: '#F5F0FF', cardText: '#6B21A8', description: 'Issue menunggu tindak lanjut' },
-  { name: 'DONE', label: 'Done', color: '#10B981', background: '#ECFDF5', cardText: '#065F46', description: 'Issue telah selesai ditangani' },
-  { name: 'TO DO', label: 'To Do', color: '#77808F', background: '#F3F4F6', cardText: '#374151', description: 'Issue yang belum dikerjakan' },
-] as const;
-
-const priorities = ['High', 'Medium', 'Low'];
-
-const issueDateFormatter = new Intl.DateTimeFormat('id-ID', {
-  day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta',
-});
-
-function normalizeStatus(status: string | null) {
-  return status?.trim().toUpperCase().replace(/_/g, ' ') ?? '';
-}
-
-function getStatusStyle(status: string | null) {
-  const normalized = normalizeStatus(status);
-  return statuses.find((item) => item.name === normalized) ?? {
-    name: normalized || 'UNKNOWN',
-    label: status || 'Unknown',
-    color: '#77808F',
-    background: '#F3F4F6',
-    cardText: '#374151',
-    description: 'Status issue',
-  };
-}
-
-function formatDate(value: string | null) {
-  if (!value) return '-';
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
-    ? new Date(`${value}T00:00:00+07:00`)
-    : new Date(value);
-  return Number.isNaN(date.getTime()) ? value : issueDateFormatter.format(date);
+function IssueDateInput({ value, label, error, onChange }: { value: string; label: string; error: string; onChange: (value: string) => void }) {
+  return <div title={label} className={`relative flex h-10 shrink-0 items-center rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-2xs focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100 ${value ? 'w-40 justify-between px-3.5' : 'w-10 justify-center'}`}>
+    {value && <span aria-hidden="true">{value.split('-').reverse().join('/')}</span>}
+    <CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0" />
+    <input type="date" aria-label={label} aria-invalid={Boolean(error)} aria-describedby={error ? 'issue-date-error' : undefined} value={value} onClick={(event) => {
+      try { event.currentTarget.showPicker?.(); } catch { /* Retain native date input support in browsers without a picker. */ }
+    }} onChange={(event) => onChange(event.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0 [color-scheme:light]" />
+  </div>;
 }
 
 export default function IssueBoardPage() {
   const [issues, setIssues] = useState<ViewIssue[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [reload, setReload] = useState(0);
+  const [filters, setFilters] = useState<BoardFilters>(initialFilters);
   const [search, setSearch] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
-  const [selectedPriority, setSelectedPriority] = useState('');
+  const [sort, setSort] = useState<BoardSort>(initialSort);
+  const [requestedPage, setRequestedPage] = useState(1);
+  const [showTable, setShowTable] = useState(false);
+  const [today, setToday] = useState(currentIssueDay);
   const [selectedIssue, setSelectedIssue] = useState<ViewIssue | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const tableRef = useRef<HTMLElement>(null);
+  const openTableRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    let active = true;
-
+    const controller = new AbortController();
     async function loadIssues() {
-      setLoading(true);
-      setError(null);
-      const { data, error: queryError } = await supabase
-        .from('b1_vw_universal_issue')
-        .select('source, issue_code, issue, description, note, date, status, priority, due_date, pic_id, pic_name')
-        .order('date', { ascending: false });
-
-      if (!active) return;
-      if (queryError) {
-        setError(queryError.message);
-        setIssues([]);
-      } else {
-        setIssues((data ?? []) as ViewIssue[]);
-      }
-      setLoading(false);
+      setLoading(true); setError('');
+      try {
+        const result = await loadBoardIssues(controller.signal);
+        if (!controller.signal.aborted) setIssues(result);
+      } catch (failure) {
+        if (!controller.signal.aborted) {
+          setIssues([]);
+          setError(failure && typeof failure === 'object' && 'message' in failure ? String(failure.message) : 'Koneksi database gagal.');
+        }
+      } finally { if (!controller.signal.aborted) setLoading(false); }
     }
-
     void loadIssues();
-    return () => { active = false; };
-  }, []);
+    return () => controller.abort();
+  }, [reload]);
 
+  useEffect(() => {
+    const interval = window.setInterval(() => setToday(currentIssueDay()), 60_000);
+    const refreshDay = () => setToday(currentIssueDay());
+    window.addEventListener('focus', refreshDay);
+    return () => { window.clearInterval(interval); window.removeEventListener('focus', refreshDay); };
+  }, []);
   useEffect(() => {
     if (selectedIssue && !dialogRef.current?.open) dialogRef.current?.showModal();
   }, [selectedIssue]);
+  useEffect(() => {
+    if (showTable) tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [showTable]);
 
-  const searchQuery = search.trim().toLowerCase();
-  const rows = useMemo(() => issues.filter((issue) => {
-    const matchesStatus = !selectedStatus || normalizeStatus(issue.status) === selectedStatus;
-    const matchesPriority = !selectedPriority
-      || (selectedPriority === 'unset' ? !issue.priority : issue.priority?.toLowerCase() === selectedPriority.toLowerCase());
-    const matchesSearch = !searchQuery || [
-      issue.issue_code, issue.source, issue.issue, issue.pic_id, issue.pic_name,
-      issue.date, issue.status, issue.priority, issue.description, issue.note,
-    ].some((value) => value?.toLowerCase().includes(searchQuery));
-    return matchesStatus && matchesPriority && matchesSearch;
-  }), [issues, searchQuery, selectedPriority, selectedStatus]);
+  const dateError = boardDateError(filters);
+  const scope = useMemo(() => filterBoard(issues, filters), [issues, filters]);
+  const summary = useMemo(() => summarizeBoard(scope, today), [scope, today]);
+  const tableRows = useMemo(() => sortBoard(searchBoard(scope, search), sort), [scope, search, sort]);
+  const totalPages = Math.max(1, Math.ceil(tableRows.length / PAGE_SIZE));
+  const page = Math.min(requestedPage, totalPages);
+  const offset = (page - 1) * PAGE_SIZE;
+  const visibleRows = tableRows.slice(offset, offset + PAGE_SIZE);
+  const sourceOptions = Array.from(new Set(['CCR', 'CRM', 'HRMS', ...issues.map((issue) => sourceKey(issue.source))]));
+  const additionalStatuses = Array.from(new Set(issues.map((issue) => normalizeStatus(issue.status)).filter((status) => status && !STATUSES.some((item) => item.name === status))));
+  const additionalPriorities = Array.from(new Set(issues.map((issue) => priorityKey(issue.priority)).filter((priority) => !PRIORITIES.some((item) => item.key === priority))));
+  const ready = !loading && !error && !dateError;
+  const chartMessage = loading ? 'Memuat issue...' : error ? 'Data belum dapat ditampilkan.' : dateError || (scope.length ? '' : 'Tidak ada issue yang sesuai filter.');
+  const count = (value: number) => loading ? '...' : !ready ? '-' : value.toLocaleString('id-ID');
+  const share = (value: number) => summary.total ? Math.round(value / summary.total * 100) : 0;
+  const maxAging = Math.max(1, ...summary.aging.map((bucket) => bucket.count));
 
-  const additionalStatuses = Array.from(new Set(issues
-    .map((issue) => issue.status?.trim())
-    .filter((status): status is string => Boolean(status))
-    .filter((status) => !statuses.some((item) => item.name === normalizeStatus(status)))));
+  function changeFilter(key: keyof BoardFilters, value: string) {
+    setFilters((previous) => ({ ...previous, [key]: value })); setRequestedPage(1);
+  }
+  function resetFilters() { setFilters(initialFilters); setSearch(''); setSort(initialSort); setRequestedPage(1); }
+  function openTable() {
+    if (showTable) tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else setShowTable(true);
+  }
+  function handleSort(column: SortColumn) {
+    setSort((previous) => ({ column, ascending: previous.column === column ? !previous.ascending : true }));
+    setRequestedPage(1);
+  }
 
-  const additionalPriorities = Array.from(new Set(issues
-    .map((issue) => issue.priority?.trim())
-    .filter((priority): priority is string => Boolean(priority))
-    .filter((priority) => !priorities.some((item) => item.toLowerCase() === priority.toLowerCase()))));
-
-  return (
-    <DashboardShell activePage="issue-board">
-      <section aria-labelledby="issue-page-title" className="space-y-5">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6" aria-label="Ringkasan status issue">
-          {statuses.map(({ name, label, color, background, cardText, description }) => (
-            <div key={name} style={{ background: `linear-gradient(135deg, ${background}, ${color}18)`, borderColor: `${color}40`, color: cardText }} className="flex flex-col justify-between rounded-xl border p-4 shadow-sm">
-              <span className="text-[11px] font-bold uppercase tracking-wide">{label}</span>
-              <div className="mt-2">
-                <span className="text-xl font-extrabold tabular-nums sm:text-2xl">
-                  {issues.filter((issue) => normalizeStatus(issue.status) === name).length} Issue
-                </span>
-                <p className="mt-0.5 text-[10px] font-medium">{description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div>
-          <h2 id="issue-page-title" className="text-2xl font-bold uppercase leading-tight tracking-tight text-black">ISSUE BOARD</h2>
-          <p className="mt-1 text-xs text-slate-500">Track and Trace all jobs posted at PT Andima Transportindo.</p>
-          <div className="mt-3 flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm lg:flex-row lg:items-center">
-            <div className="relative min-w-0 flex-1">
-              <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              <input type="search" aria-label="Cari issue berdasarkan kode, departemen, issue, PIC, source, priority, atau status" placeholder="Cari issue, ticket code, PIC..." value={search} onChange={(event) => setSearch(event.target.value)} className="h-9 w-full rounded-lg border border-slate-200 bg-[#F5F5FA] pl-9 pr-3 text-xs text-slate-700 shadow-sm placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500" />
-            </div>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
-              <div className="relative sm:w-48">
-                <ListFilter aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-                <select aria-label="Filter status issue" value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)} className="h-9 w-full cursor-pointer appearance-none rounded-lg border border-slate-200 bg-[#F5F5FA] pl-9 pr-8 text-xs font-medium text-slate-600 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
-                  <option value="">Semua Status</option>
-                  {statuses.map(({ name, label }) => <option key={name} value={name}>{label}</option>)}
-                  {additionalStatuses.map((status) => <option key={status} value={normalizeStatus(status)}>{status}</option>)}
-                </select>
-                <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-              </div>
-              <div className="relative sm:w-44">
-                <select aria-label="Filter priority issue" value={selectedPriority} onChange={(event) => setSelectedPriority(event.target.value)} className="h-9 w-full cursor-pointer appearance-none rounded-lg border border-slate-200 bg-[#F5F5FA] pl-3 pr-8 text-xs font-medium text-slate-600 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
-                  <option value="">Semua Priority</option>
-                  {priorities.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
-                  <option value="unset">Belum ditentukan</option>
-                  {additionalPriorities.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
-                </select>
-                <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
-              </div>
-              <button type="button" disabled={!search && !selectedStatus && !selectedPriority} onClick={() => { setSearch(''); setSelectedStatus(''); setSelectedPriority(''); }} className="col-span-2 inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-[#F5F5FA] px-3 text-xs font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-40">
-                <RotateCcw aria-hidden="true" className="h-3 w-3" />Reset Filter
-              </button>
-            </div>
+  return <DashboardShell activePage="issue-board">
+    <div className="space-y-4">
+      {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">Gagal memuat issue: {error} <button type="button" onClick={() => setReload((value) => value + 1)} className="cursor-pointer underline">Coba lagi</button></div>}
+      <div aria-label="Issue Board overview" className="grid gap-2.5 lg:min-h-[calc(100dvh-104px)] lg:grid-rows-[auto_auto_minmax(190px,1fr)_auto]">
+        <section aria-label="Ringkasan status issue" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
+          <div className="flex flex-col justify-between rounded-xl border border-blue-600 bg-blue-600 p-2.5 text-white shadow-xs">
+            <span className="text-[11px] font-bold uppercase tracking-wide">Total Issues</span>
+            <strong className="my-0.5 text-xl font-extrabold tabular-nums">{count(summary.total)}</strong>
+            <p className="text-[10px] text-blue-100">{count(summary.unresolved)} belum Done{ready && summary.unknownStatus ? ` (${summary.unknownStatus} status lain)` : ''}</p>
           </div>
-        </div>
-
-        <section aria-label="Tabel issue" className="bg-white p-4 sm:p-6">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] table-fixed border-collapse text-left">
-              <colgroup>
-                <col style={{ width: '11%' }} /><col style={{ width: '14%' }} />
-                <col style={{ width: '21%' }} /><col style={{ width: '13%' }} />
-                <col style={{ width: '10%' }} /><col style={{ width: '9%' }} />
-                <col style={{ width: '10%' }} /><col style={{ width: '12%' }} />
-              </colgroup>
-              <thead>
-                <tr className="border-b border-slate-100 bg-violet-50/70 text-[10px] uppercase tracking-wider text-slate-400">
-                  {['Issue Code', 'Departemen', 'Issue', 'PIC', 'Date', 'Priority', 'Due Date', 'Status'].map((heading) => <th key={heading} scope="col" className="px-3 py-3 font-semibold">{heading}</th>)}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                {loading ? (
-                  <tr><td colSpan={8} className="p-4 text-slate-500">Memuat issue...</td></tr>
-                ) : error ? (
-                  <tr><td colSpan={8} className="p-4 text-red-600">Gagal memuat issue: {error}</td></tr>
-                ) : rows.length === 0 ? (
-                  <tr><td colSpan={8} className="p-4 text-slate-500">Tidak ada issue yang sesuai dengan {searchQuery ? 'pencarian dan filter' : 'filter'}.</td></tr>
-                ) : rows.map((issue, index) => {
-                  const statusStyle = getStatusStyle(issue.status);
-                  return (
-                    <tr key={`${issue.source}-${issue.issue_code}-${index}`} onClick={() => setSelectedIssue(issue)} className="cursor-pointer transition-colors hover:bg-slate-50/50 focus-within:bg-slate-50/50">
-                      <th scope="row" className="whitespace-nowrap px-3 py-4 font-medium">
-                        <button type="button" aria-haspopup="dialog" aria-label={`Lihat detail ${issue.issue_code || 'issue'}`} onClick={(event) => { event.stopPropagation(); setSelectedIssue(issue); }} className="cursor-pointer rounded text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-500">{issue.issue_code || '-'}</button>
-                      </th>
-                      <td className="px-3 py-4">{issue.source || '-'}</td>
-                      <td className="px-3 py-4"><span className="block break-words" title={issue.issue ?? undefined}>{issue.issue || '-'}</span></td>
-                      <td className="px-3 py-4"><span className="inline-flex items-center gap-1.5 whitespace-nowrap"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[6px] font-semibold" style={{ color: statusStyle.color, backgroundColor: statusStyle.background }}>{(issue.source || '?').slice(0, 4)}</span>{issue.pic_name || issue.pic_id || '-'}</span></td>
-                      <td className="whitespace-nowrap px-3 py-4">{formatDate(issue.date)}</td>
-                      <td className="px-3 py-4">{issue.priority ? <span className="font-semibold">{issue.priority}</span> : <span className="text-slate-400">-</span>}</td>
-                      <td className="whitespace-nowrap px-3 py-4">{formatDate(issue.due_date)}</td>
-                      <td className="whitespace-nowrap px-3 py-4 font-semibold" style={{ color: statusStyle.color }}>{statusStyle.label}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p role="status" className="border-t border-slate-100 bg-white px-3 py-3 text-xs text-slate-500">Menampilkan {loading ? '...' : rows.length} dari {issues.length} issue.</p>
+          {summary.statuses.map((status) => <div key={status.name} style={{ background: `linear-gradient(135deg, ${status.background}, ${status.color}18)`, borderColor: `${status.color}40`, color: status.cardText }} className="flex flex-col justify-between rounded-xl border p-2.5 shadow-xs">
+            <span className="flex items-center gap-1.5 text-[11px] font-bold"><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: status.color }} />{status.label}</span>
+            <strong className="my-0.5 text-xl font-extrabold tabular-nums">{count(status.count)}</strong>
+            <p className="text-[10px]">{ready ? `${share(status.count)}% dari total` : '-'}</p>
+          </div>)}
         </section>
-      </section>
+
+        <section aria-label="Filter Issue Board" className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-2.5 shadow-xs">
+          <div className="min-w-0"><p className="mb-1 text-[10px] font-semibold text-slate-500">Department / Source</p><div role="group" aria-label="Filter department atau source" className="flex flex-wrap gap-1 rounded-lg bg-[#F5F5FA] p-1">
+            {['', ...sourceOptions].map((source) => <button key={source} type="button" aria-pressed={filters.source === source} onClick={() => changeFilter('source', source)} className={`h-7 cursor-pointer rounded-md px-2.5 text-[11px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${filters.source === source ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-500 hover:bg-slate-200/60'}`}>{source || 'All'}</button>)}
+          </div></div>
+          <label className="text-[10px] font-semibold text-slate-500">Status<select aria-label="Filter status issue" value={filters.status} onChange={(event) => changeFilter('status', event.target.value)} className={`${inputClass} mt-1 block w-32`}><option value="">All Status</option>{STATUSES.map((status) => <option key={status.name} value={status.name}>{status.label}</option>)}{additionalStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
+          <label className="text-[10px] font-semibold text-slate-500">Priority<select aria-label="Filter priority issue" value={filters.priority} onChange={(event) => changeFilter('priority', event.target.value)} className={`${inputClass} mt-1 block w-32`}><option value="">All Priority</option>{PRIORITIES.map((priority) => <option key={priority.key} value={priority.key}>{priority.label}</option>)}{additionalPriorities.map((priority) => <option key={priority} value={priority}>{priority}</option>)}</select></label>
+          <fieldset className="min-w-0"><legend className="mb-1 text-[10px] font-semibold text-slate-500">Date range (received)</legend><div className="flex flex-wrap items-center gap-1.5"><IssueDateInput label="Tanggal mulai issue diterima" value={filters.start} error={dateError} onChange={(value) => changeFilter('start', value)} /><span className="text-xs text-slate-400">to</span><IssueDateInput label="Tanggal akhir issue diterima" value={filters.end} error={dateError} onChange={(value) => changeFilter('end', value)} /></div></fieldset>
+          <button type="button" onClick={resetFilters} className="ml-auto inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-[#F5F5FA] px-3 text-xs font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><RotateCcw aria-hidden="true" className="h-3 w-3" />Reset filters</button>
+          {dateError && <p id="issue-date-error" role="alert" className="w-full text-xs text-rose-600">{dateError}</p>}
+        </section>
+
+        <div className="grid min-h-0 gap-3 lg:grid-cols-2">
+          <section aria-labelledby="department-title" className={panelClass}><div className="flex items-center justify-between gap-3"><h2 id="department-title" className="text-sm font-bold text-slate-800">Issues by Department</h2><button ref={openTableRef} type="button" aria-expanded={showTable} aria-controls="issue-table" onClick={openTable} className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-[11px] font-semibold text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><Table2 aria-hidden="true" className="h-3 w-3" />Lihat tabel</button></div>{chartMessage ? <p role="status" className="py-8 text-xs text-slate-500">{chartMessage}</p> : <DepartmentChart segments={summary.sources} total={summary.total} />}</section>
+          <section aria-labelledby="priority-title" className={panelClass}><h2 id="priority-title" className="text-sm font-bold text-slate-800">Issues by Priority</h2>{chartMessage ? <p role="status" className="py-8 text-xs text-slate-500">{chartMessage}</p> : <PriorityCharts segments={summary.priorities} total={summary.total} />}{ready && summary.otherPriorities > 0 && <p className="text-[10px] text-slate-500">{summary.otherPriorities} issue memakai priority lain di luar kategori di atas.</p>}</section>
+        </div>
+
+        <div className="grid min-h-0 gap-3 lg:grid-cols-2">
+          <section aria-labelledby="aging-title" className={panelClass}><div className="flex flex-wrap items-baseline gap-2"><h2 id="aging-title" className="text-sm font-bold text-slate-800">Issue Aging</h2><p className="text-[10px] text-slate-500">{count(summary.unresolved)} belum Done &middot; hari sejak diterima</p></div>{chartMessage ? <p role="status" className="py-8 text-xs text-slate-500">{chartMessage}</p> : <ul className="flex flex-1 flex-col justify-evenly gap-3 py-3">{summary.aging.map((bucket) => <li key={bucket.label} className="grid grid-cols-[110px_minmax(0,1fr)_32px] items-center gap-3 text-[11px]"><span className="text-slate-600">{bucket.label}</span><div className="relative h-0.5 bg-slate-100"><div className="relative h-full" style={{ width: `${bucket.count / maxAging * 100}%`, backgroundColor: bucket.color }}>{bucket.count > 0 && <span aria-hidden="true" className="absolute right-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 translate-x-1/2 rounded-full border-2 border-white shadow-xs" style={{ backgroundColor: bucket.color }} />}</div></div><strong className="text-right text-slate-800">{bucket.count}</strong></li>)}</ul>}{ready && (summary.unknownReceived > 0 || summary.futureReceived > 0) && <p className="text-[10px] text-slate-500">{summary.unknownReceived} tanpa tanggal diterima valid; {summary.futureReceived} bertanggal di masa depan.</p>}</section>
+          <section aria-labelledby="due-title" className={panelClass}><div className="flex flex-wrap items-baseline gap-2"><h2 id="due-title" className="text-sm font-bold text-slate-800">Due Date Monitoring</h2><p className="text-[10px] text-slate-500">{count(summary.unresolved)} belum Done &middot; Due Soon: hari ini s.d. 2 hari lagi</p></div>{chartMessage ? <p role="status" className="py-8 text-xs text-slate-500">{chartMessage}</p> : <DueDateChart onTrack={summary.onTrack} dueSoon={summary.dueSoon} overdue={summary.overdue} percent={summary.onTrackPercent} />}{ready && summary.noDueDate > 0 && <p role="status" className="mt-2 text-center text-[10px] text-slate-500">{summary.noDueDate} issue belum memiliki due date valid, tidak dimasukkan ke persentase.</p>}</section>
+        </div>
+      </div>
+
+      {showTable && <section ref={tableRef} id="issue-table" aria-labelledby="issue-table-title" className="scroll-mt-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3"><h2 id="issue-table-title" className="text-lg font-bold uppercase tracking-wide text-slate-800">ISSUE BOARD</h2><button type="button" aria-label="Tutup tabel issue" title="Tutup tabel" onClick={() => { setShowTable(false); openTableRef.current?.focus({ preventScroll: true }); openTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }} className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><X aria-hidden="true" className="h-4 w-4" /></button></div>
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3"><div className="relative w-full max-w-[380px]"><Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input type="search" aria-label="Cari issue berdasarkan ticket code atau judul issue" placeholder="Search Ticket Code / Issue..." value={search} onChange={(event) => { setSearch(event.target.value); setRequestedPage(1); }} className="h-9 w-full rounded-lg border border-slate-200 bg-[#F5F5FA] pl-9 pr-3 text-xs text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500" /></div></div>
+        <div className="overflow-x-auto"><table aria-label="Daftar issue" className="w-full min-w-[1100px] table-fixed border-collapse text-left"><colgroup><col className="w-[11%]" /><col className="w-[13%]" /><col className="w-[21%]" /><col className="w-[12%]" /><col className="w-[14%]" /><col className="w-[9%]" /><col className="w-[10%]" /><col className="w-[10%]" /></colgroup><thead><tr className="border-y border-slate-100 bg-violet-50/70 text-[10px] uppercase tracking-wider text-slate-400">{columns.map((column) => {
+          const sortable = column.key === 'date';
+          const Icon = sort.ascending ? ArrowUp : ArrowDown;
+          return <th key={column.key} scope="col" aria-sort={sortable ? sort.ascending ? 'ascending' : 'descending' : undefined} className="px-3 py-3 font-semibold">{sortable ? <button type="button" onClick={() => handleSort('date')} className="flex cursor-pointer items-center gap-1.5 rounded text-left uppercase tracking-wider hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">{column.label}<Icon aria-hidden="true" className="h-3 w-3 shrink-0" /></button> : column.label}</th>;
+        })}</tr></thead><tbody className="divide-y divide-slate-100 text-xs text-slate-700">{loading || error || dateError || !visibleRows.length ? <tr><td colSpan={8} role="status" className="p-4 text-slate-500">{loading ? 'Memuat issue...' : error ? 'Data belum dapat ditampilkan.' : dateError || 'Tidak ada issue yang sesuai dengan pencarian dan filter.'}</td></tr> : visibleRows.map((issue, index) => {
+          const status = getStatusStyle(issue.status), priority = priorityStyle(issue.priority);
+          const due = issueDay(issue.due_date);
+          const overdue = normalizeStatus(issue.status) !== 'DONE' && due && due < today;
+          return <tr key={`${issue.source}:${issue.issue_code}:${offset + index}`} onClick={() => setSelectedIssue(issue)} className="cursor-pointer hover:bg-slate-50/50 focus-within:bg-slate-50/50"><th scope="row" className="px-3 py-3 font-semibold text-blue-700"><button type="button" aria-haspopup="dialog" aria-label={`Lihat detail ${issue.issue_code || 'issue'}`} onClick={(event) => { event.stopPropagation(); setSelectedIssue(issue); }} className="cursor-pointer rounded text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">{issue.issue_code || '-'}</button></th><td className="px-3 py-3"><span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: sourceColor(issue.source) }} />{issue.source || '-'}</span></td><td className="break-words px-3 py-3">{issue.issue || '-'}</td><td className="break-words px-3 py-3">{issue.pic_name || issue.pic_id || '-'}</td><td className="px-3 py-3">{formatDate(issue.date, true)}</td><td className="px-3 py-3"><span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ backgroundColor: priority.color }} />{priority.label}</span></td><td className="px-3 py-3">{formatDate(issue.due_date)}{overdue && <span className="mt-1 block text-[10px] text-rose-500">Overdue</span>}</td><td className="px-3 py-3"><span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-semibold" style={{ color: status.color, backgroundColor: status.background, borderColor: `${status.color}40` }}><span aria-hidden="true" className="h-1 w-1 rounded-full bg-current" />{status.label}</span></td></tr>;
+        })}</tbody></table></div>
+        {ready && <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3"><p role="status" className="text-[11px] text-slate-500">Menampilkan {tableRows.length ? offset + 1 : 0}&ndash;{Math.min(offset + PAGE_SIZE, tableRows.length)} dari {tableRows.length} issue</p><Pagination compact label="Pagination Issue Board" page={page} totalPages={totalPages} onPageChange={setRequestedPage} /></footer>}
+      </section>}
+    </div>
 
       <dialog
         ref={dialogRef}
@@ -304,6 +256,5 @@ export default function IssueBoardPage() {
           </div>
         )}
       </dialog>
-    </DashboardShell>
-  );
+    </DashboardShell>;
 }

@@ -45,6 +45,9 @@ export function useSalesPerformanceTrend() {
 
   const latest = reports.at(-1)?.period_month;
   const latestYear = latest?.slice(0, 4);
+  const rangeError = period !== 'range' ? '' : !startDate || !endDate
+    ? 'Pilih tanggal mulai dan tanggal akhir.'
+    : startDate > endDate ? 'Tanggal akhir harus sama atau setelah tanggal mulai.' : '';
 
   // Logika Pemfilteran Data Berdasarkan Jenis Filter yang Dipilih
   const selected = reports.filter((row) => {
@@ -57,7 +60,7 @@ export function useSalesPerformanceTrend() {
       return rowMonth.slice(0, 7) === selectedMonth;
     }
     if (period === 'range') {
-      if (!startDate || !endDate) return true;
+      if (rangeError) return false;
       return rowMonth >= startDate && rowMonth <= endDate;
     }
 
@@ -82,16 +85,18 @@ export function useSalesPerformanceTrend() {
     selectedMonth, setSelectedMonth,
     startDate, setStartDate,
     endDate, setEndDate,
-    selected, data, latestYear, growth, range, chartLoading, chartError, retry: () => setReload((value) => value + 1) 
+    selected, data, latestYear, growth, range, rangeError, chartLoading, chartError, retry: () => setReload((value) => value + 1)
   };
 }
 
 export default function SalesPerformanceTrend({ 
     model, 
-    compact = true 
+    compact = true,
+    fitHeight = false,
   }: { 
     model: ReturnType<typeof useSalesPerformanceTrend>; 
     compact?: boolean; 
+    fitHeight?: boolean;
   }) {
   const { 
     period, setPeriod, 
@@ -99,19 +104,19 @@ export default function SalesPerformanceTrend({
     selectedMonth, setSelectedMonth,
     startDate, setStartDate,
     endDate, setEndDate,
-    data, latestYear, growth, range, chartLoading, chartError, retry 
+    data, growth, range, rangeError, chartLoading, chartError, retry
   } = model;
 
   return (
-    <div className={`bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between ${compact ? 'h-full p-2.5' : 'p-6'}`}>
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
+    <div className={`bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between ${fitHeight ? 'h-full min-h-0 p-3' : compact ? 'h-full p-2.5' : 'p-6'}`}>
+        <div className={fitHeight ? 'grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2' : 'flex flex-col lg:flex-row lg:items-center justify-between gap-4'}>
+          <div className={fitHeight ? 'min-w-0' : undefined}>
             <h2 id="sales-title" className="font-bold text-slate-800 text-base">Sales Performance Trend</h2>
-            <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-wide">Total profit company sales report periode {range}.</p>
+            <p className={`text-[11px] text-slate-400 mt-1 uppercase tracking-wide ${fitHeight ? 'truncate' : ''}`} title={`Total profit company sales report periode ${range}.`}>Total profit company sales report periode {range}.</p>
           </div>
 
           {/* KUMPULAN KONTROL FILTER */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className={fitHeight && period === 'range' ? 'contents' : 'flex flex-wrap items-center gap-2'}>
             {/* 1 DROPDOWN UTAMA */}
             <select 
               aria-label="Sales report period" 
@@ -151,9 +156,12 @@ export default function SalesPerformanceTrend({
 
             {/* MUNCUL JIKA PILIH 'Rentang Tanggal' */}
             {period === 'range' && (
-              <div className="flex items-center gap-1.5">
+              <div className={`flex flex-wrap items-center gap-1.5 ${fitHeight ? 'col-span-2 justify-end' : ''}`}>
                 <input 
                   type="date" 
+                  aria-label="Tanggal mulai grafik"
+                  aria-invalid={Boolean(startDate && endDate && rangeError)}
+                  aria-describedby={rangeError ? 'sales-range-message' : undefined}
                   value={startDate} 
                   onChange={(event) => setStartDate(event.target.value)} 
                   className="bg-white text-slate-700 text-xs font-medium px-2 py-1.5 rounded-lg border border-purple-200 focus:outline-2 focus:outline-purple-500"
@@ -161,6 +169,9 @@ export default function SalesPerformanceTrend({
                 <span className="text-xs text-slate-500">s/d</span>
                 <input 
                   type="date" 
+                  aria-label="Tanggal akhir grafik"
+                  aria-invalid={Boolean(startDate && endDate && rangeError)}
+                  aria-describedby={rangeError ? 'sales-range-message' : undefined}
                   value={endDate} 
                   onChange={(event) => setEndDate(event.target.value)} 
                   className="bg-white text-slate-700 text-xs font-medium px-2 py-1.5 rounded-lg border border-purple-200 focus:outline-2 focus:outline-purple-500"
@@ -170,12 +181,12 @@ export default function SalesPerformanceTrend({
           </div>
         </div>
 
-        <div className="flex items-center justify-between mt-6 mb-4 text-[11px] text-slate-500">
+        <div className={`flex items-center justify-between text-[11px] text-slate-500 ${fitHeight ? 'shrink-0 my-2' : 'mt-6 mb-4'}`}>
           <span>Profit (dalam juta rupiah)</span><span className="flex items-center gap-2"><i className="h-3 w-3 rounded-sm bg-cyan-500" />Total Profit</span>
         </div>
         
-        <div className={`w-full ${compact ? 'flex-1 min-h-[85px]' : 'h-72 my-2'}`} role="group" aria-label={`Sales performance chart, ${range}`}>
-          {chartLoading ? <p role="status">Memuat grafik...</p> : chartError ? <p role="alert" className="text-sm text-red-600">{chartError}</p> : !data.length ? <p className="text-sm text-slate-500">Belum ada data grafik pada periode ini.</p> : (
+        <div className={`w-full ${fitHeight ? 'min-h-[100px] flex-1 my-1' : compact ? 'flex-1 min-h-[85px]' : 'h-72 my-2'}`} role="group" aria-label={`Sales performance chart, ${range}`}>
+          {chartLoading ? <p role="status">Memuat grafik...</p> : chartError ? <p role="alert" className="text-sm text-red-600">{chartError}</p> : rangeError ? <p id="sales-range-message" role="status" className="text-xs text-slate-500">{rangeError}</p> : !data.length ? <p className="text-sm text-slate-500">Belum ada data grafik pada periode ini.</p> : (
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <LineChart 
                 data={data} 
@@ -192,10 +203,10 @@ export default function SalesPerformanceTrend({
           )}
         </div>
 
-        <div className={`border-t border-slate-100 ${compact ? 'pt-1 mt-1' : 'pt-4 mt-6'} shrink-0`} aria-live="polite">
-          {!compact && <h3 className="text-xs font-semibold text-slate-700 mb-1">Description</h3>}
+        <div className={`border-t border-slate-100 ${fitHeight ? 'pt-2 mt-2' : compact ? 'pt-1 mt-1' : 'pt-4 mt-6'} shrink-0`} aria-live="polite">
+          {!compact && !fitHeight && <h3 className="text-xs font-semibold text-slate-700 mb-1">Description</h3>}
           <p className={`${compact ? 'text-[8px]' : 'text-[11px]'} text-slate-500 truncate leading-tight`}>
-            {growth === null ? 'Perbandingan pertumbuhan tersedia jika terdapat minimal dua bulan profit.' : `Total profit ${growth < 0 ? 'menurun' : growth > 0 ? 'meningkat' : 'berubah'} ${Math.abs(growth).toLocaleString('id-ID', { maximumFractionDigits: 1 })}% selama periode ${range}.`}
+            {rangeError ? 'Grafik dan ringkasan profit menunggu rentang tanggal yang valid.' : growth === null ? 'Perbandingan pertumbuhan tersedia jika terdapat minimal dua bulan profit.' : `Total profit ${growth < 0 ? 'menurun' : growth > 0 ? 'meningkat' : 'berubah'} ${Math.abs(growth).toLocaleString('id-ID', { maximumFractionDigits: 1 })}% selama periode ${range}.`}
           </p>
         </div>
       {chartError && <button type="button" onClick={retry} className="mt-4 text-sm text-blue-600 cursor-pointer">Coba lagi</button>}
