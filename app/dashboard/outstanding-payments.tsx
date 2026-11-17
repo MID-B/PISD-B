@@ -97,3 +97,51 @@ export function OutstandingPaymentsTable({ rows: visibleRows, tableLoading, tabl
           </div>
   );
 }
+
+export function DashboardOutstandingTable({ rows: visibleRows, tableLoading, tableError, emptyMessage = 'Belum ada data outstanding.' }: {
+  rows: Outstanding[]; tableLoading: boolean; tableError: string; emptyMessage?: string;
+}) {
+  return (
+    <div className="w-full overflow-hidden">
+      <table className="w-full text-left border-collapse table-fixed">
+        <colgroup>
+          <col className="w-[34%]" />
+          <col className="w-[22%]" />
+          <col className="w-[18%]" />
+          <col className="w-[14%]" />
+          <col className="w-[12%]" />
+        </colgroup>
+        <thead>
+          <tr className="bg-violet-50/70 border-b border-slate-100 text-[9px] uppercase tracking-wider text-slate-500">
+            <th className="py-1 px-1 font-semibold truncate">Customer</th>
+            <th className="py-1 px-1 font-semibold truncate">Job Number</th>
+            <th className="py-1 px-1 font-semibold truncate">Amount</th>
+            <th className="py-1 px-1 font-semibold truncate">Due Date</th>
+            <th className="py-1 px-1 font-semibold truncate">Status</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 text-[9px] text-slate-700">
+          {tableLoading ? (
+            <tr><td colSpan={5} className="py-2 px-1 text-center" role="status">Memuat...</td></tr>
+          ) : tableError ? (
+            <tr><td colSpan={5} className="py-2 px-1 text-red-600 text-center" role="alert">{tableError}</td></tr>
+          ) : visibleRows.length === 0 ? (
+            <tr><td colSpan={5} className="py-2 px-1 text-slate-500 text-center" role="status">{emptyMessage}</td></tr>
+          ) : (
+            visibleRows.map((row) => (
+              <tr key={row.outstanding_row_id} className="hover:bg-slate-50/50 transition-colors">
+                <td className="py-1 px-1 truncate" title={row.customer || ''}>{row.customer || '-'}</td>
+                <td className="py-1 px-1 truncate" title={row.job_number || ''}>{row.job_number || '-'}</td>
+                <td className="py-1 px-1 whitespace-nowrap tabular-nums truncate">{row.outstanding_amount == null ? '-' : rupiah.format(Number(row.outstanding_amount))}</td>
+                <td className="py-1 px-1 whitespace-nowrap truncate">{dateLabel(row.due_date)}</td>
+                <td className={`py-1 px-1 whitespace-nowrap font-semibold truncate ${row.status?.toUpperCase() === 'OVERDUE' ? 'text-rose-500' : 'text-slate-600'}`} title={row.status || '-'}>
+                  {row.status || '-'}
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}

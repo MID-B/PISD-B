@@ -184,6 +184,33 @@ function ChevronDownIcon({ isOpen }: { isOpen?: boolean }) {
   );
 }
 
+function HamburgerIcon() {
+  return (
+    <svg viewBox="0 0 24 24"
+      style={{width: '20px', height: '20px', flexShrink: 0, fill: 'none', stroke: 'currentColor', strokeWidth: 2.3, strokeLinecap: 'round', strokeLinejoin: 'round',
+      }}
+    >
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="18" x2="20" y2="18" />
+    </svg>
+  );
+}
+
+function GridIcon() {
+  return (
+    <svg viewBox="0 0 24 24"
+      style={{width: '18px', height: '18px', flexShrink: 0, fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+      }}
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}   
+
 /* SMKI PAGE MAIN COMPONENT */
 function SmkiDashboard() {
   const router = useRouter();
@@ -658,55 +685,15 @@ function SmkiDashboard() {
         display: "flex",
         flexDirection: "column",
         boxSizing: "border-box",
-        overflow: "visible",
+        overflow: "hidden",
         transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease"
       }}>
-
-        <button
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          style={{
-            position: "absolute",
-            right: "-18px",
-            top: "76px",
-            width: "36px",
-            height: "36px",
-            borderRadius: "50%",
-            background: "#055be5",
-            color: "#ffffff",
-            border: "3px solid #0f2038",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
-            zIndex: 100,
-            transition: "all 0.3s ease",
-          }}
-          aria-label={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            style={{
-              width: "18px",
-              height: "18px",
-              fill: "none",
-              stroke: "currentColor",
-              strokeWidth: 2.5,
-              strokeLinecap: "round",
-              strokeLinejoin: "round",
-              transform: isSidebarOpen ? "rotate(0deg)" : "rotate(180deg)",
-              transition: "transform 0.3s ease"
-            }}
-          >
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
 
         {isSidebarOpen && (
           <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", overflow: "hidden" }}>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", paddingBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.1)", whiteSpace: "nowrap" }}>
-              <div style={{ width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "transparent" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingBottom: "18px", borderBottom: "1px solid rgba(255,255,255,0.1)", whiteSpace: "nowrap" }}>
+              <div style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "transparent" }}>
                 <img
                   src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png"
                   alt="Logo ANDIMA"
@@ -714,96 +701,106 @@ function SmkiDashboard() {
                 />
               </div>
               <div>
-                <div style={{ color: "#ffffff", fontSize: "16px", fontWeight: 800, letterSpacing: "0.5px" }}>ANDIMA</div>
-                <div style={{ color: "#94a3b8", fontSize: "11px", marginTop: "1px" }}>Logistics Suite</div>
+                <div style={{ color: "#ffffff", fontSize: "15px", fontWeight: 800, letterSpacing: "0.4px", lineHeight: "1.1" }}>ANDIMA</div>
+                <div style={{ color: "#94a3b8", fontSize: "11px", marginTop: "2px" }}>Logistics Suite</div>
               </div>
             </div>
 
             <nav style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1, marginTop: "20px" }}>
               <div>
                 <button
+                  type="button"
                   onClick={() => setIsSmkiOpen(!isSmkiOpen)}
                   style={{
                     width: "100%",
-                    height: "44px",
-                    padding: "0 16px",
+                    height: "42px",
+                    padding: "0 14px",
                     border: 0,
                     borderRadius: "10px",
-                    background: "#055be5",
-                    color: "#fff",
+                    background: "#0550D7",
+                    color: "#ffffff",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    fontSize: "15px",
+                    fontSize: "14px",
                     fontWeight: 700,
                     cursor: "pointer",
                     textAlign: "left",
                   }}
                 >
-                  <span>SMKI</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <GridIcon />
+                    <span>SMKI</span>
+                  </div>
                   <ChevronDownIcon isOpen={isSmkiOpen} />
                 </button>
 
-                {isSmkiOpen && (
-                  <div style={{ position: "relative", marginTop: "12px", paddingLeft: "24px" }}>
+                  {isSmkiOpen && (
+                  <div style={{ position: "relative", marginTop: "12px", paddingLeft: "16px" }}>
                     <div
                       style={{
                         position: "absolute",
-                        left: "10px",
-                        top: "0",
-                        bottom: "8px",
+                        left: "6px",
+                        top: "4px",
+                        bottom: "4px",
                         width: "1px",
                         backgroundColor: "rgba(255, 255, 255, 0.2)",
                       }}
                     />
 
-                    <button
-                      onClick={() => router.push('/smki/dashboard')}
-                      style={{
-                        width: "100%",
-                        padding: "10px 14px",
-                        border: 0,
-                        borderRadius: "10px",
-                        backgroundColor: activeTab === "account-maintains" ? "rgba(255, 255, 255, 0.15)" : "transparent",
-                        color: activeTab === "account-maintains" ? "#ffffff" : "#94a3b8",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        fontSize: "13px",
-                        fontWeight: activeTab === "account-maintains" ? 700 : 500,
-                        cursor: "pointer",
-                        textAlign: "left",
-                        transition: "all 0.2s ease",
-                      }}
-                    >
-                      <AccountIcon />
-                      <span>Account Maintains</span>
-                    </button>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <button
+                        type="button"
+                        onClick={() => router.push('/smki/dashboard')}
+                        style={{
+                          width: "100%",
+                          padding: "8px 14px",
+                          paddingLeft: activeTab === "account-maintains" ? "14px" : "28px",
+                          border: 0,
+                          borderRadius: "12px",
+                          backgroundColor: activeTab === "account-maintains" ? "#B0C6D4" : "transparent",
+                          color: activeTab === "account-maintains" ? "#334155" : "#ffffff",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          fontSize: "13px",
+                          fontWeight: activeTab === "account-maintains" ? 600 : 500,
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                      >
+                        {activeTab === "account-maintains" && (
+                          <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#0D9488", flexShrink: 0 }} />
+                        )}
+                        <span>Account Maintains</span>
+                      </button>
 
-                    <button
-                      onClick={() => router.push('/smki/dashboard?tab=log-activity')}
-                      style={{
-                        width: "100%",
-                        padding: "10px 14px",
-                        border: 0,
-                        borderRadius: "10px",
-                        backgroundColor: activeTab === "log-activity" ? "rgba(255, 255, 255, 0.15)" : "transparent",
-                        color: activeTab === "log-activity" ? "#ffffff" : "#94a3b8",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        fontSize: "13px",
-                        fontWeight: activeTab === "log-activity" ? 700 : 500,
-                        cursor: "pointer",
-                        textAlign: "left",
-                        transition: "all 0.2s ease",
-                      }}
-                    >
-                      <ActivityIcon />
-                      <span>Log Activity</span>
-                    </button>
-
-
+                      <button
+                        type="button"
+                        onClick={() => router.push('/smki/dashboard?tab=log-activity')}
+                        style={{
+                          width: "100%",
+                          padding: "8px 14px",
+                          paddingLeft: activeTab === "log-activity" ? "14px" : "28px",
+                          border: 0,
+                          borderRadius: "12px",
+                          backgroundColor: activeTab === "log-activity" ? "#B0C6D4" : "transparent",
+                          color: activeTab === "log-activity" ? "#334155" : "#ffffff",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          fontSize: "13px",
+                          fontWeight: activeTab === "log-activity" ? 600 : 500,
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                      >
+                        {activeTab === "log-activity" && (
+                          <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#0D9488", flexShrink: 0 }} />
+                        )}
+                        <span>Log Activity</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -826,13 +823,23 @@ function SmkiDashboard() {
       <section style={{ flex: 1, height: "100vh", background: "#ffffff", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" }}>
 
         <header style={{ width: "100%", height: "56px", padding: "0 24px", background: "#ffffff", borderBottom: "1px solid #e2e8f0", color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxSizing: "border-box", gap: "12px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen((prev) => !prev)}
+              aria-label={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
+              title={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
+              style={{width: "34px", height: "34px", borderRadius: "8px", border: "none", background: "#3B6FF5", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0,
+              }}
+            >
+              <HamburgerIcon />
+            </button>
+
             <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>ANDIMA SMKI</span>
             <span style={{ color: "#cbd5e1" }}>|</span>
             <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
               {activeTab === "log-activity" ? "Log Activity" : "Account Maintains"}
             </span>
-
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>

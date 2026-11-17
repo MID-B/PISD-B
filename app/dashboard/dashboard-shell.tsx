@@ -13,6 +13,31 @@ type DashboardShellProps = {
 };
 
 /* SVG ICONS UNTUK SIDEBAR & HEADER */
+function HamburgerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" style={{
+        width: '20px', height: '20px', flexShrink: 0, fill: 'none', stroke: 'currentColor', strokeWidth: 2.3, strokeLinecap: 'round', strokeLinejoin: 'round',}}>
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="18" x2="20" y2="18" />
+    </svg>
+  );
+}
+
+function GridIcon() {
+  return(
+    <svg viewBox="0 0 24 24" style={{
+      width: '18px', height: '18px', flexShrink: 0, fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+      }}
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
 function AccountIcon() {
   return (
     <svg viewBox="0 0 24 24" style={{ width: "20px", height: "20px", flexShrink: 0, fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }}>
@@ -218,62 +243,20 @@ export default function DashboardShell({ activePage, headerActions, children }: 
 
       {/* SIDEBAR */}
       <aside style={{
-        width: isSidebarOpen ? "250px" : "0px", // Ditutup 100% rapat jadi 0px
+        width: isSidebarOpen ? "250px" : "0px",
         height: "100vh",
         flexShrink: 0,
         position: "relative",
-        padding: isSidebarOpen ? "24px 16px" : "0px", // Padding 0 saat ditutup
+        padding: isSidebarOpen ? "24px 16px" : "0px",
         background: "#0f2038",
         color: "#fff",
         display: "flex",
         flexDirection: "column",
         boxSizing: "border-box",
-        overflow: "visible", // PENTING: Jangan 'hidden' agar tombol bulat melayang tidak terpotong!
+        overflow: "hidden",
         transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease"
       }}>
-
-        {/* 🔘 TOMBOL BULAT BIRU MELAYANG UTUH */}
-        <button
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          style={{
-            position: "absolute",
-            right: "-18px", // Tetap menggantung pas di garis tepi
-            top: "76px",
-            width: "36px",
-            height: "36px",
-            borderRadius: "50%",
-            background: "#055be5",
-            color: "#ffffff",
-            border: "3px solid #0f2038",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.25)",
-            zIndex: 100,
-            transition: "all 0.3s ease",
-          }}
-          aria-label={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
-          title={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            style={{
-              width: "18px",
-              height: "18px",
-              fill: "none",
-              stroke: "currentColor",
-              strokeWidth: 2.5,
-              strokeLinecap: "round",
-              strokeLinejoin: "round",
-              transform: isSidebarOpen ? "rotate(0deg)" : "rotate(180deg)",
-              transition: "transform 0.3s ease"
-            }}
-          >
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-
+        
         {/* HANYA TAMPILKAN KONTEN JIKA SIDEBAR DIBUKA */}
         {isSidebarOpen && (
           <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", overflow: "hidden" }}>
@@ -297,46 +280,111 @@ export default function DashboardShell({ activePage, headerActions, children }: 
             <nav style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1, marginTop: "20px" }}>
               <div>
                 <button
+                  type="button"
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
                   style={{
                     width: "100%",
-                    height: "44px",
-                    padding: "0 16px",
+                    height: "42px",
+                    padding: "0 14px",
                     border: 0,
                     borderRadius: "10px",
-                    background: "#055be5",
-                    color: "#fff",
+                    background: "#0550D7",
+                    color: "#ffffff",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    fontSize: "15px",
+                    fontSize: "14px",
                     fontWeight: 700,
                     cursor: "pointer",
                     textAlign: "left",
                   }}
                 >
-                  <span>Menu Utama</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <GridIcon />
+                    <span>MID</span>
+                  </div>
                   <ChevronDownIcon isOpen={isMenuOpen} />
                 </button>
 
                 {isMenuOpen && (
                   <div style={{ position: "relative", marginTop: "12px", paddingLeft: "16px" }}>
-                    <div style={{ position: "absolute", left: "6px", top: "0", bottom: "8px", width: "1px", backgroundColor: "rgba(255, 255, 255, 0.2)" }} />
+                    {/* Garis vertikal di sebelah kiri submenu */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: "6px",
+                        top: "4px",
+                        bottom: "4px",
+                        width: "1px",
+                        backgroundColor: "rgba(255, 255, 255, 0.2)",
+                      }}
+                    />
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      {/* Contoh untuk Dashboard (aktif pakai kotak abu-abu) */}
-                      <Link href="/dashboard" className={`flex items-center gap-3 py-2 px-3 text-sm rounded-xl transition-all ${activePage === 'dashboard' ? 'bg-[#2b3748] text-white border border-slate-600 shadow-sm font-semibold' : 'text-slate-300 hover:text-white hover:bg-white/5'}`}>
-                        <AccountIcon /> <span>Dashboard</span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <Link
+                        href="/dashboard"
+                        style={
+                          activePage === 'dashboard'
+                            ? { backgroundColor: "#B0C6D4", color: "#45556C" }
+                            : undefined
+                        }
+                        className={`flex items-center gap-2.5 py-2 px-3.5 text-sm rounded-xl transition-all ${
+                          activePage === 'dashboard'
+                            ? 'font-semibold'
+                            : 'text-white hover:bg-white/5 pl-7'
+                        }`}
+                      >
+                        {activePage === 'dashboard' && (
+                          <span
+                            style={{ backgroundColor: "#0D9488" }}
+                            className="w-2 h-2 rounded-full shrink-0"
+                          />
+                        )}
+                        <span>Dashboard</span>
                       </Link>
 
-                      {/* Contoh untuk Sales Performance */}
-                      <Link href="/dashboard/sales-performance" className={`flex items-center gap-3 py-2 px-3 text-sm rounded-xl transition-all ${activePage === 'sales-performance' ? 'bg-[#2b3748] text-white border border-slate-600 shadow-sm font-semibold' : 'text-slate-300 hover:text-white hover:bg-white/5'}`}>
-                        <ActivityIcon /> <span>Sales Performance</span>
+                      <Link
+                        href="/dashboard/sales-performance"
+                        style={
+                          activePage === 'sales-performance'
+                            ? { backgroundColor: "#B0C6D4", color: "#45556C" }
+                            : undefined
+                        }
+                        className={`flex items-center gap-2.5 py-2 px-3.5 text-sm rounded-xl transition-all ${
+                          activePage === 'sales-performance'
+                            ? 'font-semibold'
+                            : 'text-white hover:bg-white/5 pl-7'
+                        }`}
+                      >
+                        {activePage === 'sales-performance' && (
+                          <span
+                            style={{ backgroundColor: "#0D9488" }}
+                            className="w-2 h-2 rounded-full shrink-0"
+                          />
+                        )}
+                        <span>Sales Performance</span>
                       </Link>
 
-                      {/* Contoh untuk Issue Board */}
-                      <Link href="/dashboard/issue-board" className={`flex items-center gap-3 py-2 px-3 text-sm rounded-xl transition-all ${activePage === 'issue-board' ? 'bg-[#2b3748] text-white border border-slate-600 shadow-sm font-semibold' : 'text-slate-300 hover:text-white hover:bg-white/5'}`}>
-                        <ClipboardIcon /> <span>Issue Board</span>
+                      <Link
+                        href="/dashboard/issue-board"
+                        style={
+                          activePage === 'issue-board'
+                            ? { backgroundColor: "#B0C6D4", color: "#45556C" }
+                            : undefined
+                        }
+                        className={`flex items-center gap-2.5 py-2 px-3.5 text-sm rounded-xl transition-all ${
+                          activePage === 'issue-board'
+                            ? 'font-semibold'
+                            : 'text-white hover:bg-white/5 pl-7'
+                        }`}
+                      >
+                        {activePage === 'issue-board' && (
+                          <span
+                            style={{ backgroundColor: "#0D9488" }}
+                            className="w-2 h-2 rounded-full shrink-0"
+                          />
+                        )}
+                        <span>Issue Board</span>
                       </Link>
                     </div>
                   </div>
@@ -366,9 +414,22 @@ export default function DashboardShell({ activePage, headerActions, children }: 
       {/* MAIN CONTENT AREA */}
       <section style={{ flex: 1, height: "100vh", background: "#ffffff", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" }}>
 
-        {/* TOP BAR / HEADER (TANPA LONCENG, PROFIL DI KANAN ATAS) */}
+        {/* TOP BAR / HEADER */}
         <header style={{ width: "100%", height: "56px", padding: "0 24px", background: "#ffffff", borderBottom: "1px solid #e2e8f0", color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxSizing: "border-box", gap: "12px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+
+            {/* TAMBAHAN BARU: Tombol Toggle Sidebar */}
+            <button type="button"
+              onClick={() => setIsSidebarOpen((prev) => !prev)}
+              aria-label={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
+              title={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
+              style={{width: "34px", height: "34px", borderRadius: "8px", border: "none",  background: "#3B6FF5", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "background-color 0.2s ease", }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#2558DC")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#3B6FF5")}
+            >
+              <HamburgerIcon />
+            </button>
+
             <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>ANDIMA MID</span>
             <span style={{ color: "#cbd5e1" }}>|</span>
             <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>

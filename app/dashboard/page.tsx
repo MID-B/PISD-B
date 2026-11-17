@@ -4,10 +4,14 @@ import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import DashboardShell from './dashboard-shell';
-import { OutstandingPaymentsTable, useOutstandingPayments } from './outstanding-payments';
+import { OutstandingPaymentsTable, DashboardOutstandingTable, useOutstandingPayments } from './outstanding-payments';
 import { ResponsiveContainer, BarChart, Bar, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 import SalesPerformanceTrend, { useSalesPerformanceTrend } from './sales-performance-trend';
+import { useDashboardIssues, DashboardIssueTable } from './dashboard-issue-table';
 import { supabase } from '@/lib/supabaseClient';
+import { sourceKey } from './issue-board/board-model';
+import { loadBoardIssues } from './issue-board/board-data';
+import type { ViewIssue } from './issue-board/board-model';
 
 function formatRupiah(num: number) {
   if (num >= 1_000_000_000) {
@@ -19,11 +23,11 @@ function formatRupiah(num: number) {
 }
 
 const jobVacancies = [
-  { id: 1, position: 'Senior Logistics Coordinator', department: 'Logistik', quota: 2, status: 'Urgent' },
-  { id: 2, position: 'Fullstack Web Developer', department: 'IT', quota: 1, status: 'Open' },
-  { id: 3, position: 'Tax & Accounting Specialist', department: 'Finance', quota: 1, status: 'Open' },
-  { id: 4, position: 'Key Account Executive', department: 'Commercial', quota: 3, status: 'Urgent' },
-  { id: 5, position: 'Warehouse Operations Lead', department: 'Logistik', quota: 2, status: 'Open' },
+  { id: 1, position: 'Cash Manager', department: 'CCR', quota: 2, status: 'Urgent' },
+  { id: 2, position: 'Field Agent', department: 'CRM', quota: 1, status: 'Open' },
+  { id: 3, position: 'Billing', department: 'CCR', quota: 1, status: 'Open' },
+  { id: 4, position: 'Sales Executive', department: 'CRM', quota: 3, status: 'Urgent' },
+  { id: 5, position: 'HR Manager', department: 'HRMS', quota: 2, status: 'Open' },
 ];
 
 type ClientSalesRow = {
@@ -34,7 +38,11 @@ type ClientSalesRow = {
 
 function useTopPurchasingClients() {
   const [rows, setRows] = useState<ClientSalesRow[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [period, setPeriod] = useState<string>('3'); // '3', '6', 'year', 'month', 'range'
+  const [selectedYear, setSelectedYear] = useState<string>('2026');
+  const [selectedMonth, setSelectedMonth] = useState<string>('2026-05');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
 
@@ -53,7 +61,8 @@ function useTopPurchasingClients() {
           let monthStr = null;
           if (item.period_month) {
             const raw = String(item.period_month).trim();
-            monthStr = raw.length >= 7 ? raw.substring(0, 7) : raw;
+            // Menyimpan format tanggal lengkap (YYYY-MM-DD) jika tersedia, atau YYYY-MM
+            monthStr = raw.length >= 10 ? raw.substring(0, 10) : raw;
           }
 
           return {
@@ -75,13 +84,35 @@ function useTopPurchasingClients() {
     void fetchTopClients();
   }, []);
 
-  const availableMonths = Array.from(
-    new Set(rows.map((r) => r.period_month).filter((m): m is string => Boolean(m)))
+  const availableYears = Array.from(
+    new Set(rows.map((r) => r.period_month?.slice(0, 4)).filter((y): y is string => Boolean(y)))
   ).sort().reverse();
 
-  const filteredRows = selectedMonth === 'all' 
-    ? rows 
-    : rows.filter((r) => r.period_month === selectedMonth); 
+  const latestMonth = rows.at(-1)?.period_month?.slice(0, 7);
+
+  // Logika pemfilteran termasuk opsi Rentang Tanggal ('range')
+  const filteredRows = rows.filter((r) => {
+    if (!r.period_month) return false;
+    const rowDate = r.period_month; // Format 'YYYY-MM-DD' atau 'YYYY-MM'
+    const rowMonthOnly = rowDate.slice(0, 7);
+
+    if (period === 'range') {
+      if (!startDate || !endDate) return true;
+      // Normalisasi perbandingan jika period_month hanya YYYY-MM
+      const normalizedRowDate = rowDate.length === 7 ? `${rowDate}-01` : rowDate;
+      return normalizedRowDate >= startDate && normalizedRowDate <= endDate;
+    }
+    if (period === 'year') return rowMonthOnly.slice(0, 4) === selectedYear;
+    if (period === 'month') return rowMonthOnly === selectedMonth;
+
+    // Preset 3 atau 6 Bulan terakhir
+    const monthsCount = Number(period);
+    const cutoff = latestMonth ? new Date(latestMonth + '-01') : new Date();
+    cutoff.setMonth(cutoff.getMonth() - monthsCount + 1);
+    const cutoffStr = cutoff.toISOString().slice(0, 7);
+
+    return rowMonthOnly >= cutoffStr && rowMonthOnly <= (latestMonth || rowMonthOnly);
+  });
 
   function cleanCompanyName(name: string): string {
     if (!name) return 'Unknown Client';
@@ -120,8 +151,9 @@ function useTopPurchasingClients() {
     .slice(0, 4);
 
   const chartData = top4Clients.map((item) => {
-    const shortName = item.client.length > 8 
-      ? item.client.substring(0, 8) + '...' 
+    // Ubah angka 8 menjadi 15 atau 18 agar nama klien lebih panjang terlihat
+    const shortName = item.client.length > 40 
+      ? item.client.substring(0, 40) + '...' 
       : item.client;
 
     return {
@@ -135,9 +167,12 @@ function useTopPurchasingClients() {
   return {
     chartData,
     top4Clients,
-    availableMonths,
-    selectedMonth,
-    setSelectedMonth,
+    period, setPeriod,
+    selectedYear, setSelectedYear,
+    selectedMonth, setSelectedMonth,
+    startDate, setStartDate,
+    endDate, setEndDate,
+    availableYears,
     loading,
     error,
   };
@@ -146,39 +181,69 @@ function useTopPurchasingClients() {
 export default function SalesPerformance() {
   const router = useRouter();
   const trend = useSalesPerformanceTrend();
-  const outstanding = useOutstandingPayments(3); 
+  const outstanding = useOutstandingPayments(8); 
   const topClients = useTopPurchasingClients();
   const [totalEmployees, setTotalEmployees] = useState<number>(0);
   const [activeCustomers, setActiveCustomers] = useState<number>(0);
-  const [dbIssues, setDbIssues] = useState<any[]>([]);
+  const [dashboardIssues, setDashboardIssues] = useState<ViewIssue[]>([]);
   const [issuesLoading, setIssuesLoading] = useState<boolean>(true);
   const [selectedPriority, setSelectedPriority] = useState<string>('All');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('All');
   const [totalProfitVal, setTotalProfitVal] = useState<number>(0);
   const [totalOutstandingVal, setTotalOutstandingVal] = useState<number>(0);
+  const issueBoard = useDashboardIssues();
 
-  const urgentCount = dbIssues.filter(
-    (item) => item.status === 'Urgent' || (item.priority && item.priority === 'Urgent')
-  ).length;
+  const urgentCount = dashboardIssues.length;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function fetchWidgetIssues() {
+      setIssuesLoading(true);
+      try {
+        const result = await loadBoardIssues(controller.signal);
+        if (!controller.signal.aborted) {
+          setDashboardIssues(result || []);
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          console.error("Gagal memuat issue widget:", err);
+          setDashboardIssues([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIssuesLoading(false);
+        }
+      }
+    }
+    void fetchWidgetIssues();
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     async function fetchDashboardData() {
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError || !session) {
-          router.replace('/landing-page');
-          return;
+        // const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // if (sessionError || !session) {
+        //   router.replace('/landing-page');
+        //   return;
+        // }
+
+        const { data: empData, error: empErr } = await supabase
+          .from('b2_register')
+          .select('id'); // Ambil kolom kuncinya saja agar ringan
+
+        if (empErr) {
+          console.error("Error Fetch b2_register:", empErr.message);
+        } else if (empData) {
+          setTotalEmployees(empData.length); // Menghitung total baris secara akurat dari data yang diterima
         }
 
-        const { count: empCount } = await supabase.from('d3_employee').select('*', { count: 'exact', head: true });
-        if (empCount !== null) setTotalEmployees(empCount);
-
-        const { count: custCount } = await supabase.from('a1_company_list').select('*', { count: 'exact', head: true });
+        const { count: custCount } = await supabase.from('a1_customers').select('*', { count: 'exact', head: true });
         if (custCount !== null) setActiveCustomers(custCount);
 
-        setIssuesLoading(true);
-        const { data: issueData, error: issueErr } = await supabase.from('b1_vw_universal_issue').select('*');
-        if (!issueErr && issueData) setDbIssues(issueData);
+        // setIssuesLoading(true);
+        // const { data: issueData, error: issueErr } = await supabase.from('b1_vw_universal_issue').select('*');
+        // if (!issueErr && issueData) setDbIssues(issueData);
 
         const { data: profitData, error: profitError } = await supabase.from('b1_linechart').select('total_profit');
         if (!profitError && profitData) {
@@ -186,10 +251,13 @@ export default function SalesPerformance() {
           setTotalProfitVal(sumProfit);
         }
 
-        const { data: outData, error: outError } = await supabase.from('c1_company_sales_staging_rows').select('revenue');
+        const { data: outData, error: outError } = await supabase
+          .from('b1_outstanding')
+          .select('outstanding_amount'); 
+
         if (!outError && outData) {
-          const sumOut = outData.reduce((acc, row) => acc + Number(row.revenue || 0), 0);
-          setTotalOutstandingVal(sumOut * 0.25);
+          const sumOut = outData.reduce((acc, row) => acc + Number(row.outstanding_amount || 0), 0);
+          setTotalOutstandingVal(sumOut);
         }
       } catch (err) {
         console.error("Gagal mengambil data dashboard:", err);
@@ -201,23 +269,31 @@ export default function SalesPerformance() {
     void fetchDashboardData();
   }, [router]);
 
+  // Menjamin pilihan CCR, CRM, dan HRMS selalu ada di dropdown
   const availableDepartments = Array.from(
-    new Set(dbIssues.map((item) => item.source || item.department || item.reporter_department).filter(Boolean))
-  );
+    new Set([
+      'CCR', 'CRM', 'HRMS',
+      ...dashboardIssues.map((item: any) => sourceKey(item.source || item.department))
+    ])
+  ).filter((dept) => dept && dept !== 'UNKNOWN') as string[];
 
-  const filteredIssues = dbIssues.filter((item) => {
-    const itemDept = item.source || item.department || item.reporter_department || '';
-    const matchDept = selectedDepartment === 'All' || itemDept === selectedDepartment;
-    const rawPriority = item.priority ? String(item.priority).trim() : '';
-    const isUnspecified = !rawPriority || rawPriority === '-';
-
+  // Filter baris untuk widget dashboard (dibatasi 5 baris teratas)
+  const filteredIssues = dashboardIssues.filter((item: any) => {
+    const itemDept = sourceKey(item.source || item.department);
+    const matchDept = selectedDepartment === 'All' || itemDept === selectedDepartment.trim().toUpperCase();
+    
+    const rawPriority = item.priority ? String(item.priority).trim().toUpperCase() : '';
     let matchPriority = false;
     if (selectedPriority === 'All') matchPriority = true;
-    else if (selectedPriority === 'Unspecified') matchPriority = isUnspecified;
-    else matchPriority = rawPriority.toLowerCase() === selectedPriority.toLowerCase();
+    else if (selectedPriority === 'High') matchPriority = rawPriority.includes('HIGH');
+    else if (selectedPriority === 'Medium') matchPriority = rawPriority.includes('MEDIUM');
+    else if (selectedPriority === 'Low') matchPriority = rawPriority.includes('LOW');
+    else matchPriority = rawPriority === selectedPriority.toUpperCase();
 
     return matchDept && matchPriority;
   }).slice(0, 5);
+
+  const [isTopClientsPeriodOpen, setIsTopClientsPeriodOpen] = useState(false);
 
   return (
     <DashboardShell activePage="dashboard">
@@ -268,20 +344,96 @@ export default function SalesPerformance() {
 
             {/* Top Purchasing Clients (Grafik Batang Kompak) */}
             <div className="bg-white p-2.5 rounded-xl shadow-2xs border border-slate-200/80 flex flex-col flex-1 min-h-0 justify-between">
-              <div className="flex items-center justify-between gap-1 mb-0.5 shrink-0">
+              <div className="flex flex-wrap items-center justify-between gap-1 mb-0.5 shrink-0">
                 <h2 className="text-[10px] font-bold text-slate-800 uppercase tracking-wide">Top Purchasing Clients</h2>
-                <select
-                  value={topClients.selectedMonth}
-                  onChange={(e) => topClients.setSelectedMonth(e.target.value)}
-                  className="bg-slate-50 text-[8px] font-semibold text-slate-700 border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none"
-                >
-                  <option value="all">Semua Bulan</option>
-                  {topClients.availableMonths.map((m) => (
-                    <option key={m} value={m!}>
-                      {new Date(m! + 'T00:00:00').toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}
-                    </option>
-                  ))}
-                </select>
+                
+                {/* KUMPULAN KONTROL FILTER (Kecil, Kustom Dropdown, & Hover #C3C6D7) */}
+                <div className="flex flex-wrap items-center gap-1">            
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsTopClientsPeriodOpen(!isTopClientsPeriodOpen)}
+                      className="bg-white text-[9px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-3 py-1 cursor-pointer hover:bg-[#C3C6D7] transition-colors flex items-center gap-1 shadow-2xs"
+                    >
+                      <span>
+                        {{
+                          '3': 'Per 3 Bulan',
+                          '6': 'Per 6 Bulan',
+                          year: 'Per Tahun',
+                          month: 'Per Bulan',
+                          range: 'Rentang Tanggal'
+                        }[topClients.period]}
+                      </span>
+                      <span className="text-[8px]">▾</span>
+                    </button>
+
+                    {isTopClientsPeriodOpen && (
+                      <div className="absolute right-0 top-full mt-1 z-50 min-w-full bg-white border border-[#D9E2EC] rounded-xl shadow-md overflow-hidden py-1">
+                        {[
+                          ['3', 'Per 3 Bulan'],
+                          ['6', 'Per 6 Bulan'],
+                          ['year', 'Per Tahun'],
+                          ['month', 'Per Bulan'],
+                          ['range', 'Rentang Tanggal']
+                        ].map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => {
+                              topClients.setPeriod(value);
+                              setIsTopClientsPeriodOpen(false);
+                            }}
+                            className="block w-full text-left px-3 py-2 text-[9px] font-bold text-slate-700 hover:bg-[#C3C6D7] transition-colors cursor-pointer"
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Filter Tahun */}
+                  {topClients.period === 'year' && (
+                    <select
+                      value={topClients.selectedYear}
+                      onChange={(e) => topClients.setSelectedYear(e.target.value)}
+                      className="bg-white text-[9px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-3 py-1 focus:outline-none shadow-2xs cursor-pointer hover:bg-[#C3C6D7] transition-colors"
+                    >
+                      {topClients.availableYears.map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  )}
+
+                  {/* Filter Bulan */}
+                  {topClients.period === 'month' && (
+                    <input
+                      type="month"
+                      value={topClients.selectedMonth}
+                      onChange={(e) => topClients.setSelectedMonth(e.target.value)}
+                      className="bg-white text-[9px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-3 py-1 focus:outline-none shadow-2xs cursor-pointer"
+                    />
+                  )}
+
+                  {/* Filter Rentang Tanggal */}
+                  {topClients.period === 'range' && (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="date"
+                        value={topClients.startDate}
+                        onChange={(e) => topClients.setStartDate(e.target.value)}
+                        className="bg-white text-[8px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-2.5 py-1 focus:outline-none shadow-2xs cursor-pointer"
+                      />
+                      <span className="text-[8px] text-slate-500">s/d</span>
+                      <input
+                        type="date"
+                        value={topClients.endDate}
+                        onChange={(e) => topClients.setEndDate(e.target.value)}
+                        className="bg-white text-[8px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-2.5 py-1 focus:outline-none shadow-2xs cursor-pointer"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {topClients.loading ? (
@@ -295,7 +447,7 @@ export default function SalesPerformance() {
                   <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <BarChart data={topClients.chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }} barGap={3}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                      <XAxis dataKey="client" tick={{ fontSize: 9, fill: '#64748B' }} />
+                      <XAxis dataKey="client" tick={{ fontSize: 8, fill: '#64748B' }} interval={0} />
                       <YAxis tick={{ fontSize: 9, fill: '#64748B' }} />
                       <Tooltip
                         formatter={(val: unknown, name: unknown) => [
@@ -311,121 +463,106 @@ export default function SalesPerformance() {
                 </div>
               )}
             </div>
-
           </div>
 
           {/* KOLOM KANAN (LEBAR 6/12): TABEL-TABEL DATA OPERASIONAL (LEBIH RAPI & RENGGANG) */}
           <div className="lg:col-span-6 flex flex-col gap-1 flex-1 min-h-0 overflow-hidden">
             
-            {/* 1. Outstanding Payments (Padding diperlonggar & baris ditambah jadi 4 data) */}
-            <div className="bg-white p-2 rounded-xl shadow-2xs border border-slate-200/85 flex-1 min-h-0 overflow-hidden [&_.p-6]:!p-0 [&_.mb-4]:!mb-0.5 [&_table]:!text-[9px] [&_th]:!py-1 [&_td]:!py-0.5">
-              <div className="mb-1 flex items-center justify-between shrink-0">
+            {/* 1. Outstanding Payments */}
+            <div className="bg-white p-2 rounded-xl shadow-2xs border border-[#D9E2EC] flex-1 min-h-0 overflow-hidden [&_.p-6]:!p-0 [&_.mb-4]:!mb-0.5 [&_table]:!text-[9px] [&_th]:!py-1 [&_td]:!py-0.5">
+              {/* Header dengan tombol pill biru */}
+              <div className="mb-1 flex items-center justify-between shrink-0 pr-1">
                 <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">Outstanding Payments</h3>
-                <Link href="/dashboard/sales-performance" className="text-[9px] font-semibold text-violet-600 hover:underline">Lihat semua</Link>
+                <Link 
+                  href="/dashboard/sales-performance" 
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#3B6FF5] hover:bg-[#315be0] text-white rounded-full text-[9px] font-bold shadow-2xs transition-colors"
+                >
+                  <svg className="w-3 h-3 fill-none stroke-current stroke-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M3 9h18M9 3v18" />
+                  </svg>
+                  Lihat Semua
+                </Link>
               </div>
               <div className="w-full overflow-hidden">
-                <OutstandingPaymentsTable rows={outstanding.rows} tableLoading={outstanding.tableLoading} tableError={outstanding.tableError} />
+                <DashboardOutstandingTable rows={outstanding.rows} tableLoading={outstanding.tableLoading} tableError={outstanding.tableError} />
               </div>
             </div>
 
-            {/* 2. Issue Board (Padding diperlonggar, ditambah jadi 6 baris agar rapat rapi tanpa celah kosong) */}
-            <div className="bg-white p-2 rounded-xl shadow-2xs border border-slate-200/85 flex-1 min-h-0 overflow-hidden">
-              <div className="flex items-center justify-between gap-1 mb-1.5">
-                <h2 className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">
-                  <Link href="/dashboard/issue-board" className="hover:text-violet-600">Issue Board</Link>
-                </h2>
-                <div className="flex items-center gap-1">
-                  <select
-                    value={selectedDepartment}
-                    onChange={(e) => setSelectedDepartment(e.target.value)}
-                    className="bg-slate-50 text-[9px] font-semibold text-slate-700 border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none"
+            {/* 2. Issue Board */}
+            <div className="bg-white p-2 rounded-xl shadow-2xs border border-[#D9E2EC] flex-1 min-h-0 overflow-hidden">
+              <DashboardIssueTable
+                issues={dashboardIssues}
+                loading={issuesLoading}
+                error=""
+              />
+            </div>
+
+          
+            {/* 3. Require Employee & Open Positions (Disamakan persis dengan Issue Board) */}
+              <div className="bg-white p-2 rounded-xl shadow-2xs border border-[#D9E2EC] flex-1 min-h-0 overflow-hidden">
+                <div className="mb-1.5 flex items-center justify-between pr-1.5">
+                  <h2 className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">Require Employee & Open Positions</h2>
+                  <Link 
+                    href="/dashboard/job-vacancies" 
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#3B6FF5] hover:bg-[#315be0] text-white rounded-full text-[9px] font-bold shadow-2xs transition-colors"
                   >
-                    <option value="All">Dept</option>
-                    {availableDepartments.map((dept) => (
-                      <option key={dept} value={dept}>{dept}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={selectedPriority}
-                    onChange={(e) => setSelectedPriority(e.target.value)}
-                    className="bg-slate-50 text-[9px] font-semibold text-slate-700 border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none"
-                  >
-                    <option value="All">Priority</option>
-                    <option value="High">High</option>
-                    <option value="Medium">Medium</option>
-                  </select>
+                    <svg className="w-3 h-3 fill-none stroke-current stroke-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <path d="M3 9h18M9 3v18" />
+                    </svg>
+                    Lihat Semua
+                  </Link>
                 </div>
-              </div>
 
               <div className="w-full overflow-hidden">
                 <table className="w-full text-left border-collapse table-fixed">
+                  <colgroup>
+                    <col className="w-[40%]" />
+                    <col className="w-[22%]" />
+                    <col className="w-[18%]" />
+                    <col className="w-[20%]" />
+                  </colgroup>
                   <thead>
                     <tr className="bg-violet-50/80 border-b border-slate-100 text-[9px] uppercase tracking-wider text-slate-500 font-semibold">
-                      <th className="py-1.5 px-1.5 w-[22%]">Dept</th>
-                      <th className="py-1.5 px-1.5 w-[42%]">Issue</th>
-                      <th className="py-1.5 px-1.5 w-[22%]">PIC</th>
-                      <th className="py-1.5 px-1.5 w-[14%]">Status</th>
+                      <th className="py-1.5 px-1.5 truncate">Position</th>
+                      <th className="py-1.5 px-1.5 truncate">Department</th>
+                      <th className="py-1.5 px-1.5 truncate">Quota</th>
+                      <th className="py-1.5 px-1.5 truncate">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-[9px] text-slate-700">
-                    {issuesLoading ? (
-                      <tr>
-                        <td colSpan={4} className="py-1 px-1.5 text-center text-slate-400">Memuat...</td>
-                      </tr>
-                    ) : filteredIssues.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="py-1 px-1.5 text-center text-slate-400">Tidak ada isu</td>
-                      </tr>
-                    ) : (
-                      filteredIssues.slice(0, 5).map((issue, idx) => (
-                        <tr key={issue.id || idx} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="py-1 px-1.5 font-semibold text-slate-800 truncate">{issue.source || issue.department || '-'}</td>
-                          <td className="py-1 px-1.5 truncate" title={issue.issue || issue.title}>{issue.issue || issue.title || '-'}</td>
-                          <td className="py-1 px-1.5 truncate text-slate-500">{issue.pic || issue.employee_name || '-'}</td>
-                          <td className="py-1 px-1.5 truncate font-bold text-purple-600">{issue.status || 'Open'}</td>
+                  <tbody className="divide-y divide-slate-100 text-[9px] text-slate-700 bg-white">
+                    {jobVacancies.slice(0, 5).map((job) => {
+                      const isUrgent = job.status === 'Urgent';
+                      // Menggunakan titik indikator warna (merah untuk Urgent, biru/hijau untuk Open)
+                      const statusDotColor = isUrgent ? '#E11D48' : '#0284C7';
+
+                      return (
+                        <tr key={job.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="py-1 px-1.5 font-semibold text-slate-800 truncate" title={job.position}>
+                            {job.position}
+                          </td>
+                          <td className="py-1 px-1.5 text-slate-600 truncate">
+                            {job.department}
+                          </td>
+                          <td className="py-1 px-1.5 font-bold text-purple-700 truncate">
+                            {job.quota} Orang
+                          </td>
+                          <td className="py-1 px-1.5 truncate">
+                            <span className="inline-flex items-center gap-1">
+                              <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: statusDotColor }} />
+                              <span className="truncate font-medium text-slate-700" title={job.status}>
+                                {job.status}
+                              </span>
+                            </span>
+                          </td>
                         </tr>
-                      ))
-                    )}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
-
-          {/* 3. Require Employee & Open Positions (Padding & ukuran font disesuaikan agar tidak kepotong) */}
-          <div className="bg-white p-2 rounded-xl shadow-2xs border border-slate-200/85 flex-1 min-h-0 overflow-hidden">
-            <div className="mb-0.5">
-              <h2 className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">Require Employee & Open Positions</h2>
-            </div>
-
-            <div className="w-full overflow-hidden">
-              <table className="w-full text-left border-collapse table-fixed">
-                <thead>
-                  <tr className="bg-slate-100 border-b border-slate-200 text-[9px] uppercase tracking-wider text-slate-600 font-semibold">
-                    <th className="py-0.5 px-1.5 w-[45%]">Posisi Jabatan</th>
-                    <th className="py-0.5 px-1.5 w-[25%]">Dept</th>
-                    <th className="py-0.5 px-1.5 w-[15%]">Quota</th>
-                    <th className="py-0.5 px-1.5 w-[15%]">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="text-[10px] text-slate-800 divide-y divide-slate-100">
-                  {jobVacancies.slice(0, 5).map((job) => (
-                    <tr key={job.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-0.5 px-1.5 font-semibold text-slate-900 truncate" title={job.position}>{job.position}</td>
-                      <td className="py-0.5 px-1.5 text-slate-600 truncate">{job.department}</td>
-                      <td className="py-0.5 px-1.5 font-bold text-purple-700 truncate">{job.quota} Org</td>
-                      <td className="py-0.5 px-1.5 truncate">
-                        <span className={`inline-flex px-1 py-0.2 rounded text-[9px] font-bold border ${
-                          job.status === 'Urgent' ? 'text-rose-600 bg-rose-50 border-rose-200' : 'text-blue-600 bg-blue-50 border-blue-200'
-                        }`}>
-                          {job.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
           </div>
         </div>
       </div>
