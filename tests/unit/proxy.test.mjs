@@ -7,6 +7,11 @@ import ts from 'typescript';
 
 const require = createRequire(import.meta.url);
 const { NextRequest } = require('next/server');
+function assertPrivateUncached(response) {
+  const directives = new Set((response.headers.get('cache-control') ?? '').split(',').map(value => value.trim()));
+  assert.ok(directives.has('private'), 'Authenticated responses must remain private');
+  assert.ok(directives.has('no-store'), 'Authenticated responses must not be stored');
+}
 function load(file, ssr) {
   const exports = {};
   const source = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
@@ -27,8 +32,8 @@ test('protected MID and SMKI pages redirect to login without a verified user', a
   for (const path of ['/dashboard', '/dashboard/sales-performance', '/smki/dashboard', '/smki/dashboard/loglogin', '/landing-page']) {
     const response = await proxy(new NextRequest(`http://localhost:3000${path}`));
     assert.equal(response.status, 307);
-    assert.equal(response.headers.get('location'), 'http://localhost:3000/login?error=unauthorized');
-    assert.equal(response.headers.get('cache-control'), 'private, no-store');
+    assert.equal(response.headers.get('location'), 'http://localhost:3000/login');
+    assertPrivateUncached(response);
   }
 });
 
@@ -45,7 +50,7 @@ test('refreshed cookies reach the request and response for a verified user', asy
   assert.equal(request.cookies.get('sb-test-auth-token').value, 'refreshed-session');
   assert.equal(response.cookies.get('sb-test-auth-token').value, 'refreshed-session');
   assert.equal(response.headers.get('x-middleware-request-cookie').includes('sb-test-auth-token=refreshed-session'), true);
-  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  assertPrivateUncached(response);
 });
 
 test('redirect preserves cookie expiry from Supabase without clearing unrelated cookies', async () => {

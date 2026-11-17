@@ -2,6 +2,7 @@
 
 import React, { Suspense, useState, useEffect } from "react";
 import LogActivity from '@/app/smki/log-activity';
+import HistoryPagination from '@/components/history-pagination';
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getLoginDestination } from "@/lib/loginDestination";
@@ -194,7 +195,7 @@ function SmkiDashboard() {
   const [selectedStatus, setSelectedStatus] = useState<string>("All");
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [currentPageNum, setCurrentPageNum] = useState<number>(1);
+  const [requestedPageNum, setCurrentPageNum] = useState<number>(1);
   const itemsPerPage = 8;
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
@@ -240,7 +241,7 @@ function SmkiDashboard() {
     try {
       const { data, error } = await supabase
         .from("b2_register")
-        .select("*")
+        .select("id, employee_id, full_name, email, phone, departement_id, position_id, employment_status, is_active")
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -414,10 +415,11 @@ function SmkiDashboard() {
     return (b.isActive === a.isActive) ? 0 : b.isActive ? 1 : -1;
   });
 
+  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage) || 1;
+  const currentPageNum = Math.max(1, Math.min(requestedPageNum, totalPages));
   const indexOfLastItem = currentPageNum * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentEmployees = filteredEmployees.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage) || 1;
 
 
   const handleOpenStatusConfirm = (emp: Employee) => {
@@ -480,13 +482,25 @@ function SmkiDashboard() {
     const targetId = deleteConfirmEmployee.id;
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("b2_register")
         .delete()
-        .eq("id", targetId);
+        .eq("id", targetId)
+        .select("id");
 
       if (error) {
-        alert("Gagal menghapus karyawan dari database: " + error.message);
+        if (error.code === "23503" || error.code === "23001") {
+          alert("Akun belum dapat dihapus karena masih digunakan oleh data lain, misalnya KPI, absensi, atau transaksi. Gunakan fitur nonaktifkan akun dan koordinasikan dengan pemilik data terkait.");
+        } else if (error.code === "42501") {
+          alert("Akses hapus akun ditolak oleh aturan database. Hubungi pengelola akses SMKI.");
+        } else {
+          alert("Gagal menghapus karyawan dari database: " + error.message);
+        }
+        return;
+      }
+
+      if (data?.length !== 1 || data[0].id !== targetId) {
+        alert("Penghapusan belum terkonfirmasi. Akun mungkin tidak ditemukan atau akses hapus dibatasi oleh policy database. Daftar akun tidak diubah.");
         return;
       }
 
@@ -523,6 +537,7 @@ function SmkiDashboard() {
     setSelectedPosition("All");
     setSelectedDepartment("All");
     setSelectedStatus("All");
+    setCurrentPageNum(1);
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -595,7 +610,7 @@ function SmkiDashboard() {
         query = query.ilike("email", editingEmployee?.email.trim() || "");
       }
 
-      const { data, error } = await query.select();
+      const { data, error } = await query.select("id");
 
       if (error) {
         setErrorMessage("Gagal memperbarui data di Supabase: " + error.message);
@@ -864,12 +879,12 @@ function SmkiDashboard() {
                     type="text"
                     placeholder="Search by Employee's Name"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPageNum(1); }}
                     className="w-full h-9 pl-10 pr-7 bg-[#f1f3fe] text-[11px] font-medium text-slate-700 placeholder-slate-400 rounded-xl border border-transparent focus:border-purple-300 focus:bg-white focus:outline-none transition-all truncate"
                   />
                   {searchQuery && (
                     <button
-                      onClick={() => setSearchQuery("")}
+                      onClick={() => { setSearchQuery(""); setCurrentPageNum(1); }}
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
                     >
                       ✕
@@ -883,6 +898,7 @@ function SmkiDashboard() {
                   onChange={(e) => {
                     const newDept = e.target.value;
                     setSelectedDepartment(newDept);
+                    setCurrentPageNum(1);
                     if (newDept !== "All" && selectedPosition !== "All") {
                       const validDept = VALID_POSITION_DEPARTMENTS[selectedPosition];
                       if (validDept && validDept !== newDept && selectedPosition !== "Director") {
@@ -901,7 +917,7 @@ function SmkiDashboard() {
                 {/* 3. Filter Position */}
                 <select
                   value={selectedPosition}
-                  onChange={(e) => setSelectedPosition(e.target.value)}
+                  onChange={(e) => { setSelectedPosition(e.target.value); setCurrentPageNum(1); }}
                   className="h-9 px-2 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 min-w-0 truncate"
                 >
                   <option value="All">All Position</option>
@@ -915,7 +931,7 @@ function SmkiDashboard() {
                 {/* 4. Filter Status */}
                 <select
                   value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPageNum(1); }}
                   className="h-9 px-1.5 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 min-w-0 truncate"
                 >
                   <option value="All">All Status</option>
@@ -1003,99 +1019,10 @@ function SmkiDashboard() {
               )}
             </div>
 
-            {filteredEmployees.length > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "0 4px", flexShrink: 0 }}>
-                <div style={{ fontSize: "12px", color: "#64748b" }}>
-                  Showing <b>{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredEmployees.length)}</b> of <b>{filteredEmployees.length}</b> employees
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <button
-                    onClick={() => setCurrentPageNum((prev) => Math.max(prev - 1, 1))}
-                    disabled={currentPageNum === 1}
-                    style={{
-                      padding: "8px 16px",
-                      borderRadius: "10px",
-                      border: "1px solid #cbd5e1",
-                      background: currentPageNum === 1 ? "#f8fafc" : "#ffffff",
-                      color: currentPageNum === 1 ? "#94a3b8" : "#1e293b",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      cursor: currentPageNum === 1 ? "not-allowed" : "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px"
-                    }}
-                  >
-                    Previous
-                  </button>
-
-                  {(() => {
-                    let startPage = 1;
-                    if (totalPages <= 3) {
-                      startPage = 1;
-                    } else if (currentPageNum === 1) {
-                      startPage = 1;
-                    } else if (currentPageNum === totalPages) {
-                      startPage = totalPages - 2;
-                    } else {
-                      startPage = currentPageNum - 1;
-                    }
-
-                    const visiblePages = [];
-                    for (let i = startPage; i < startPage + Math.min(3, totalPages); i++) {
-                      visiblePages.push(i);
-                    }
-
-                    return visiblePages.map((pageNum) => {
-                      const isActive = currentPageNum === pageNum;
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => setCurrentPageNum(pageNum)}
-                          style={{
-                            width: "36px",
-                            height: "36px",
-                            borderRadius: "10px",
-                            border: isActive ? "none" : "1px solid #cbd5e1",
-                            background: isActive ? "#2563eb" : "#ffffff",
-                            color: isActive ? "#ffffff" : "#1e293b",
-                            fontSize: "13px",
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    });
-                  })()}
-
-                  <button
-                    onClick={() => setCurrentPageNum((prev) => Math.min(prev + 1, totalPages))}
-                    disabled={currentPageNum === totalPages}
-                    style={{
-                      padding: "8px 16px",
-                      borderRadius: "10px",
-                      border: "1px solid #cbd5e1",
-                      background: currentPageNum === totalPages ? "#f8fafc" : "#ffffff",
-                      color: currentPageNum === totalPages ? "#94a3b8" : "#1e293b",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      cursor: currentPageNum === totalPages ? "not-allowed" : "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px"
-                    }}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
+            <footer className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <p role="status" className="text-[11px] text-slate-500">Menampilkan {filteredEmployees.length ? indexOfFirstItem + 1 : 0}&ndash;{Math.min(indexOfLastItem, filteredEmployees.length)} dari {filteredEmployees.length} akun</p>
+              <HistoryPagination page={currentPageNum} totalPages={totalPages} onChange={setCurrentPageNum} label="Pagination Account Maintains" />
+            </footer>
           </div>
         )}
       </section>
