@@ -45,6 +45,9 @@ export function useSalesPerformanceTrend() {
 
   const latest = reports.at(-1)?.period_month;
   const latestYear = latest?.slice(0, 4);
+  const rangeError = period !== 'range' ? '' : !startDate || !endDate
+    ? 'Pilih tanggal mulai dan tanggal akhir.'
+    : startDate > endDate ? 'Tanggal akhir harus sama atau setelah tanggal mulai.' : '';
 
   // Logika Pemfilteran Data Berdasarkan Jenis Filter yang Dipilih
   const selected = reports.filter((row) => {
@@ -57,7 +60,7 @@ export function useSalesPerformanceTrend() {
       return rowMonth.slice(0, 7) === selectedMonth;
     }
     if (period === 'range') {
-      if (!startDate || !endDate) return true;
+      if (rangeError) return false;
       return rowMonth >= startDate && rowMonth <= endDate;
     }
 
@@ -82,16 +85,18 @@ export function useSalesPerformanceTrend() {
     selectedMonth, setSelectedMonth,
     startDate, setStartDate,
     endDate, setEndDate,
-    selected, data, latestYear, growth, range, chartLoading, chartError, retry: () => setReload((value) => value + 1) 
+    selected, data, latestYear, growth, range, rangeError, chartLoading, chartError, retry: () => setReload((value) => value + 1)
   };
 }
 
 export default function SalesPerformanceTrend({ 
     model, 
-    compact = true 
+    compact = true,
+    fitHeight = false,
   }: { 
     model: ReturnType<typeof useSalesPerformanceTrend>; 
     compact?: boolean; 
+    fitHeight?: boolean;
   }) {
   const { 
     period, setPeriod, 
@@ -99,13 +104,13 @@ export default function SalesPerformanceTrend({
     selectedMonth, setSelectedMonth,
     startDate, setStartDate,
     endDate, setEndDate,
-    data, latestYear, growth, range, chartLoading, chartError, retry 
+    data, latestYear, growth, range, rangeError, chartLoading, chartError, retry
   } = model;
 
   const [isPeriodOpen, setIsPeriodOpen] = useState(false);
 
   return (
-    <div className={`bg-white rounded-xl border border-slate-200/80 shadow-2xs flex flex-col justify-between ${compact ? 'h-full p-2' : 'p-6'}`}>
+    <div className={`bg-white rounded-xl border border-slate-200/80 shadow-2xs flex flex-col justify-between ${fitHeight ? 'h-full min-h-0 p-3' : compact ? 'h-full p-2' : 'p-6'}`}>
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-1 mb-0.5 shrink-0">
           <div>
             {/* Judul disamakan ukurannya dengan Top Purchasing Clients */}
@@ -185,6 +190,9 @@ export default function SalesPerformanceTrend({
               <div className="flex items-center gap-1">
                 <input 
                   type="date" 
+                  aria-label="Tanggal mulai grafik"
+                  aria-invalid={Boolean(startDate && endDate && rangeError)}
+                  aria-describedby={rangeError ? 'sales-range-message' : undefined}
                   value={startDate} 
                   onChange={(event) => setStartDate(event.target.value)} 
                   className="bg-slate-50 text-[8px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-2 py-1 focus:outline-none shadow-2xs"
@@ -192,6 +200,9 @@ export default function SalesPerformanceTrend({
                 <span className="text-[8px] text-slate-500">s/d</span>
                 <input 
                   type="date" 
+                  aria-label="Tanggal akhir grafik"
+                  aria-invalid={Boolean(startDate && endDate && rangeError)}
+                  aria-describedby={rangeError ? 'sales-range-message' : undefined}
                   value={endDate} 
                   onChange={(event) => setEndDate(event.target.value)} 
                   className="bg-slate-50 text-[8px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-2 py-1 focus:outline-none shadow-2xs"
@@ -205,8 +216,8 @@ export default function SalesPerformanceTrend({
           <span>Profit (dalam juta rupiah)</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-cyan-500" />Total Profit</span>
         </div>
         
-        <div className={`w-full ${compact ? 'flex-1 min-h-[85px]' : 'h-72 my-2'}`} role="group" aria-label={`Sales performance chart, ${range}`}>
-          {chartLoading ? <p role="status">Memuat grafik...</p> : chartError ? <p role="alert" className="text-sm text-red-600">{chartError}</p> : !data.length ? <p className="text-sm text-slate-500">Belum ada data grafik pada periode ini.</p> : (
+        <div className={`w-full ${fitHeight ? 'min-h-[100px] flex-1 my-1' : compact ? 'flex-1 min-h-[85px]' : 'h-72 my-2'}`} role="group" aria-label={`Sales performance chart, ${range}`}>
+          {chartLoading ? <p role="status">Memuat grafik...</p> : chartError ? <p role="alert" className="text-sm text-red-600">{chartError}</p> : rangeError ? <p id="sales-range-message" role="status" className="text-xs text-slate-500">{rangeError}</p> : !data.length ? <p className="text-sm text-slate-500">Belum ada data grafik pada periode ini.</p> : (
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <LineChart 
                 data={data} 
@@ -226,7 +237,7 @@ export default function SalesPerformanceTrend({
         <div className={`border-t border-slate-100 ${compact ? 'pt-1 mt-1' : 'pt-4 mt-6'} shrink-0`} aria-live="polite">
           {!compact && <h3 className="text-xs font-semibold text-slate-700 mb-1">Description</h3>}
           <p className={`${compact ? 'text-[8px]' : 'text-[11px]'} text-slate-500 truncate leading-tight`}>
-            {growth === null ? 'Perbandingan pertumbuhan tersedia jika terdapat minimal dua bulan profit.' : `Total profit ${growth < 0 ? 'menurun' : growth > 0 ? 'meningkat' : 'berubah'} ${Math.abs(growth).toLocaleString('id-ID', { maximumFractionDigits: 1 })}% selama periode ${range}.`}
+            {rangeError ? 'Grafik dan ringkasan profit menunggu rentang tanggal yang valid.' : growth === null ? 'Perbandingan pertumbuhan tersedia jika terdapat minimal dua bulan profit.' : `Total profit ${growth < 0 ? 'menurun' : growth > 0 ? 'meningkat' : 'berubah'} ${Math.abs(growth).toLocaleString('id-ID', { maximumFractionDigits: 1 })}% selama periode ${range}.`}
           </p>
         </div>
       {chartError && <button type="button" onClick={retry} className="mt-4 text-sm text-blue-600 cursor-pointer">Coba lagi</button>}

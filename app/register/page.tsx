@@ -68,23 +68,15 @@ export default function RegisterPage() {
     '8669bd7b-bad6-497e-8bbd-39039949224a': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Accounting Associate -> Finance
   };
   
-  // 2. Daftar Kode Resmi Direktur (Fixed) sesuai permintaan
-  const DIRECTOR_CODES = [
-    'DRT-FAT-001', // Finance, Accounting & Tax
-    'DRT-COM-001', // Commercial & Customer Success
-    'DRT-HCC-001', // Human Resources & Corporate Culture
-  ] as const;
-
   const DIRECTOR_POSITION_ID = '4acac2d4-8441-4cd8-bcd3-cf3ce4ca0ee0';
 
-  // Pemetaan kode direktur berdasarkan departemen yang dipilih
   const DIRECTOR_CODE_BY_DEPARTMENT: Record<string, string> = {
     '1653db5f-2b64-418f-b28b-68cb7b9dae8e': 'DRT-FAT-001', // Finance
     '97ac5d35-5da2-4f5d-9d36-78500f403cc7': 'DRT-COM-001', // Commercial
     '6e116b24-22fe-4b8f-be7e-2159b99022bd': 'DRT-HCC-001', // Human Resources
   };
 
-  // 3. Fungsi Generate ID & Pengecekan Kuota Direktur
+  // 3. Fungsi Generate ID menggunakan RPC Database (Aman dari RLS)
   const generateNextEmployeeId = async (
     selectedDepartmentId: string,
     selectedPositionId: string
@@ -98,7 +90,6 @@ export default function RegisterPage() {
         throw new Error('Departemen yang dipilih untuk posisi Direktur tidak memiliki alokasi kode resmi.');
       }
 
-      // Cek apakah kode direktur khusus departemen ini sudah terdaftar di database
       const { data: existingDir, error: checkError } = await supabase
         .from('b2_register')
         .select('employee_id')
@@ -114,28 +105,17 @@ export default function RegisterPage() {
       return specificDirCode;
     }
 
-    // B. Jika Karyawan Biasa: Ambil Prefiks Berdasarkan Departemen
+    // Karyawan Biasa: Memanggil fungsi RPC PostgreSQL
     const prefix = DEPARTMENT_PREFIX_MAP[selectedDepartmentId] || 'AND';
 
-    const { data, error } = await supabase
-      .from('b2_register')
-      .select('employee_id')
-      .like('employee_id', `${prefix}-%`)
-      .order('created_at', { ascending: false })
-      .limit(1);
+    const { data: nextId, error: rpcError } = await supabase
+      .rpc('get_next_employee_id', { dept_prefix: prefix });
 
-    if (error) throw new Error('Gagal menyiapkan ID registrasi: ' + error.message);
+    if (rpcError || !nextId) {
+      throw new Error('Gagal men-generate ID registrasi: ' + (rpcError?.message || 'Unknown error'));
+    }
 
-    if (!data?.length) return `${prefix}-001`;
-
-    const lastId = data[0].employee_id ?? '';
-    const regex = new RegExp(`^${prefix}-(\\d+)$`);
-    const match = regex.exec(lastId);
-
-    if (!match) return `${prefix}-001`;
-
-    const nextNumber = Number(match[1]) + 1;
-    return `${prefix}-${String(nextNumber).padStart(3, '0')}`;
+    return nextId;
   };
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -149,7 +129,6 @@ export default function RegisterPage() {
 
       const errors: FieldErrors = {};
 
-      // Validasi Full Name
       const nameRegex = /^[a-zA-Z\s]+$/;
       if (!fullName.trim()) {
         errors.fullName = 'Full name is required.';
@@ -159,7 +138,6 @@ export default function RegisterPage() {
         errors.fullName = 'Full name must contain letters and spaces only.';
       }
 
-      // Validasi Email
       const emailLower = email.trim().toLowerCase();
       if (!email.trim()) {
         errors.email = 'Email address is required.';
@@ -169,7 +147,6 @@ export default function RegisterPage() {
         errors.email = 'Email address must use the domain @andima.co.id';
       }
 
-      // Validasi Password
       const cleanPassword = password ? password.trim() : "";
       const hasLetter = /[a-zA-Z]/.test(cleanPassword);
       const hasNumber = /\d/.test(cleanPassword);
@@ -186,7 +163,6 @@ export default function RegisterPage() {
           'Password must include letters, numbers, and special characters.';
       }
 
-      // Validasi Phone
       const phoneDigitsOnly = /^\d+$/;
       if (!phone.trim()) {
         errors.phone = 'Phone number is required.';
@@ -196,25 +172,21 @@ export default function RegisterPage() {
         errors.phone = 'Phone number cannot exceed 12 digits.';
       }
 
-      // Validasi Employment Status
       if (!employmentStatus) {
         errors.employmentStatus = 'Please select employment status.';
       }
 
-      // Validasi Position
       if (!positionId) {
         errors.positionId = 'Please select a position.';
       }
 
-      // Validasi Department
       if (!departementId) {
         errors.departementId = 'Please select a department.';
       }
 
-      // --- VALIDASI RELEVANSI POSISI & DEPARTEMEN ---
-      const DIRECTOR_POSITION_ID = '4acac2d4-8441-4cd8-bcd3-cf3ce4ca0ee0';
+      const DIRECTOR_POSITION_ID_CHECK = '4acac2d4-8441-4cd8-bcd3-cf3ce4ca0ee0';
 
-      if (positionId && departementId && positionId !== DIRECTOR_POSITION_ID) {
+      if (positionId && departementId && positionId !== DIRECTOR_POSITION_ID_CHECK) {
       const expectedDepartmentId = VALID_POSITION_DEPARTMENTS[positionId];
       if (expectedDepartmentId && expectedDepartmentId !== departementId) {
         errors.positionId = 'Selected position does not match the department.';
@@ -222,7 +194,6 @@ export default function RegisterPage() {
       }
     }
       
-      // Kalau validasi gagal
       if (Object.keys(errors).length > 0) {
         setFieldErrors(errors);
         setGeneralError('Please fix the errors below before submitting.');
@@ -233,10 +204,10 @@ export default function RegisterPage() {
       setIsLoading(true);
 
       try {
-        // 1. Generate Employee ID
+        // 1. Generate Employee ID via RPC Database
         const autoEmployeeId = await generateNextEmployeeId(departementId, positionId);
 
-        // 2. Buat akun Supabase Auth (diubah: tangkap data untuk mengambil UUID)
+        // 2. Buat akun Supabase Auth
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: emailLower,
           password: password,
@@ -252,13 +223,12 @@ export default function RegisterPage() {
           throw new Error('Registration failed: ' + authError.message);
         }
 
-        // Ambil ID user dari auth
         const userId = authData?.user?.id;
         if (!userId) {
           throw new Error('User ID tidak ditemukan setelah pendaftaran auth.');
         }
 
-        // 3. Simpan data ke b2_register (diubah: tambahkan id: userId bertipe UUID)
+        // 3. Simpan data ke b2_register
         const { error: dbError } = await supabase
           .from('b2_register')
           .insert([
@@ -279,7 +249,6 @@ export default function RegisterPage() {
           throw new Error('Gagal menyimpan ke b2_register: ' + dbError.message);
         }
 
-        // 4. Berhasil
         if (authData.session) {
           trackActivity('Create', `Berhasil mendaftarkan akun karyawan baru: ${fullName.trim()} (${emailLower}).`);
         }
@@ -288,7 +257,7 @@ export default function RegisterPage() {
         );
 
         setTimeout(() => {
-          router.replace('/smki/dashboard'); // Kembali ke SMKI Dashboard!
+          router.replace('/smki/dashboard');
         }, 1500);
 
       } catch (err: unknown) {
@@ -302,14 +271,12 @@ export default function RegisterPage() {
         setIsLoading(false);
       }
     };
+
   return (
     <main className="relative h-dvh w-full overflow-x-hidden overflow-y-auto bg-[#07111F] text-[#172033] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {/* CONTAINER FORM REGISTRASI */}
       <div className="w-full min-h-full lg:w-1/2 min-w-0 flex flex-col justify-center p-4 sm:p-8 lg:p-10 relative z-10">
         <div className="w-full max-w-2xl shrink-0 mx-auto p-6 sm:p-9 rounded-3xl bg-gradient-to-b from-white/85 via-white/70 to-white/60 backdrop-blur-2xl border border-white/80 shadow-[0_20px_50px_rgba(7,17,31,0.5),inset_0_2px_4px_rgba(255,255,255,0.9)] relative overflow-hidden">
         
-        {/* 3. FORM LOGIN CONTAINER */}
-          {/* Greeting */}
             <div className="mb-7 text-left relative z-10">
               <h2 className="font-[family-name:var(--font-syne)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
                 {greeting},
@@ -319,10 +286,8 @@ export default function RegisterPage() {
               </p>
             </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} noValidate className="space-y-3.5 sm:space-y-4 w-full relative z-10">
             
-            {/* Full Name */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
                 Full Name
@@ -342,7 +307,6 @@ export default function RegisterPage() {
               {fieldErrors.fullName && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.fullName}</p>}
             </div>
 
-            {/* Email Address */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
                 Email Address
@@ -362,7 +326,6 @@ export default function RegisterPage() {
               {fieldErrors.email && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.email}</p>}
             </div>
 
-            {/* Password */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
                 Password
@@ -405,7 +368,6 @@ export default function RegisterPage() {
               {fieldErrors.password && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.password}</p>}
             </div>
 
-            {/* Phone Number */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
                 Phone Number
@@ -425,7 +387,6 @@ export default function RegisterPage() {
               {fieldErrors.phone && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.phone}</p>}
             </div>
 
-            {/* Employment Status */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
                 Employment Status
@@ -447,10 +408,7 @@ export default function RegisterPage() {
               {fieldErrors.employmentStatus && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.employmentStatus}</p>}
             </div>
 
-            {/* Grid Department & Position (Ditukar: Departemen di Kiri, Posisi di Kanan) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              
-              {/* 1. Department (Pindah ke Kiri) */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
                   Department
@@ -460,7 +418,6 @@ export default function RegisterPage() {
                   onChange={(e: ChangeEvent<HTMLSelectElement>) => {
                     const newDept = e.target.value;
                     setDepartementId(newDept);
-                    // Reset posisi jika departemen diubah agar sinkron/bersih
                     setPositionId('');
                     if (fieldErrors.departementId) setFieldErrors((prev) => ({ ...prev, departementId: undefined }));
                   }}
@@ -477,7 +434,6 @@ export default function RegisterPage() {
                 {fieldErrors.departementId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.departementId}</p>}
               </div>
 
-              {/* 2. Position (Pindah ke Kanan, Opsi Difilter Berdasarkan Departemen) */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
                   Position
@@ -494,10 +450,8 @@ export default function RegisterPage() {
                 >
                   <option value="">Select Position</option>
                   
-                  {/* Opsi Director selalu muncul untuk semua departemen */}
                   <option value={DIRECTOR_POSITION_ID}>Director</option>
 
-                  {/* Human Resources */}
                   {(!departementId || departementId === '6e116b24-22fe-4b8f-be7e-2159b99022bd') && (
                     <>
                     <option value="446c8f5a-e923-4668-924d-75e28002fa03">HR Manager</option>
@@ -505,12 +459,10 @@ export default function RegisterPage() {
                     </>
                   )}
 
-                  {/* Information Technology */}
                   {(!departementId || departementId === '8113ab6f-d5cc-4c94-bbf6-e08047931fab') && (
                     <option value="265c9357-105c-437c-a244-6897122f17c1">Information Technology</option>
                   )}
 
-                  {/* Finance, Accounting & Tax */}
                   {(!departementId || departementId === '1653db5f-2b64-418f-b28b-68cb7b9dae8e') && (
                     <>
                       <option value="8669bd7b-bad6-497e-8bbd-39039949224a">Accounting Associate</option>
@@ -524,7 +476,6 @@ export default function RegisterPage() {
                     </>
                   )}
 
-                  {/* Commercial & Customer Success */}
                   {(!departementId || departementId === '97ac5d35-5da2-4f5d-9d36-78500f403cc7') && (
                     <>
                       <option value="bc015ef6-0515-4875-a15d-0f38dbf3d2c3">Sales Executive</option>
@@ -537,7 +488,6 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Error / Success Banner */}
             {generalError && (
               <div role="alert" className="p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 text-xs sm:text-sm font-semibold">
                 {generalError}
@@ -550,7 +500,6 @@ export default function RegisterPage() {
               </div>
             )}
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading || Boolean(successMessage)}
@@ -564,7 +513,6 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          {/* Login Link */}
           <div className="text-center text-xs sm:text-sm text-[#172033] pt-4 relative z-15 font-medium">
             Already have an account?{' '}
             <Link
@@ -577,30 +525,24 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* 2. BRAND TEXT (TITLE) MENGGUNAKAN FONT SYNE */}
-            <div className="hidden md:flex absolute top-1/2 -translate-y-1/2 right-8 lg:right-16 xl:right-24 z-20 pointer-events-none flex-col items-end text-right max-w-lg">
-              
-              {/* Logo ANDIMA di Luar Frame */}
-              <div className="w-32 sm:w-40 lg:w-48 mb-4">
-                <img
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png"
-                  alt="Logo ANDIMA"
-                  width={400}
-                  height={246}
-                  className="w-full h-auto object-contain drop-shadow-lg"
-                />
-              </div>
-              {/* Frame Transparan #0F2342 */}
-              {/* Frame Transparan dengan Warna #0F2342 */}
-              <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
-                PT. ANDIMA<br />
-                <span className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
-                  TRANSPORTINDO
-                </span>
-              </h1>
-          </div>
+      <div className="hidden md:flex absolute top-1/2 -translate-y-1/2 right-8 lg:right-16 xl:right-24 z-20 pointer-events-none flex-col items-end text-right max-w-lg">
+        <div className="w-32 sm:w-40 lg:w-48 mb-4">
+          <img
+            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png"
+            alt="Logo ANDIMA"
+            width={400}
+            height={246}
+            className="w-full h-auto object-contain drop-shadow-lg"
+          />
+        </div>
+        <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
+          PT. ANDIMA<br />
+          <span className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
+            TRANSPORTINDO
+          </span>
+        </h1>
+      </div>
 
-      {/* BACKGROUND IMAGE LOGISTICS */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <img
           src="https://images.unsplash.com/photo-1578575437130-527eed3abbec?q=80&w=1600&auto=format&fit=crop"
@@ -611,6 +553,5 @@ export default function RegisterPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-[#07111F] via-transparent to-transparent pointer-events-none" />
       </div>
     </main>
-
   );
 }
