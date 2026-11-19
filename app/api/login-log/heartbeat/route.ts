@@ -13,9 +13,25 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Tidak terautentikasi.' }, { status: 401 });
     }
 
+    // b3_log_login.register_id stores b2_register.id, not necessarily Auth's user.id.
+    let { data: register, error: registerError } = await admin.from('b2_register')
+      .select('id').eq('auth_user_id', user.id).maybeSingle();
+    if (!register && !registerError) {
+      ({ data: register, error: registerError } = await admin.from('b2_register')
+        .select('id').eq('id', user.id).maybeSingle());
+    }
+    if (!register && !registerError && user.email) {
+      ({ data: register, error: registerError } = await admin.from('b2_register')
+        .select('id').ilike('email', user.email).maybeSingle());
+    }
+    if (registerError || !register) {
+      console.error('Akun b2_register untuk sesi MID tidak ditemukan.');
+      return Response.json({ success: true, logged: false });
+    }
+
     const { data: login, error: findError } = await admin.from('b3_log_login')
       .select('id')
-      .eq('register_id', user.id)
+      .eq('register_id', register.id)
       .is('waktu_logout', null)
       .order('created_at', { ascending: false })
       .limit(1)

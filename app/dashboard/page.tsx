@@ -492,9 +492,9 @@ export default function SalesPerformance() {
             {/* 2. Issue Board */}
             <div className="bg-white p-2 rounded-xl shadow-2xs border border-[#D9E2EC] flex-1 min-h-0 overflow-hidden">
               <DashboardIssueTable
-                issues={dashboardIssues}
-                loading={issuesLoading}
-                error=""
+                issues={issueBoard.issues}
+                loading={issueBoard.loading}
+                error={issueBoard.error}
               />
             </div>
 

@@ -98,7 +98,7 @@ export function DashboardIssueTable({
               const dotColor = sourceColor(issue.source || issue.department);
 
               return (
-                <tr key={issue.issue_code || issue.id || idx} className="hover:bg-slate-50/60 transition-colors">
+                <tr key={`${issue.source || issue.department || 'issue'}:${issue.reference_code || issue.id || 'unknown'}:${idx}`} className="hover:bg-slate-50/60 transition-colors">
                   {/* Kolom Department */}
                   <td className="py-1 px-1 truncate font-semibold text-slate-800">
                     <span className="inline-flex items-center gap-1">

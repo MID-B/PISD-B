@@ -74,10 +74,10 @@ export function filterBoard(issues: ViewIssue[], filters: BoardFilters) {
 }
 export function searchBoard(issues: ViewIssue[], search: string) {
   const term = search.trim().toLocaleLowerCase('id-ID');
-  return issues.filter((issue) => !term || [issue.issue_code, issue.issue]
+  return issues.filter((issue) => !term || [issue.reference_code, issue.issue]
     .some((value) => value?.toLocaleLowerCase('id-ID').includes(term)));
 }
-export type SortColumn = 'issue_code' | 'source' | 'issue' | 'pic_name' | 'date' | 'priority' | 'due_date' | 'status';
+export type SortColumn = 'reference_code' | 'source' | 'issue' | 'pic_name' | 'date' | 'priority' | 'due_date' | 'status';
 export type BoardSort = { column: SortColumn; ascending: boolean };
 export function sortBoard(issues: ViewIssue[], sort: BoardSort) {
   return [...issues].sort((a, b) => {
@@ -89,18 +89,33 @@ export function sortBoard(issues: ViewIssue[], sort: BoardSort) {
     } else {
       comparison = (a[sort.column] ?? '').localeCompare(b[sort.column] ?? '', 'id', { sensitivity: 'base', numeric: true });
     }
-    return (sort.ascending ? comparison : -comparison) || `${a.source}:${a.issue_code}`.localeCompare(`${b.source}:${b.issue_code}`);
+    return (sort.ascending ? comparison : -comparison) || `${a.source}:${a.reference_code}`.localeCompare(`${b.source}:${b.reference_code}`);
   });
 }
 const percent = (count: number, total: number) => total ? count / total * 100 : 0;
 function dayDistance(start: string, end: string) {
   return Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / DAY);
 }
+type DueDateBucket = 'ON_TRACK' | 'DUE_SOON' | 'OVERDUE' | 'NO_DUE_DATE';
+function dueDateBucket(dueDate: string | null, today: string): DueDateBucket {
+  const dueDay = issueDay(dueDate);
+  if (!dueDay) return 'NO_DUE_DATE';
+
+  const daysUntilDue = dayDistance(today, dueDay);
+  if (daysUntilDue < 0) return 'OVERDUE';
+  if (daysUntilDue <= 2) return 'DUE_SOON';
+  return 'ON_TRACK';
+}
 export function summarizeBoard(issues: ViewIssue[], today: string) {
   const statuses = STATUSES.map((status) => ({ ...status, count: issues.filter((issue) => normalizeStatus(issue.status) === status.name).length }));
   const sourceCounts = new Map<string, number>();
   for (const issue of issues) { const source = sourceKey(issue.source); sourceCounts.set(source, (sourceCounts.get(source) ?? 0) + 1); }
-  const sources = [...sourceCounts].sort(([a], [b]) => a.localeCompare(b)).map(([label, count]) => ({ label, count, color: sourceColor(label) }));
+  const sourceLabels = new Set(['CCR', 'CRM', 'HRMS', ...sourceCounts.keys()]);
+  const sources = [...sourceLabels].sort((a, b) => a.localeCompare(b)).map((label) => ({
+    label,
+    count: sourceCounts.get(label) ?? 0,
+    color: sourceColor(label),
+  }));
   const priorities = [...PRIORITIES.map((priority) => ({ ...priority, count: issues.filter((issue) => priorityKey(issue.priority) === priority.key).length }))];
   const otherPriorities = issues.filter((issue) => !PRIORITIES.some((priority) => priority.key === priorityKey(issue.priority))).length;
   const unresolved = issues.filter((issue) => normalizeStatus(issue.status) !== 'DONE');
@@ -110,26 +125,25 @@ export function summarizeBoard(issues: ViewIssue[], today: string) {
     { label: '15–30 Days', color: '#fb923c', count: 0 },
     { label: 'More than 30 Days', color: '#f87171', count: 0 },
   ];
-  let unknownReceived = 0, futureReceived = 0, onTrack = 0, dueSoon = 0, overdue = 0, noDueDate = 0;
+  let unknownReceived = 0, futureReceived = 0, onTrack = 0, dueSoon = 0, overdue = 0;
+  const noDueDate = issues.filter((issue) => dueDateBucket(issue.due_date, today) === 'NO_DUE_DATE').length;
   for (const issue of unresolved) {
-    const received = issueDay(issue.date);
-    if (!received) unknownReceived++;
-    else {
-      const days = dayDistance(received, today);
-      if (days < 0) futureReceived++;
-      else aging[days <= 7 ? 0 : days <= 14 ? 1 : days <= 30 ? 2 : 3].count++;
+    const bucket = dueDateBucket(issue.due_date, today);
+    if (bucket === 'OVERDUE') {
+      overdue++;
+      const received = issueDay(issue.date);
+      if (!received) unknownReceived++;
+      else {
+        const days = dayDistance(received, today);
+        if (days < 0) futureReceived++;
+        else aging[days <= 7 ? 0 : days <= 14 ? 1 : days <= 30 ? 2 : 3].count++;
+      }
     }
-    const due = issueDay(issue.due_date);
-    if (!due) noDueDate++;
-    else {
-      const days = dayDistance(today, due);
-      if (days < 0) overdue++;
-      else if (days <= 2) dueSoon++;
-      else onTrack++;
-    }
+    else if (bucket === 'DUE_SOON') dueSoon++;
+    else if (bucket === 'ON_TRACK') onTrack++;
   }
   const datedCount = onTrack + dueSoon + overdue;
   return { total: issues.length, statuses, sources, priorities, otherPriorities, unresolved: unresolved.length,
     unknownStatus: issues.length - statuses.reduce((sum, status) => sum + status.count, 0), aging, unknownReceived, futureReceived,
-    onTrack, dueSoon, overdue, noDueDate, datedCount, onTrackPercent: datedCount ? percent(onTrack, datedCount) : null };
+    onTrack, dueSoon, overdue, noDueDate, datedCount, onTrackPercent: percent(onTrack, datedCount) };
 }

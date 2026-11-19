@@ -134,8 +134,8 @@ export async function recordLogin(): Promise<void> {
       position_id,
       departement_id
     `)
-    .ilike("email", user.email)
-    .single();
+    .eq("id", user.id)
+    .maybeSingle();
 
   if (registerError || !register) {
     throw new Error(
@@ -144,44 +144,20 @@ export async function recordLogin(): Promise<void> {
     );
   }
 
-  if (!register.position_id) {
-    throw new Error(
-      "Profil pengguna belum memiliki position_id di b2_register."
-    );
+  // Nama posisi/departemen hanya data pelengkap. Jangan gagalkan pencatatan
+  // login jika relasi profil kosong atau tabel referensi dibatasi oleh RLS.
+  let positionTitle: string | null = null;
+  if (register.position_id) {
+    const { data } = await supabase.from("d3_positions")
+      .select("title").eq("id", register.position_id).maybeSingle();
+    positionTitle = data?.title ?? null;
   }
 
-  if (!register.departement_id) {
-    throw new Error(
-      "Profil pengguna belum memiliki departement_id di b2_register."
-    );
-  }
-
-  const { data: positionData, error: positionError } = await supabase
-    .from("d3_positions")
-    .select("title")
-    .eq("id", register.position_id)
-    .maybeSingle();
-
-  if (positionError || !positionData?.title) {
-    throw new Error(
-      `Gagal membaca posisi dari d3_positions: ${positionError?.message ??
-      "posisi tidak ditemukan atau tidak diizinkan oleh RLS/Data API"
-      }`
-    );
-  }
-
-  const { data: departmentData, error: departmentError } = await supabase
-    .from("d3_departments")
-    .select("name")
-    .eq("id", register.departement_id)
-    .maybeSingle();
-
-  if (departmentError || !departmentData?.name) {
-    throw new Error(
-      `Gagal membaca departemen dari d3_departments: ${departmentError?.message ??
-      "departemen tidak ditemukan atau tidak diizinkan oleh RLS/Data API"
-      }`
-    );
+  let departmentName: string | null = null;
+  if (register.departement_id) {
+    const { data } = await supabase.from("d3_departments")
+      .select("name").eq("id", register.departement_id).maybeSingle();
+    departmentName = data?.name ?? null;
   }
 
   const loginTime = getJakartaDateTime();
@@ -193,8 +169,8 @@ export async function recordLogin(): Promise<void> {
         register_id: register.id,
         nama: register.full_name,
         email: register.email,
-        position: positionData.title,
-        departement: departmentData.name,
+        position: positionTitle,
+        departement: departmentName,
         tanggal_login: loginTime.tanggal,
         waktu_login: loginTime.waktu,
         tanggal_logout: null,

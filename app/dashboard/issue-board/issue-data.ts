@@ -100,7 +100,7 @@ export const issues = [...fallbackIssues.hrms, ...fallbackIssues.crm, ...fallbac
 // pakai ini untuk memanggil b1_vw_universal_issue
 export type UniversalIssue = {
   source: string | null;
-  issue_code: string | null;
+  reference_code: string | null;
   issue: string | null;
   description: string | null;
   note: string | null;
@@ -112,14 +112,23 @@ export type UniversalIssue = {
   pic_name: string | null;
 };
 
-export async function fetchUniversalIssues() {
-  const { data, error } = await supabase
-    .from('b1_vw_universal_issue')
-    .select('*')
-    .order('date', { ascending: false });
+export async function fetchUniversalIssues(signal?: AbortSignal) {
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) return { data: null, error: sessionError };
+  if (!session) return { data: null, error: new Error('Sesi login tidak ditemukan.') };
 
-  return {
-    data: (data ?? []) as UniversalIssue[],
-    error,
-  };
+  try {
+    const response = await fetch('/api/issue-board', {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      cache: 'no-store',
+      signal,
+    });
+    const result = await response.json() as { data?: UniversalIssue[]; error?: string };
+    if (!response.ok) {
+      return { data: null, error: new Error(result.error || 'Gagal memuat Issue Board.') };
+    }
+    return { data: result.data ?? [], error: null };
+  } catch {
+    return { data: null, error: new Error('Tidak dapat terhubung ke API Issue Board.') };
+  }
 }

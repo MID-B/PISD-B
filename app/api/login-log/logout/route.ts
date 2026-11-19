@@ -23,9 +23,29 @@ export async function POST(request: Request) {
     const { data: { user }, error: authError } = await admin.auth.getUser(token);
     if (authError || !user) return Response.json({ error: 'Tidak terautentikasi.' }, { status: 401 });
 
+    // b3_log_login.register_id stores b2_register.id, which may differ from Auth's user.id.
+    let { data: register, error: registerError } = await admin.from('b2_register')
+      .select('id').eq('auth_user_id', user.id).maybeSingle();
+    if (!register && !registerError) {
+      ({ data: register, error: registerError } = await admin.from('b2_register')
+        .select('id').eq('id', user.id).maybeSingle());
+    }
+    if (!register && !registerError && user.email) {
+      ({ data: register, error: registerError } = await admin.from('b2_register')
+        .select('id').ilike('email', user.email).maybeSingle());
+    }
+    if (registerError || !register) {
+      console.error('Akun b2_register untuk sesi MID tidak ditemukan.');
+      return Response.json({ success: true, logged: false });
+    }
+
+    const logoutTime = getJakartaLogoutTime();
+    // MID returns to the landing page without ending Auth, so a user can leave
+    // and re-enter the dashboard several times in one day. Always update that
+    // day's single login row, even when a prior logout time is already present.
     const { data: login, error: findError } = await admin.from('b3_log_login')
-      .select('id').eq('register_id', user.id).is('waktu_logout', null)
-      .order('tanggal_login', { ascending: false }).order('waktu_login', { ascending: false })
+      .select('id').eq('register_id', register.id).eq('tanggal_login', logoutTime.tanggal)
+      .order('waktu_login', { ascending: false })
       .limit(1).maybeSingle();
     if (findError) {
       console.error('Gagal mencari sesi terbuka Log Login.', { code: findError.code });
@@ -33,11 +53,10 @@ export async function POST(request: Request) {
     }
     if (!login) return Response.json({ success: true, logged: false });
 
-    const logoutTime = getJakartaLogoutTime();
     const { error: updateError } = await admin.from('b3_log_login').update({
       tanggal_logout: logoutTime.tanggal,
       waktu_logout: logoutTime.waktu,
-    }).eq('id', login.id).is('waktu_logout', null);
+    }).eq('id', login.id);
     if (updateError) {
       console.error('Gagal memperbarui logout Log Login.', { code: updateError.code });
       return Response.json({ success: true, logged: false });

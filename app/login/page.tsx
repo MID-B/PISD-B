@@ -22,14 +22,14 @@ function LoginContent() {
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [isPermanentlyBlocked, setIsPermanentlyBlocked] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<number>(0);
-  const [greeting, setGreeting] = useState<string>('Good Morning'); 
+  const [greeting, setGreeting] = useState<string>('Good Morning');
   const [showPopup, setShowPopup] = useState<boolean>(false);
 
   useEffect(() => {
     const errorParam = searchParams.get('error');
     if (errorParam === 'unauthorized') {
       setShowPopup(true);
-      
+
       // Otomatis tutup pop-up setelah 5 detik (opsional)
       const timer = setTimeout(() => {
         setShowPopup(false);
@@ -223,7 +223,7 @@ function LoginContent() {
             <h4 className="font-bold text-xs tracking-wide uppercase font-[family-name:var(--font-poppins)]">Akses Ditolak</h4>
             <p className="text-xs text-rose-100 font-medium mt-0.5">Silakan login terlebih dahulu untuk mengakses Dashboard.</p>
           </div>
-          <button 
+          <button
             type="button"
             onClick={() => setShowPopup(false)}
             className="ml-2 text-rose-200 hover:text-white font-bold text-base transition-colors"
@@ -250,7 +250,7 @@ function LoginContent() {
 
       {/* 2. BRAND TEXT (TITLE) MENGGUNAKAN FONT SYNE */}
       <div className="hidden md:flex absolute top-1/2 -translate-y-1/2 right-8 lg:right-16 xl:right-24 z-20 pointer-events-none flex-col items-end text-right max-w-lg">
-        
+
         {/* Logo ANDIMA di Luar Frame */}
         <div className="w-32 sm:w-40 lg:w-48 mb-4">
           <img
@@ -262,12 +262,12 @@ function LoginContent() {
           />
         </div>
         {/* Frame Transparan dengan Warna #0F2342 */}
-          <h1 className="font-[family-name:var(--font-poppins)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
-            PT. ANDIMA<br />
-            <span className="font-[family-name:var(--font-poppins)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
-              TRANSPORTINDO
-            </span>
-          </h1>
+        <h1 className="font-[family-name:var(--font-poppins)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
+          PT. ANDIMA<br />
+          <span className="font-[family-name:var(--font-poppins)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
+            TRANSPORTINDO
+          </span>
+        </h1>
       </div>
 
       {/* 3. FORM LOGIN CONTAINER */}
@@ -275,8 +275,8 @@ function LoginContent() {
         <div className="w-full max-w-xl">
 
           {/* FRAME LIQUID GLASS */}
-           <div className="p-5 sm:p-7 rounded-3xl bg-gradient-to-b from-white/85 via-white/70 to-white/60 backdrop-blur-2xl border border-white/80 shadow-[0_20px_50px_rgba(7,17,31,0.5),inset_0_2px_4px_rgba(255,255,255,0.9)] relative overflow-y-auto max-h-[92vh] [scrollbar-width:none]">
-            
+          <div className="p-5 sm:p-7 rounded-3xl bg-gradient-to-b from-white/85 via-white/70 to-white/60 backdrop-blur-2xl border border-white/80 shadow-[0_20px_50px_rgba(7,17,31,0.5),inset_0_2px_4px_rgba(255,255,255,0.9)] relative overflow-y-auto max-h-[92vh] [scrollbar-width:none]">
+
             {/* Top Liquid Highlight Specular Glow */}
             <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-3/4 h-32 bg-gradient-to-b from-white/80 to-transparent blur-md pointer-events-none rounded-full" />
 
@@ -372,9 +372,16 @@ function LoginContent() {
                 {isPermanentlyBlocked
                   ? 'ACCOUNT BLOCKED'
                   : isLocked
-                  ? `Please wait ${countdown}s`
-                  : isSigningIn ? 'SIGNING IN…' : 'LOGIN'}
+                    ? `Please wait ${countdown}s`
+                    : isSigningIn ? 'SIGNING IN…' : 'LOGIN'}
               </button>
+
+              <Link
+                href="/forgot-password"
+                className="block text-sm font-medium text-[#008CFF] hover:underline"
+              >
+                Forgot password?
+              </Link>
             </form>
           </div>
         </div>
