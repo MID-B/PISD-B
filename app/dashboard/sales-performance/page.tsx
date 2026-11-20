@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Search, X } from 'lucide-react';
+import { Table2, Search, X } from 'lucide-react';
 import Pagination from '@/components/pagination';
 import DashboardShell from '../dashboard-shell';
 import { OutstandingPaymentsTable, useOutstandingPayments, type OutstandingSort, type OutstandingSortColumn } from '../outstanding-payments';
@@ -9,8 +9,8 @@ import SalesPerformanceTrend, { useSalesPerformanceTrend } from '../sales-perfor
 import { compactRupiah, matchesOutstandingSearch, summarizeSales } from './summary';
 
 const ROWS_PER_PAGE = 5;
-const panelClass = 'rounded-2xl border border-slate-200/80 bg-white p-3 shadow-xs sm:p-3.5';
-const summaryCardClass = 'rounded-2xl border bg-gradient-to-br p-3 shadow-xs sm:p-3.5';
+const panelClass = 'min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs';
+const summaryCardClass = 'flex flex-col justify-between rounded-xl border p-3.5';
 
 export default function SalesPerformance() {
   const trend = useSalesPerformanceTrend();
@@ -58,65 +58,63 @@ export default function SalesPerformance() {
   return (
     <DashboardShell activePage="sales-performance">
       <div className="space-y-4">
-        <div aria-label="Sales Performance overview" className={`grid gap-3 lg:min-h-[calc(100dvh-104px)] ${trend.period === 'range' ? 'lg:grid-rows-[auto_minmax(300px,1fr)_auto]' : 'lg:grid-rows-[auto_minmax(260px,1fr)_auto]'}`}>
-        <section aria-label="Ringkasan Sales Performance" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className={`${summaryCardClass} from-emerald-50 to-emerald-100/60 border-emerald-200/60`}>
-            <p className="text-xs font-bold text-emerald-700">Total Profit</p>
-            <p className="mt-1 text-xl font-extrabold text-emerald-900">{profitValue(summary.profit)}</p>
-            <p className={`mt-1 text-[11px] ${trend.growth !== null && trend.growth < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{!trend.chartLoading && !trend.chartError && trend.growth !== null ? `${trend.growth > 0 ? '+' : ''}${trend.growth.toLocaleString('id-ID', { maximumFractionDigits: 1 })}% selama periode terpilih` : trend.range}</p>
+        <div aria-label="Sales Performance overview" className="space-y-4">
+        <section aria-label="Ringkasan Sales Performance" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <div className={`${summaryCardClass} bg-emerald-50 border-emerald-200/60`}>
+            <p className="text-sm font-bold text-emerald-700">Total Profit</p>
+            <p className="my-1 text-[28px] font-medium leading-tight tabular-nums text-emerald-900">{profitValue(summary.profit)}</p>
+            <p className={`mt-1 text-xs ${trend.growth !== null && trend.growth < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{!trend.chartLoading && !trend.chartError && trend.growth !== null ? `${trend.growth > 0 ? '+' : ''}${trend.growth.toLocaleString('id-ID', { maximumFractionDigits: 1 })}% selama periode terpilih` : trend.range}</p>
           </div>
-          <div className={`${summaryCardClass} from-blue-50 to-blue-100/60 border-blue-200/60`}>
-            <p className="text-xs font-bold text-blue-700">Profit Margin</p>
-            <p className="mt-1 text-xl font-extrabold text-blue-900">{marginLabel}</p>
-            <p className="mt-1 text-[11px] text-blue-700">Profit terhadap total revenue</p>
+          <div className={`${summaryCardClass} bg-blue-50 border-blue-200/60`}>
+            <p className="text-sm font-bold text-blue-700">Profit Margin</p>
+            <p className="my-1 text-[28px] font-medium leading-tight tabular-nums text-blue-900">{marginLabel}</p>
+            <p className="mt-1 text-xs text-blue-700">Profit terhadap total revenue</p>
           </div>
-          <div className={`${summaryCardClass} from-amber-50 to-amber-100/60 border-amber-200/60`}>
-            <p className="text-xs font-bold text-amber-700">Total Outstanding</p>
-            <p className="mt-1 text-xl font-extrabold text-amber-900">{outstandingValue(summary.outstanding)}</p>
-            <p className="mt-1 text-[11px] text-amber-700">{tableLoading ? 'Memuat data tagihan...' : tableError ? 'Data belum dapat ditampilkan' : `${summary.count.toLocaleString('id-ID')} data tagihan`}</p>
+          <div className={`${summaryCardClass} bg-amber-50 border-amber-200/60`}>
+            <p className="text-sm font-bold text-amber-700">Total Outstanding</p>
+            <p className="my-1 text-[28px] font-medium leading-tight tabular-nums text-amber-900">{outstandingValue(summary.outstanding)}</p>
+            <p className="mt-1 text-xs text-amber-700">{tableLoading ? 'Memuat data tagihan...' : tableError ? 'Data belum dapat ditampilkan' : `${summary.count.toLocaleString('id-ID')} data tagihan`}</p>
           </div>
-          <div className={`${summaryCardClass} from-rose-50 to-rose-100/60 border-rose-200/60`}>
-            <p className="text-xs font-bold text-rose-700">Overdue / CCR</p>
-            <p className="mt-1 text-xl font-extrabold text-rose-900">{outstandingValue(summary.overdue)}</p>
-            <p className="mt-1 text-[11px] text-rose-600">{!tableLoading && !tableError ? `${summary.overdueCount.toLocaleString('id-ID')} data tagihan` : '—'}</p>
+          <div className={`${summaryCardClass} bg-rose-50 border-rose-200/60`}>
+            <p className="text-sm font-bold text-rose-700">Overdue / CCR</p>
+            <p className="my-1 text-[28px] font-medium leading-tight tabular-nums text-rose-900">{outstandingValue(summary.overdue)}</p>
+            <p className="mt-1 text-xs text-rose-600">{!tableLoading && !tableError ? `${summary.overdueCount.toLocaleString('id-ID')} data tagihan` : '—'}</p>
           </div>
         </section>
 
-        <div className="grid min-h-0 items-stretch gap-3 lg:grid-cols-[2fr_1fr]">
+        <div className="grid min-h-0 items-stretch gap-4 lg:grid-cols-[2fr_1fr]">
           <SalesPerformanceTrend model={trend} compact={false} fitHeight />
           <section aria-labelledby="margin-title" className={`${panelClass} flex flex-col`}>
             <h2 id="margin-title" className="text-base font-bold text-slate-800">Profit Margin</h2>
-            <p className="mt-1 text-[11px] text-slate-500">{trend.range}</p>
-            <div className="flex min-h-[120px] flex-1 flex-col items-center gap-1 py-2 text-center" aria-live="polite">
-              <div className="relative min-h-[72px] w-full flex-1">
+            <p className="mt-1 text-sm text-slate-500">{trend.range}</p>
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 py-4 text-center" aria-live="polite">
+              <div className="relative h-48 w-full shrink-0">
                 <svg role="img" aria-label={`Profit margin: ${marginLabel}`} viewBox="0 0 260 150" className="absolute inset-0 m-auto h-full w-full max-w-[300px]">
                   <path d="M 20 130 A 110 110 0 0 1 240 130" fill="none" stroke="#f1f5f9" strokeWidth="24" />
                   {marginFill > 0 && <path d="M 20 130 A 110 110 0 0 1 240 130" fill="none" stroke="#06b6d4" strokeWidth="24" pathLength="100" strokeDasharray={`${marginFill} 100`} />}
-                  <text x="130" y="127" textAnchor="middle" fill={summary.margin !== null && summary.margin < 0 ? '#e11d48' : '#0f172a'} fontSize={trend.chartLoading ? '22' : '36'} fontWeight="800" fontFamily="inherit">{marginLabel}</text>
+                  <text x="130" y="127" textAnchor="middle" fill={summary.margin !== null && summary.margin < 0 ? '#e11d48' : '#334155'} fontSize={trend.chartLoading ? '22' : '36'} fontWeight="500" fontFamily="inherit">{marginLabel}</text>
                 </svg>
               </div>
-              <p className="text-[11px] text-slate-500">{trend.rangeError || (!trend.chartLoading && !trend.chartError && summary.margin === null ? 'Margin belum dapat dihitung. Data profit/revenue harus lengkap dan revenue lebih dari nol.' : 'Total profit ÷ total revenue × 100%')}</p>
+              <p className="text-sm text-slate-500">{trend.rangeError || (!trend.chartLoading && !trend.chartError && summary.margin === null ? 'Margin belum dapat dihitung. Data profit/revenue harus lengkap dan revenue lebih dari nol.' : 'Total profit ÷ total revenue × 100%')}</p>
             </div>
-            <dl className="shrink-0 space-y-2 border-t border-slate-100 pt-3 text-xs"><div className="flex flex-wrap justify-between gap-2"><dt className="text-slate-500">Total Profit</dt><dd className="font-semibold text-slate-800">{profitValue(summary.profit)}</dd></div><div className="flex flex-wrap justify-between gap-2"><dt className="text-slate-500">Total Revenue</dt><dd className="font-semibold text-slate-800">{profitValue(summary.revenue)}</dd></div></dl>
+            <dl className="shrink-0 space-y-2 border-t border-slate-100 pt-3 text-sm"><div className="flex flex-wrap justify-between gap-2"><dt className="text-slate-500">Total Profit</dt><dd className="font-normal text-slate-700">{profitValue(summary.profit)}</dd></div><div className="flex flex-wrap justify-between gap-2"><dt className="text-slate-500">Total Revenue</dt><dd className="font-normal text-slate-700">{profitValue(summary.revenue)}</dd></div></dl>
           </section>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid items-stretch gap-4 xl:grid-cols-2">
           <section aria-labelledby="aging-title" className={panelClass}>
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div><h2 id="aging-title" className="text-base font-bold text-slate-800">Aging Outstanding Payment</h2><p className="mt-1 text-[11px] text-slate-500">Total {outstandingValue(summary.outstanding)}{!tableLoading && !tableError ? ` · ${summary.count.toLocaleString('id-ID')} data tagihan` : ''}</p></div>
-              <button ref={openButtonRef} type="button" aria-expanded={showTable} aria-controls="outstanding-details" onClick={() => { if (showTable) tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); else setShowTable(true); }} className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">Lihat tabel outstanding<ChevronDown aria-hidden="true" className="h-4 w-4" /></button>
+              <div><h2 id="aging-title" className="text-base font-bold text-slate-800">Aging Outstanding Payment</h2><p className="mt-1 text-sm text-slate-500">Total {outstandingValue(summary.outstanding)}{!tableLoading && !tableError ? ` · ${summary.count.toLocaleString('id-ID')} data tagihan` : ''}</p></div>
+              <button ref={openButtonRef} type="button" aria-expanded={showTable} aria-controls="outstanding-details" onClick={() => { if (showTable) tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); else setShowTable(true); }} className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-[#3B6FF5] px-4 text-sm font-normal text-white shadow-2xs transition-colors hover:bg-[#315be0] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><Table2 aria-hidden="true" className="h-4 w-4" />Lihat tabel outstanding</button>
             </div>
-            <p className="mt-2 text-[10px] text-slate-400">Berdasarkan jumlah hari keterlambatan pada data outstanding.</p>
-            {tableLoading ? <p role="status" className="py-8 text-xs text-slate-500">Memuat outstanding...</p> : tableError ? <p role="alert" className="py-6 text-xs text-red-600">{tableError} <button type="button" onClick={retry} className="cursor-pointer underline">Coba lagi</button></p> : !rows.length ? <p className="py-8 text-xs text-slate-500">Belum ada data outstanding.</p> : <ul className="mt-2 space-y-1.5">{summary.aging.map((bucket) => <li key={bucket.label} className="grid grid-cols-[110px_minmax(0,1fr)_90px] items-center gap-3 text-[11px]">
-              <span className="text-slate-600">{bucket.label}</span><div className="h-3 overflow-hidden rounded bg-slate-100"><div className={`h-full rounded ${bucket.color}`} style={{ width: `${Math.max(0, bucket.amount ?? 0) / maximumAging * 100}%` }} /></div><span className="text-right font-semibold text-slate-800">{compactRupiah(bucket.amount)}</span>
+            {tableLoading ? <p role="status" className="py-8 text-xs text-slate-500">Memuat outstanding...</p> : tableError ? <p role="alert" className="py-6 text-xs text-red-600">{tableError} <button type="button" onClick={retry} className="cursor-pointer underline">Coba lagi</button></p> : !rows.length ? <p className="py-8 text-xs text-slate-500">Belum ada data outstanding.</p> : <ul className="mt-4 space-y-4">{summary.aging.map((bucket) => <li key={bucket.label} className="grid grid-cols-[100px_minmax(0,1fr)_90px] items-center gap-3 text-sm">
+              <span className="text-slate-600">{bucket.label}</span><div className="h-6 overflow-hidden rounded bg-slate-100"><div className={`h-full rounded ${bucket.color}`} style={{ width: `${Math.max(0, bucket.amount ?? 0) / maximumAging * 100}%` }} /></div><span className="text-right font-normal text-slate-700">{compactRupiah(bucket.amount)}</span>
             </li>)}</ul>}
           </section>
           <section aria-labelledby="customers-title" className={panelClass}>
             <h2 id="customers-title" className="text-base font-bold text-slate-800">Top 5 Customer — Outstanding</h2>
-            <p className="mt-1 text-[11px] text-slate-500">Customer dengan total outstanding terbesar</p>
-            {tableLoading ? <p role="status" className="py-8 text-xs text-slate-500">Memuat customer...</p> : tableError ? <p className="py-8 text-xs text-slate-500">Data customer belum dapat ditampilkan.</p> : !summary.customers.length ? <p className="py-8 text-xs text-slate-500">Belum ada data customer.</p> : <ol className="mt-2 space-y-1.5">{summary.customers.map((customer) => <li key={customer.name} className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1.2fr)_80px] items-center gap-3 text-[11px]">
-              <span className="break-words text-slate-600">{customer.name}</span><div className="h-3 overflow-hidden rounded bg-slate-100"><div className="h-full rounded bg-blue-600" style={{ width: `${Math.max(0, customer.amount) / maximumCustomer * 100}%` }} /></div><span className="text-right font-semibold text-slate-800">{compactRupiah(customer.amount)}</span>
+            {tableLoading ? <p role="status" className="py-8 text-xs text-slate-500">Memuat customer...</p> : tableError ? <p className="py-8 text-xs text-slate-500">Data customer belum dapat ditampilkan.</p> : !summary.customers.length ? <p className="py-8 text-xs text-slate-500">Belum ada data customer.</p> : <ol className="mt-4 space-y-4">{summary.customers.map((customer) => <li key={customer.name} className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1.2fr)_80px] items-center gap-3 text-sm">
+              <span className="break-words text-slate-600">{customer.name}</span><div className="h-6 overflow-hidden rounded bg-slate-100"><div className="h-full rounded bg-blue-600" style={{ width: `${Math.max(0, customer.amount) / maximumCustomer * 100}%` }} /></div><span className="text-right font-normal text-slate-700">{compactRupiah(customer.amount)}</span>
             </li>)}</ol>}
           </section>
         </div>

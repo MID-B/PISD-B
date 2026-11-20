@@ -69,7 +69,7 @@ test('login/logout-only accounts are included, with logout dates searchable', ()
   assert.equal(model.sessionMatchesDate(rows[0].sessions[0], '2026-11-11'), false);
 });
 
-test('detail pagination has five rows and jumps to first matching date in each history', () => {
+test('login detail pagination defaults to five rows and jumps to the first matching date', () => {
   const records = Array.from({ length: 19 }, (_, i) => ({ id: i, matches: i >= 11 && i <= 13 }));
   const page = model.firstMatchingPage(records, (row) => row.matches);
   assert.equal(page, 3);
@@ -84,6 +84,24 @@ test('detail pagination has five rows and jumps to first matching date in each h
   assert.equal(model.detailPage(records, 99).end, 19);
   const sessions = Array.from({ length: 7 }, (_, i) => ({ tanggal_login: i === 6 ? '2026-11-10' : '2026-11-13', tanggal_logout: null }));
   assert.equal(model.firstMatchingPage(sessions, (row) => model.sessionMatchesDate(row, '2026-11-10')), 2);
+});
+
+test('activity detail supports ten rows, date matching, and a shorter final page', () => {
+  const records = Array.from({ length: 23 }, (_, index) => ({ id: index }));
+  const first = model.detailPage(records, 1, 10);
+  assert.equal(first.rows.length, 10);
+  assert.equal(first.start, 1);
+  assert.equal(first.end, 10);
+  assert.equal(first.totalPages, 3);
+  const matchingPage = model.firstMatchingPage(records, row => row.id === 15, 10);
+  assert.equal(matchingPage, 2);
+  assert.ok(model.detailPage(records, matchingPage, 10).rows.some(row => row.id === 15));
+  const last = model.detailPage(records, 99, 10);
+  assert.equal(last.page, 3);
+  assert.equal(last.start, 21);
+  assert.equal(last.end, 23);
+  assert.equal(last.rows.length, 3);
+  assert.equal(model.detailPage([], 2, 10).start, 0);
 });
 
 test('legacy sessions use profile email as fallback, and matching timestamps prefer original activity text', () => {

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, RotateCcw, Search, X } from 'lucide-react';
 import HistoryPagination from '@/components/history-pagination';
+import styles from './scrollbar.module.css';
 import { supabase } from '@/lib/supabaseClient';
 import { loadAccountHistories } from './data';
 import {
@@ -18,6 +19,7 @@ const DEPARTMENTS = [
 ];
 type HistoryTab = 'activity' | 'login';
 const ACCOUNT_PAGE_SIZE = 10;
+const ACTIVITY_PAGE_SIZE = 10;
 
 function Status({ online, isActive }: { online: boolean; isActive: boolean }) {
   const textColor = !isActive ? 'text-red-600' : online ? 'text-emerald-600' : 'text-slate-500';
@@ -98,7 +100,7 @@ export default function LogActivity({ active }: { active: boolean }) {
   }, [accounts]);
   const selected = accounts.find((account) => account.id === selectedId);
   const latestSession = selected?.sessions[0];
-  const activityPage = detailPage(selected?.activities ?? [], requestedPage);
+  const activityPage = detailPage(selected?.activities ?? [], requestedPage, ACTIVITY_PAGE_SIZE);
   const loginPage = detailPage(selected?.sessions ?? [], requestedPage);
   const currentPage = tab === 'activity' ? activityPage : loginPage;
   const total = tab === 'activity' ? selected?.activities.length ?? 0 : selected?.sessions.length ?? 0;
@@ -113,14 +115,14 @@ export default function LogActivity({ active }: { active: boolean }) {
     setTab(showLogin ? 'login' : 'activity');
     setRequestedPage(!date ? 1 : showLogin
       ? firstMatchingPage(account.sessions, (session) => sessionMatchesDate(session, date))
-      : firstMatchingPage(account.activities, activityMatch));
+      : firstMatchingPage(account.activities, activityMatch, ACTIVITY_PAGE_SIZE));
     setSelectedId(account.id);
   }
   function changeTab(next: HistoryTab) {
     setTab(next);
     if (!selected || !date) { setRequestedPage(1); return; }
     setRequestedPage(next === 'activity'
-      ? firstMatchingPage(selected.activities, (activity) => jakartaDay(activity.created_at) === date)
+      ? firstMatchingPage(selected.activities, (activity) => jakartaDay(activity.created_at) === date, ACTIVITY_PAGE_SIZE)
       : firstMatchingPage(selected.sessions, (session) => sessionMatchesDate(session, date)));
   }
 
@@ -171,8 +173,8 @@ export default function LogActivity({ active }: { active: boolean }) {
         if (event.target !== event.currentTarget) return;
         const rect = event.currentTarget.getBoundingClientRect();
         if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) event.currentTarget.close();
-      }} className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[1120px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 text-slate-900 shadow-2xl backdrop:bg-slate-700/60">
-        <button type="button" aria-label="Tutup detail akun" onClick={() => dialogRef.current?.close()} className="absolute right-2 top-2 z-20 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-white text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-500"><X aria-hidden="true" className="h-4 w-4" /></button>
+      }} className={`${styles.scrollbar} fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[1120px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 text-slate-900 shadow-2xl backdrop:bg-slate-700/60`}>
+        <button type="button" aria-label="Tutup detail akun" onClick={() => dialogRef.current?.close()} className="absolute right-0.5 top-0.5 z-20 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-white text-red-500 hover:bg-red-50 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-blue-500"><X aria-hidden="true" className="h-4 w-4" /></button>
         {selected && <div className="grid gap-6 p-6 md:grid-cols-[220px_minmax(0,1fr)]">
           <aside aria-label="Profil akun" className="min-w-0 text-xs">
             <div aria-hidden="true" className="mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full bg-[#dbe3f0] text-5xl font-bold text-slate-900">{initials(selected.name)}</div>
@@ -195,8 +197,8 @@ export default function LogActivity({ active }: { active: boolean }) {
               </div>
               {date && <p role="status" className="my-2 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] text-slate-900">{matchCount} sesuai filter tanggal {date}</p>}
             </div>
-            <div id="account-history-panel" role="tabpanel" aria-labelledby={tab === 'activity' ? 'account-activity-tab' : 'account-login-tab'} tabIndex={0} className="min-h-0 flex-1 overflow-auto focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-500">
-              {tab === 'activity' ? <table aria-label="Riwayat aktivitas akun" className="w-full min-w-[580px] table-fixed border-collapse text-left text-xs [&_td]:px-4 [&_td]:py-4 [&_th]:px-4 [&_th]:py-3">
+            <div id="account-history-panel" role="tabpanel" aria-labelledby={tab === 'activity' ? 'account-activity-tab' : 'account-login-tab'} tabIndex={0} className={`${styles.scrollbar} min-h-0 flex-1 overflow-auto focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-500`}>
+              {tab === 'activity' ? <table aria-label="Riwayat aktivitas akun" className="w-full min-w-[580px] table-fixed border-collapse text-left text-xs [&_td]:px-4 [&_td]:py-2.5 [&_th]:px-4 [&_th]:py-3">
                 <colgroup><col className="w-[19%]" /><col className="w-[15%]" /><col className="w-[40%]" /><col className="w-[26%]" /></colgroup>
                 <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] tracking-wide text-slate-600"><tr className="border-b border-slate-200"><th scope="col">IP ADDRESS</th><th scope="col">BROWSER</th><th scope="col">DESCRIPTION</th><th scope="col">DATE TIME</th></tr></thead>
                 <tbody>{activityPage.rows.length ? activityPage.rows.map((activity) => {

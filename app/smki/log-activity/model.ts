@@ -173,14 +173,14 @@ export function filterAccountSummaries(accounts: AccountHistory[], { search = ''
   return results.sort((a, b) => Date.parse(b.lastEvent.createdAt) - Date.parse(a.lastEvent.createdAt) || a.id.localeCompare(b.id));
 }
 
-export function firstMatchingPage<T>(rows: T[], matches: (row: T) => boolean): number {
+export function firstMatchingPage<T>(rows: T[], matches: (row: T) => boolean, pageSize = DETAIL_PAGE_SIZE): number {
   const index = rows.findIndex(matches);
-  return index < 0 ? 1 : Math.floor(index / DETAIL_PAGE_SIZE) + 1;
+  return index < 0 ? 1 : Math.floor(index / pageSize) + 1;
 }
 
-export function detailPage<T>(rows: T[], requestedPage: number) {
-  const totalPages = Math.max(1, Math.ceil(rows.length / DETAIL_PAGE_SIZE));
+export function detailPage<T>(rows: T[], requestedPage: number, pageSize = DETAIL_PAGE_SIZE) {
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const page = Math.min(Math.max(1, requestedPage), totalPages);
-  const offset = (page - 1) * DETAIL_PAGE_SIZE;
-  return { rows: rows.slice(offset, offset + DETAIL_PAGE_SIZE), page, totalPages, start: rows.length ? offset + 1 : 0, end: Math.min(offset + DETAIL_PAGE_SIZE, rows.length) };
+  const offset = (page - 1) * pageSize;
+  return { rows: rows.slice(offset, offset + pageSize), page, totalPages, start: rows.length ? offset + 1 : 0, end: Math.min(offset + pageSize, rows.length) };
 }

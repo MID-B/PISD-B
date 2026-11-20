@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
+import { createRequire } from 'node:module';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 const exports = {};
 runInNewContext(ts.transpileModule(readFileSync(new URL('../../app/dashboard/issue-board/board-model.ts', import.meta.url), 'utf8'), {
@@ -10,7 +13,7 @@ runInNewContext(ts.transpileModule(readFileSync(new URL('../../app/dashboard/iss
 }).outputText, { exports });
 const board = exports;
 const filters = { source: '', status: '', priority: '', start: '', end: '' };
-const issue = (id, values = {}) => ({ source: 'HRMS', issue_code: id, issue: 'Issue contoh', description: 'Deskripsi asli', note: 'Note asli',
+const issue = (id, values = {}) => ({ source: 'HRMS', reference_code: id, issue: 'Issue contoh', description: 'Deskripsi asli', note: 'Note asli',
   date: '2026-11-15', status: 'Open', priority: 'High', due_date: '2026-11-18', pic_id: 'EMP-1', pic_name: 'Nama PIC', ...values });
 
 test('received date filter includes the full Jakarta day and combines source, status and priority', () => {
@@ -18,15 +21,15 @@ test('received date filter includes the full Jakarta day and combines source, st
     issue('end', { date: '2026-11-15T16:59:59Z', status: 'In Progress' }),
     issue('next', { date: '2026-11-15T17:00:00Z' }), issue('other', { source: 'CRM' })];
   const result = board.filterBoard(rows, { ...filters, source: 'HRMS', status: 'IN PROGRESS', priority: 'HIGH', start: '2026-11-15', end: '2026-11-15' });
-  assert.deepEqual(Array.from(result, (row) => row.issue_code), ['start', 'end']);
+  assert.deepEqual(Array.from(result, (row) => row.reference_code), ['start', 'end']);
   assert.equal(board.filterBoard(rows, { ...filters, start: '2026-11-15' }).length, 0);
   assert.equal(board.filterBoard(rows, { ...filters, start: '2026-11-16', end: '2026-11-15' }).length, 0);
   assert.equal(board.issueDay('2026-02-30'), '');
 });
 
-test('unresolved aging boundaries are exclusive and future/missing dates are separate', () => {
+test('overdue aging boundaries are exclusive and future/missing dates are separate', () => {
   const rows = ['2026-11-15', '2026-11-08', '2026-11-07', '2026-11-01', '2026-10-31', '2026-10-16', '2026-10-15', null, '2026-11-16']
-    .map((date, index) => issue(String(index), { date }));
+    .map((date, index) => issue(String(index), { date, due_date: '2026-11-14' }));
   rows.push(issue('done', { date: '2020-01-01', status: ' DONE ' }));
   const result = board.summarizeBoard(rows, '2026-11-15');
   assert.equal(result.total, 10);
@@ -49,8 +52,34 @@ test('due monitoring excludes Done and absent due dates, with today through two 
   assert.equal(result.noDueDate, 2);
   assert.equal(result.datedCount, 4);
   assert.equal(result.onTrackPercent, 25);
-  assert.equal(board.summarizeBoard([rows[4]], '2026-11-15').onTrackPercent, null);
+  assert.equal(board.summarizeBoard([rows[4]], '2026-11-15').onTrackPercent, 0);
   assert.equal(JSON.stringify(rows), before);
+});
+
+const charts = {};
+runInNewContext(ts.transpileModule(readFileSync(new URL('../../app/dashboard/issue-board/board-charts.tsx', import.meta.url), 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+}).outputText, { exports: charts, require: createRequire(import.meta.url) });
+
+test('charts render empty datasets without invalid dimensions or percentages', () => {
+  const segments = [{ label: 'CCR', count: 0, color: '#3981ff' }];
+  for (const [component, props] of [
+    [charts.DepartmentChart, { segments, total: 0 }],
+    [charts.PriorityCharts, { segments, total: 0 }],
+    [charts.AgingChart, { segments: [] }],
+    [charts.DueDateChart, { onTrack: 0, dueSoon: 0, overdue: 0 }],
+  ]) {
+    const markup = renderToStaticMarkup(createElement(component, props));
+    assert.doesNotMatch(markup, /NaN|Infinity|undefined%/);
+  }
+});
+
+test('due date chart proportions use only the three valid due-date buckets', () => {
+  const markup = renderToStaticMarkup(createElement(charts.DueDateChart, { onTrack: 6, dueSoon: 1, overdue: 3 }));
+  assert.match(markup, /width:60%/);
+  assert.match(markup, /width:10%/);
+  assert.match(markup, /width:30%/);
+  assert.doesNotMatch(markup, />10%</, 'small segments retain their count in the legend instead of squeezing text into the bar');
 });
 
 test('unknown source, status, and priority records remain visible and colors stay stable after filtering', () => {
@@ -60,7 +89,7 @@ test('unknown source, status, and priority records remain visible and colors sta
   assert.equal(all.unknownStatus, 1);
   assert.equal(all.otherPriorities, 1);
   assert.equal(all.priorities.find((priority) => priority.key === 'unset').count, 1);
-  assert.equal(all.sources.find((source) => source.label === 'CRM').color, filtered.sources[0].color);
+  assert.equal(all.sources.find((source) => source.label === 'CRM').color, filtered.sources.find((source) => source.label === 'CRM').color);
   assert.equal(board.filterBoard(rows, { ...filters, priority: 'unset' }).length, 1);
 });
 
@@ -77,8 +106,8 @@ test('table search is limited to ticket/title; sorting keeps received chronology
   for (const term of ['budi', 'emp-001', 'CRM', 'Pending', 'High', '2026-11-15', '2026-11-18', 'rahasia', 'internal']) {
     assert.equal(board.searchBoard(scoped, term).length, 0, `${term} is outside the searchable fields`);
   }
-  assert.deepEqual(Array.from(board.sortBoard(rows, { column: 'date', ascending: false }), (row) => row.issue_code), ['HRMS-1', 'HRMS-2', 'HRMS-10']);
-  assert.deepEqual(Array.from(board.sortBoard(rows, { column: 'issue_code', ascending: true }), (row) => row.issue_code), ['HRMS-1', 'HRMS-2', 'HRMS-10']);
+  assert.deepEqual(Array.from(board.sortBoard(rows, { column: 'date', ascending: false }), (row) => row.reference_code), ['HRMS-1', 'HRMS-2', 'HRMS-10']);
+  assert.deepEqual(Array.from(board.sortBoard(rows, { column: 'reference_code', ascending: true }), (row) => row.reference_code), ['HRMS-1', 'HRMS-2', 'HRMS-10']);
   assert.equal(board.PAGE_SIZE, 5);
   assert.equal(board.formatIssueDate('2026-11-15', true).includes('WIB'), false, 'date-only data must not invent a received time');
   assert.ok(board.formatIssueDate('2026-11-14T17:00:00Z', true).endsWith('00.00 WIB'));

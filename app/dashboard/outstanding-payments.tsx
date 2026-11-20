@@ -62,9 +62,17 @@ export function OutstandingPaymentsTable({ rows: visibleRows, tableLoading, tabl
   const rows = visibleRows;
   return (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-left border-collapse">
+            <table className="w-full min-w-[1100px] table-fixed text-left border-collapse">
+              <colgroup>
+                <col className="w-[17%]" />
+                <col className="w-[27%]" />
+                <col className="w-[17%]" />
+                <col className="w-[15%]" />
+                <col className="w-[11%]" />
+                <col className="w-[13%]" />
+              </colgroup>
               <thead>
-                <tr className="bg-violet-50/70 border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400">
+                <tr className="bg-violet-50/70 border-b border-slate-100 text-xs uppercase tracking-wide text-slate-500">
                   {['Issue', 'Customer', 'Job Number', 'Amount', 'Due Date', 'Status/Source'].map((heading) => {
                     const column = heading === 'Customer' ? 'customer' : heading === 'Job Number' ? 'job_number' : null;
                     const sortable = column !== null && onSort !== undefined;
@@ -72,7 +80,7 @@ export function OutstandingPaymentsTable({ rows: visibleRows, tableLoading, tabl
                     const Icon = direction === 'ascending' ? ArrowUp : direction === 'descending' ? ArrowDown : ArrowDownUp;
                     const nextOrder = direction === 'ascending' ? 'Z–A' : direction === 'descending' ? 'urutan awal' : 'A–Z';
                     return (
-                      <th key={heading} scope="col" aria-sort={sortable ? direction ?? 'none' : undefined} className="py-3 px-3 font-semibold">
+                      <th key={heading} scope="col" aria-sort={sortable ? direction ?? 'none' : undefined} className={`py-3.5 px-4 font-semibold ${heading === 'Amount' ? 'text-right' : ''}`}>
                         {sortable ? (
                           <button type="button" onClick={() => onSort(column)} aria-label={`${heading}: urutkan ${nextOrder}`} title={`Urutkan ${nextOrder}`} className={`flex cursor-pointer items-center gap-1.5 rounded uppercase tracking-wider hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-purple-500 ${direction ? 'text-slate-700' : ''}`}>
                             {heading}<Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
@@ -83,13 +91,13 @@ export function OutstandingPaymentsTable({ rows: visibleRows, tableLoading, tabl
                   })}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+              <tbody className="divide-y divide-slate-100 text-sm leading-relaxed text-slate-700">
                 {tableLoading ? <tr><td colSpan={6} className="p-4" role="status">Memuat outstanding...</td></tr> : tableError ? <tr><td colSpan={6} className="p-4 text-red-600" role="alert">{tableError}</td></tr> : rows.length === 0 ? <tr><td colSpan={6} className="p-4 text-slate-500" role="status">{emptyMessage}</td></tr> : visibleRows.map((row) => (
                   <tr key={row.outstanding_row_id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-4 px-3 font-medium">Outstanding Payment</td><td className="py-4 px-3">{row.customer || '-'}</td><td className="py-4 px-3 whitespace-nowrap">{row.job_number || '-'}</td>
-                    <td className="py-4 px-3 whitespace-nowrap tabular-nums">{row.outstanding_amount == null ? '-' : rupiah.format(Number(row.outstanding_amount))}</td>
-                    <td className="py-4 px-3 whitespace-nowrap">{dateLabel(row.due_date)}</td>
-                    <td className={`py-4 px-3 whitespace-nowrap font-semibold ${row.status?.toUpperCase() === 'OVERDUE' ? 'text-rose-500' : 'text-slate-600'}`}>{row.status || '-'} / {row.source || '-'}</td>
+                    <td className="py-4 px-4 align-middle">Outstanding Payment</td><td className="break-words py-4 px-4 align-middle">{row.customer || '-'}</td><td className="break-words py-4 px-4 align-middle">{row.job_number || '-'}</td>
+                    <td className="py-4 px-4 align-middle text-right whitespace-nowrap tabular-nums">{row.outstanding_amount == null ? '-' : rupiah.format(Number(row.outstanding_amount))}</td>
+                    <td className="py-4 px-4 align-middle whitespace-nowrap">{dateLabel(row.due_date)}</td>
+                    <td className={`break-words py-4 px-4 align-middle ${row.status?.toUpperCase() === 'OVERDUE' ? 'text-rose-500' : 'text-slate-600'}`}>{row.status || '-'} / {row.source || '-'}</td>
                   </tr>
                 ))}
               </tbody>
