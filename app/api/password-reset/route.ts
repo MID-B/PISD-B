@@ -10,7 +10,7 @@ const USERS_PER_PAGE = 1000;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const rateLimits = new Map<string, { count: number; expiresAt: number }>();
 
-type ResetAction = 'check-email' | 'complete';
+type ResetAction = 'check-email' | 'check-password' | 'complete';
 type RequestBody = {
   action?: unknown;
   email?: unknown;
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     return responseError('Request body must be valid JSON.', 400);
   }
 
-  if (body.action !== 'check-email' && body.action !== 'complete') {
+  if (body.action !== 'check-email' && body.action !== 'check-password' && body.action !== 'complete') {
     return responseError('Invalid reset action.', 400);
   }
   const action = body.action as ResetAction;
@@ -122,6 +122,29 @@ export async function POST(request: Request) {
     if (!authUser) return responseError('Email not found', 404, 'EMAIL_NOT_FOUND');
 
     if (action === 'check-email') return Response.json({ ok: true });
+
+    if (action === 'check-password') {
+      if (typeof body.password !== 'string' || !body.password) {
+        return responseError('New password are required.', 400, 'NEW_PASSWORD_REQUIRED');
+      }
+      const { data: register, error: registerError } = await admin
+        .from('b2_register')
+        .select('password, auth_user_id')
+        .eq('id', authUser.id)
+        .eq('email', email)
+        .maybeSingle();
+      if (registerError) {
+        console.error('Password reuse check failed.', { code: registerError.code });
+        return responseError('Password could not be checked. Please try again.', 500, 'PASSWORD_CHECK_FAILED');
+      }
+      if (!register || (register.auth_user_id && register.auth_user_id !== authUser.id)) {
+        return responseError('No matching PISD-B account was found for this email.', 404, 'REGISTER_NOT_FOUND');
+      }
+      if (register.password === body.password) {
+        return responseError('You used this password recently, Try a different password', 409, 'PASSWORD_REUSED');
+      }
+      return Response.json({ ok: true });
+    }
 
     if (typeof body.password !== 'string' || !body.password) {
       return responseError('New password are required.', 400, 'NEW_PASSWORD_REQUIRED');
@@ -161,7 +184,7 @@ export async function POST(request: Request) {
     // trigger_sync_password trigger also uses NEW.id to update auth.users.
     const { data: register, error: registerLookupError } = await admin
       .from('b2_register')
-      .select('id, auth_user_id, email, is_active')
+      .select('id, auth_user_id, email, is_active, password')
       .eq('id', authUser.id)
       .eq('email', email)
       .maybeSingle();
@@ -174,6 +197,9 @@ export async function POST(request: Request) {
     }
     if (register.is_active === false) {
       return responseError('This account is inactive. Contact HR Admin.', 403, 'ACCOUNT_INACTIVE');
+    }
+    if (register.password === body.password) {
+      return responseError('You used this password recently, Try a different password', 409, 'PASSWORD_REUSED');
     }
 
     const { data: updatedRegister, error: updateError } = await admin

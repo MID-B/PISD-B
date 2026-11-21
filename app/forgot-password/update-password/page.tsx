@@ -28,7 +28,7 @@ export default function UpdatePasswordPage() {
     else setGreeting('Good Evening');
   }, []);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage('');
     const passwordForPolicy = newPassword.trim();
@@ -57,10 +57,33 @@ export default function UpdatePasswordPage() {
       return;
     }
 
-    window.sessionStorage.setItem(RESET_NEW_PASSWORD_KEY, newPassword);
-    window.sessionStorage.setItem(RESET_CONFIRM_PASSWORD_KEY, confirmPassword);
     setIsContinuing(true);
-    router.push('/forgot-password/update-password/face-verification');
+    try {
+      const email = window.localStorage.getItem(RESET_EMAIL_KEY)?.trim();
+      if (!email) {
+        router.replace('/forgot-password');
+        return;
+      }
+
+      const response = await fetch('/api/password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'check-password', email, password: newPassword }),
+      });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) {
+        setErrorMessage(result.error || 'Password could not be checked. Please try again.');
+        return;
+      }
+
+      window.sessionStorage.setItem(RESET_NEW_PASSWORD_KEY, newPassword);
+      window.sessionStorage.setItem(RESET_CONFIRM_PASSWORD_KEY, confirmPassword);
+      router.push('/forgot-password/update-password/face-verification');
+    } catch {
+      setErrorMessage('Password could not be checked. Please try again.');
+    } finally {
+      setIsContinuing(false);
+    }
   }
 
   return (
