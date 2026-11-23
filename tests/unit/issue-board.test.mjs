@@ -6,6 +6,7 @@ import ts from 'typescript';
 import { createRequire } from 'node:module';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { languageUi } from '../helpers/language-ui.mjs';
 
 const exports = {};
 runInNewContext(ts.transpileModule(readFileSync(new URL('../../app/dashboard/issue-board/board-model.ts', import.meta.url), 'utf8'), {
@@ -59,7 +60,7 @@ test('due monitoring excludes Done and absent due dates, with today through two 
 const charts = {};
 runInNewContext(ts.transpileModule(readFileSync(new URL('../../app/dashboard/issue-board/board-charts.tsx', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
-}).outputText, { exports: charts, require: createRequire(import.meta.url) });
+}).outputText, { exports: charts, require: name => name === '@/components/language' ? languageUi : createRequire(import.meta.url)(name) });
 
 test('charts render empty datasets without invalid dimensions or percentages', () => {
   const segments = [{ label: 'CCR', count: 0, color: '#3981ff' }];

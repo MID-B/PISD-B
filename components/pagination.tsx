@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Text } from './language';
 
 export default function Pagination({ page, totalPages, onPageChange, label, compact = false }: {
   page: number;
@@ -16,7 +17,7 @@ export default function Pagination({ page, totalPages, onPageChange, label, comp
   return (
     <nav aria-label={label} className="flex flex-wrap items-center gap-2">
       <button type="button" aria-label={compact ? 'Halaman sebelumnya' : undefined} disabled={page <= 1} onClick={() => onPageChange(page - 1)} className={buttonClass}>
-        <ChevronLeft aria-hidden="true" className="h-4 w-4" />{!compact && 'Previous'}
+        <ChevronLeft aria-hidden="true" className="h-4 w-4" />{!compact && <Text>Previous</Text>}
       </button>
       {pages.map((number) => (
         <button
@@ -29,7 +30,7 @@ export default function Pagination({ page, totalPages, onPageChange, label, comp
         >{number}</button>
       ))}
       <button type="button" aria-label={compact ? 'Halaman berikutnya' : undefined} disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} className={buttonClass}>
-        {!compact && 'Next'}<ChevronRight aria-hidden="true" className="h-4 w-4" />
+        {!compact && <Text>Next</Text>}<ChevronRight aria-hidden="true" className="h-4 w-4" />
       </button>
     </nav>
   );

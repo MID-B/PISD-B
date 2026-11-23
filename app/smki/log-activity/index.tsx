@@ -1,5 +1,6 @@
 "use client";
 
+import { DateText, Text, LanguageInput } from '@/components/language';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, RotateCcw, Search, X } from 'lucide-react';
 import HistoryPagination from '@/components/history-pagination';
@@ -7,7 +8,7 @@ import styles from './scrollbar.module.css';
 import { supabase } from '@/lib/supabaseClient';
 import { loadAccountHistories } from './data';
 import {
-  detailPage, displayActivityDescription, displayDateTime, filterAccountSummaries, firstMatchingPage, initials, jakartaDay, sessionMatchesDate,
+  detailPage, displayActivityDescription, filterAccountSummaries, firstMatchingPage, initials, jakartaDay, sessionMatchesDate,
   type AccountHistory,
 } from './model';
 
@@ -26,7 +27,7 @@ function Status({ online, isActive }: { online: boolean; isActive: boolean }) {
   const dotColor = !isActive ? 'bg-red-500' : online ? 'bg-emerald-500' : 'bg-slate-300';
   return <span className={`inline-flex items-center gap-1.5 whitespace-nowrap font-semibold ${textColor}`}>
     <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
-    {!isActive ? 'Deactive' : online ? 'Online' : 'Offline'}
+    <Text dynamic>{!isActive ? 'Deactive' : online ? 'Online' : 'Offline'}</Text>
   </span>;
 }
 
@@ -131,41 +132,41 @@ export default function LogActivity({ active }: { active: boolean }) {
       <div className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
         <div className="relative min-w-[200px] flex-1">
           <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input type="search" aria-label="Cari akun berdasarkan nama atau email" placeholder="Search by Employee's Name or Email" value={search} onChange={(event) => { setSearch(event.target.value); setRequestedAccountPage(1); }} className="h-10 w-full rounded-xl border border-transparent bg-[#f1f3fe] pl-10 pr-4 text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:border-purple-300 focus:bg-white focus:outline-none" />
+          <LanguageInput type="search" aria-label="Cari akun berdasarkan nama atau email" placeholder="Search by Employee's Name or Email" value={search} onChange={(event) => { setSearch(event.target.value); setRequestedAccountPage(1); }} className="h-10 w-full rounded-xl border border-transparent bg-[#f1f3fe] pl-10 pr-4 text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:border-purple-300 focus:bg-white focus:outline-none" />
         </div>
         <select aria-label="Filter departemen" value={departmentId} onChange={(event) => { setDepartmentId(event.target.value); setRequestedAccountPage(1); }} className="h-10 w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-medium text-slate-700 shadow-2xs focus:border-purple-400 focus:outline-none sm:w-56">
-          <option value="">All Department</option>
-          {departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
+          <option value=""><Text>All Department</Text></option>
+          {departments.map((department) => <option key={department.id} value={department.id}><Text dynamic>{department.name}</Text></option>)}
         </select>
         <div className={`relative flex h-10 shrink-0 items-center rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-2xs focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100 ${date ? 'w-40 justify-between px-3.5' : 'w-10 justify-center'}`}>
           {date && <span aria-hidden="true">{date.split('-').reverse().join('/')}</span>}
           <CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0" />
-          <input type="date" aria-label="Filter Date" value={date} onClick={(event) => {
+          <LanguageInput type="date" aria-label="Filter Date" value={date} onClick={(event) => {
             try { event.currentTarget.showPicker?.(); } catch { /* Keep native date input available when the browser cannot open its picker. */ }
           }} onChange={(event) => { setDate(event.target.value); setRequestedAccountPage(1); }} className="absolute inset-0 h-full w-full cursor-pointer opacity-0 [color-scheme:light]" />
         </div>
-        <button type="button" onClick={() => { setSearch(''); setDepartmentId(''); setDate(''); setRequestedAccountPage(1); }} className="flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-transparent px-3.5 text-xs font-semibold text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-purple-600 focus-visible:outline-2 focus-visible:outline-blue-500"><RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />Reset</button>
+        <button type="button" onClick={() => { setSearch(''); setDepartmentId(''); setDate(''); setRequestedAccountPage(1); }} className="flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-transparent px-3.5 text-xs font-semibold text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-purple-600 focus-visible:outline-2 focus-visible:outline-blue-500"><RotateCcw aria-hidden="true" className="h-3.5 w-3.5" /><Text>Reset</Text></button>
       </div>
-      {error && <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">Gagal memuat Log Activity: {error} <button type="button" onClick={() => setReload((value) => value + 1)} className="cursor-pointer underline">Coba lagi</button></div>}
+      {error && <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700"><Text>Gagal memuat Log Activity: </Text><Text dynamic>{error}</Text> <button type="button" onClick={() => setReload((value) => value + 1)} className="cursor-pointer underline"><Text>Coba lagi</Text></button></div>}
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table aria-label="Daftar akun Log Activity" className="w-full min-w-[850px] table-fixed border-collapse text-left text-xs text-slate-800 [&_td]:px-4 [&_td]:py-4 [&_th]:px-4 [&_th]:py-3">
           <colgroup><col className="w-[25%]" /><col className="w-[22%]" /><col className="w-[28%]" /><col className="w-[16%]" /><col className="w-[9%]" /></colgroup>
           <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-extrabold tracking-[0.5px] text-slate-500 [&_th]:font-extrabold">
-            <tr><th scope="col">EMPLOYEE&apos;S NAME</th><th scope="col">DEPARTMENT</th><th scope="col">LAST ACTIVITY</th><th scope="col" aria-sort="descending">LAST DATE</th><th scope="col">STATUS</th></tr>
+            <tr><th scope="col"><Text>EMPLOYEE&apos;S NAME</Text></th><th scope="col"><Text>DEPARTMENT</Text></th><th scope="col"><Text>LAST ACTIVITY</Text></th><th scope="col" aria-sort="descending"><Text>LAST DATE</Text></th><th scope="col"><Text>STATUS</Text></th></tr>
           </thead>
           <tbody>
-            {loading ? <tr><td colSpan={5} role="status">Memuat Log Activity...</td></tr> : rows.length === 0 ? <tr><td colSpan={5} className="text-slate-500">{error ? 'Data belum dapat ditampilkan.' : 'Tidak ada akun dengan aktivitas sesuai filter.'}</td></tr> : visibleAccounts.map((account) => <tr key={account.id} onClick={() => openAccount(account)} className="cursor-pointer border-b border-slate-100 last:border-b-0 hover:bg-slate-50 focus-within:bg-slate-50">
+            {loading ? <tr><td colSpan={5} role="status"><Text>Memuat Log Activity...</Text></td></tr> : rows.length === 0 ? <tr><td colSpan={5} className="text-slate-500"><Text dynamic>{error ? 'Data belum dapat ditampilkan.' : 'Tidak ada akun dengan aktivitas sesuai filter.'}</Text></td></tr> : visibleAccounts.map((account) => <tr key={account.id} onClick={() => openAccount(account)} className="cursor-pointer border-b border-slate-100 last:border-b-0 hover:bg-slate-50 focus-within:bg-slate-50">
               <td><button type="button" aria-haspopup="dialog" aria-label={`Lihat riwayat ${account.name}`} onClick={(event) => { event.stopPropagation(); openAccount(account); }} className="flex w-full cursor-pointer items-center gap-2.5 rounded text-left font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-300 text-[11px] text-slate-700">{initials(account.name)}</span><span className="break-words">{account.name}</span></button></td>
-              <td className="break-words font-semibold text-slate-700">{account.department}</td>
-              <td className="whitespace-pre-wrap break-words">{displayActivityDescription(account.lastEvent.description)}</td>
-              <td>{displayDateTime(account.lastEvent.createdAt)}</td>
+              <td className="break-words font-semibold text-slate-700"><Text dynamic>{account.department}</Text></td>
+              <td className="whitespace-pre-wrap break-words"><Text dynamic protect={[account.name, account.email]}>{displayActivityDescription(account.lastEvent.description)}</Text></td>
+              <td><DateText value={account.lastEvent.createdAt} time /></td>
               <td><Status online={account.online} isActive={account.isActive} /></td>
             </tr>)}
           </tbody>
         </table>
       </div>
       {!loading && <footer className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-        <p role="status" className="text-[11px] text-slate-500">Menampilkan {rows.length ? accountOffset + 1 : 0}&ndash;{Math.min(accountOffset + ACCOUNT_PAGE_SIZE, rows.length)} dari {rows.length} akun</p>
+        <p role="status" className="text-[11px] text-slate-500"><Text>Menampilkan </Text><Text dynamic>{rows.length ? accountOffset + 1 : 0}</Text><Text>&ndash;</Text>{Math.min(accountOffset + ACCOUNT_PAGE_SIZE, rows.length)} <Text>dari </Text>{rows.length} <Text>akun</Text></p>
         <HistoryPagination page={accountPage} totalPages={accountTotalPages} onChange={setRequestedAccountPage} />
       </footer>}
 
@@ -179,42 +180,42 @@ export default function LogActivity({ active }: { active: boolean }) {
           <aside aria-label="Profil akun" className="min-w-0 text-xs">
             <div aria-hidden="true" className="mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full bg-[#dbe3f0] text-5xl font-bold text-slate-900">{initials(selected.name)}</div>
             <dl className="space-y-4 [&_dt]:mb-1 [&_dt]:text-slate-500 [&_dd]:break-words [&_dd]:font-semibold">
-              <div><dt>Nama</dt><dd>{selected.name}</dd></div>
-              <div><dt>Departemen</dt><dd>{selected.department}</dd></div>
-              <div><dt>Email</dt><dd>{selected.email}</dd></div>
-              <div><dt>Role</dt><dd>{selected.role}</dd></div>
+              <div><dt><Text>Nama</Text></dt><dd>{selected.name}</dd></div>
+              <div><dt><Text>Departemen</Text></dt><dd><Text dynamic>{selected.department}</Text></dd></div>
+              <div><dt><Text>Email</Text></dt><dd>{selected.email}</dd></div>
+              <div><dt><Text>Role</Text></dt><dd><Text dynamic>{selected.role}</Text></dd></div>
             </dl>
             <section aria-label="Sesi terakhir" className="mt-5 rounded-xl border border-slate-200 bg-[#f1f4fa] p-3">
-              <div className="mb-4 flex items-center justify-between gap-2"><h3 className="text-[11px] font-bold">SESI TERAKHIR</h3><Status online={selected.online} isActive={selected.isActive} /></div>
-              <dl className="space-y-3 [&_dt]:mb-1 [&_dt]:text-slate-500 [&_dd]:font-semibold"><div><dt>Login</dt><dd>{displayDateTime(latestSession?.loginAt ?? null)}</dd></div><div><dt>Logout</dt><dd>{displayDateTime(latestSession?.logoutAt ?? null)}</dd></div></dl>
+              <div className="mb-4 flex items-center justify-between gap-2"><h3 className="text-[11px] font-bold"><Text>SESI TERAKHIR</Text></h3><Status online={selected.online} isActive={selected.isActive} /></div>
+              <dl className="space-y-3 [&_dt]:mb-1 [&_dt]:text-slate-500 [&_dd]:font-semibold"><div><dt><Text>Login</Text></dt><dd><DateText value={latestSession?.loginAt ?? null} time /></dd></div><div><dt><Text>Logout</Text></dt><dd><DateText value={latestSession?.logoutAt ?? null} time /></dd></div></dl>
             </section>
           </aside>
           <section aria-label="Riwayat akun" className="flex h-[560px] min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200">
             <div className="flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-x-3 border-b border-slate-200 px-4">
               <div role="tablist" aria-label="Jenis riwayat" className="flex self-stretch">
-                <button id="account-activity-tab" type="button" role="tab" aria-selected={tab === 'activity'} aria-controls="account-history-panel" onClick={() => changeTab('activity')} className={`cursor-pointer border-b-2 px-2 py-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-blue-500 ${tab === 'activity' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500'}`}>Activity ({selected.activities.length})</button>
-                <button id="account-login-tab" type="button" role="tab" aria-selected={tab === 'login'} aria-controls="account-history-panel" onClick={() => changeTab('login')} className={`cursor-pointer border-b-2 px-2 py-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-blue-500 ${tab === 'login' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500'}`}>Login History ({selected.sessions.length})</button>
+                <button id="account-activity-tab" type="button" role="tab" aria-selected={tab === 'activity'} aria-controls="account-history-panel" onClick={() => changeTab('activity')} className={`cursor-pointer border-b-2 px-2 py-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-blue-500 ${tab === 'activity' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500'}`}><Text>Activity (</Text>{selected.activities.length})</button>
+                <button id="account-login-tab" type="button" role="tab" aria-selected={tab === 'login'} aria-controls="account-history-panel" onClick={() => changeTab('login')} className={`cursor-pointer border-b-2 px-2 py-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-blue-500 ${tab === 'login' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500'}`}><Text>Login History (</Text>{selected.sessions.length})</button>
               </div>
-              {date && <p role="status" className="my-2 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] text-slate-900">{matchCount} sesuai filter tanggal {date}</p>}
+              {date && <p role="status" className="my-2 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] text-slate-900">{matchCount} <Text>sesuai filter tanggal </Text>{date}</p>}
             </div>
             <div id="account-history-panel" role="tabpanel" aria-labelledby={tab === 'activity' ? 'account-activity-tab' : 'account-login-tab'} tabIndex={0} className={`${styles.scrollbar} min-h-0 flex-1 overflow-auto focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-500`}>
               {tab === 'activity' ? <table aria-label="Riwayat aktivitas akun" className="w-full min-w-[580px] table-fixed border-collapse text-left text-xs [&_td]:px-4 [&_td]:py-2.5 [&_th]:px-4 [&_th]:py-3">
                 <colgroup><col className="w-[19%]" /><col className="w-[15%]" /><col className="w-[40%]" /><col className="w-[26%]" /></colgroup>
-                <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] tracking-wide text-slate-600"><tr className="border-b border-slate-200"><th scope="col">IP ADDRESS</th><th scope="col">BROWSER</th><th scope="col">DESCRIPTION</th><th scope="col">DATE TIME</th></tr></thead>
+                <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] tracking-wide text-slate-600"><tr className="border-b border-slate-200"><th scope="col"><Text>IP ADDRESS</Text></th><th scope="col"><Text>BROWSER</Text></th><th scope="col"><Text>DESCRIPTION</Text></th><th scope="col"><Text>DATE TIME</Text></th></tr></thead>
                 <tbody>{activityPage.rows.length ? activityPage.rows.map((activity) => {
                   const highlighted = Boolean(date && jakartaDay(activity.created_at) === date);
-                  return <tr key={activity.id} className={`border-b border-slate-200 ${highlighted ? 'bg-amber-100' : 'bg-white'}`}><td className={`break-words ${highlighted ? 'shadow-[inset_4px_0_0_#2563eb]' : ''}`}>{activity.ip_address || '-'}</td><td className="break-words">{activity.browser}</td><td className="whitespace-pre-wrap break-words">{displayActivityDescription(activity.description)}</td><td>{displayDateTime(activity.created_at)}</td></tr>;
-                }) : <tr><td colSpan={4} className="text-slate-500">Belum ada aktivitas.</td></tr>}</tbody>
+                  return <tr key={activity.id} className={`border-b border-slate-200 ${highlighted ? 'bg-amber-100' : 'bg-white'}`}><td className={`break-words ${highlighted ? 'shadow-[inset_4px_0_0_#2563eb]' : ''}`}>{activity.ip_address || '-'}</td><td className="break-words">{activity.browser}</td><td className="whitespace-pre-wrap break-words"><Text dynamic protect={[selected.name, selected.email]}>{displayActivityDescription(activity.description)}</Text></td><td><DateText value={activity.created_at} time /></td></tr>;
+                }) : <tr><td colSpan={4} className="text-slate-500"><Text>Belum ada aktivitas.</Text></td></tr>}</tbody>
               </table> : <table aria-label="Riwayat login akun" className="w-full min-w-[420px] table-fixed border-collapse text-left text-xs [&_td]:px-4 [&_td]:py-4 [&_th]:px-4 [&_th]:py-3">
-                <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] tracking-wide text-slate-600"><tr className="border-b border-slate-200"><th scope="col">LOGIN</th><th scope="col">LOGOUT</th></tr></thead>
+                <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] tracking-wide text-slate-600"><tr className="border-b border-slate-200"><th scope="col"><Text>LOGIN</Text></th><th scope="col"><Text>LOGOUT</Text></th></tr></thead>
                 <tbody>{loginPage.rows.length ? loginPage.rows.map((session) => {
                   const highlighted = sessionMatchesDate(session, date);
-                  return <tr key={session.id} className={`border-b border-slate-200 ${highlighted ? 'bg-amber-100' : 'bg-white'}`}><td className={highlighted ? 'shadow-[inset_4px_0_0_#2563eb]' : ''}>{displayDateTime(session.loginAt)}</td><td>{displayDateTime(session.logoutAt)}</td></tr>;
-                }) : <tr><td colSpan={2} className="text-slate-500">Belum ada riwayat login.</td></tr>}</tbody>
+                  return <tr key={session.id} className={`border-b border-slate-200 ${highlighted ? 'bg-amber-100' : 'bg-white'}`}><td className={highlighted ? 'shadow-[inset_4px_0_0_#2563eb]' : ''}><DateText value={session.loginAt} time /></td><td><DateText value={session.logoutAt} time /></td></tr>;
+                }) : <tr><td colSpan={2} className="text-slate-500"><Text>Belum ada riwayat login.</Text></td></tr>}</tbody>
               </table>}
             </div>
             <footer className="sticky bottom-0 z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3">
-              <p role="status" className="text-[11px] text-slate-500">Menampilkan {currentPage.start}&ndash;{currentPage.end} dari {total} {tab === 'activity' ? 'aktivitas' : 'sesi login'}</p>
+              <p role="status" className="text-[11px] text-slate-500"><Text>Menampilkan </Text>{currentPage.start}<Text>&ndash;</Text>{currentPage.end} <Text>dari </Text>{total} <Text dynamic>{tab === 'activity' ? 'aktivitas' : 'sesi login'}</Text></p>
               <HistoryPagination page={currentPage.page} totalPages={currentPage.totalPages} onChange={setRequestedPage} />
             </footer>
           </section>

@@ -1,5 +1,6 @@
 'use client';
 
+import { DateText, Text } from '@/components/language';
 import { useEffect, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowDownUp } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -12,7 +13,6 @@ type Outstanding = {
 export type OutstandingSortColumn = 'customer' | 'job_number';
 export type OutstandingSort = { column: OutstandingSortColumn; direction: 'ascending' | 'descending' } | null;
 const rupiah = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 2 });
-const dateLabel = (value: string | null) => value ? new Date(value + 'T00:00:00+07:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' }) : '-';
 
 export function useOutstandingPayments(limit?: number) {
   const [rows, setRows] = useState<Outstanding[]>([]);
@@ -83,7 +83,7 @@ export function OutstandingPaymentsTable({ rows: visibleRows, tableLoading, tabl
                       <th key={heading} scope="col" aria-sort={sortable ? direction ?? 'none' : undefined} className={`py-3.5 px-4 font-semibold ${heading === 'Amount' ? 'text-right' : ''}`}>
                         {sortable ? (
                           <button type="button" onClick={() => onSort(column)} aria-label={`${heading}: urutkan ${nextOrder}`} title={`Urutkan ${nextOrder}`} className={`flex cursor-pointer items-center gap-1.5 rounded uppercase tracking-wider hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-purple-500 ${direction ? 'text-slate-700' : ''}`}>
-                            {heading}<Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                            <Text dynamic>{heading}</Text><Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
                           </button>
                         ) : heading}
                       </th>
@@ -92,12 +92,12 @@ export function OutstandingPaymentsTable({ rows: visibleRows, tableLoading, tabl
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm leading-relaxed text-slate-700">
-                {tableLoading ? <tr><td colSpan={6} className="p-4" role="status">Memuat outstanding...</td></tr> : tableError ? <tr><td colSpan={6} className="p-4 text-red-600" role="alert">{tableError}</td></tr> : rows.length === 0 ? <tr><td colSpan={6} className="p-4 text-slate-500" role="status">{emptyMessage}</td></tr> : visibleRows.map((row) => (
+                {tableLoading ? <tr><td colSpan={6} className="p-4" role="status"><Text>Memuat outstanding...</Text></td></tr> : tableError ? <tr><td colSpan={6} className="p-4 text-red-600" role="alert"><Text dynamic>{tableError}</Text></td></tr> : rows.length === 0 ? <tr><td colSpan={6} className="p-4 text-slate-500" role="status"><Text dynamic>{emptyMessage}</Text></td></tr> : visibleRows.map((row) => (
                   <tr key={row.outstanding_row_id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-4 px-4 align-middle">Outstanding Payment</td><td className="break-words py-4 px-4 align-middle">{row.customer || '-'}</td><td className="break-words py-4 px-4 align-middle">{row.job_number || '-'}</td>
-                    <td className="py-4 px-4 align-middle text-right whitespace-nowrap tabular-nums">{row.outstanding_amount == null ? '-' : rupiah.format(Number(row.outstanding_amount))}</td>
-                    <td className="py-4 px-4 align-middle whitespace-nowrap">{dateLabel(row.due_date)}</td>
-                    <td className={`break-words py-4 px-4 align-middle ${row.status?.toUpperCase() === 'OVERDUE' ? 'text-rose-500' : 'text-slate-600'}`}>{row.status || '-'} / {row.source || '-'}</td>
+                    <td className="py-4 px-4 align-middle"><Text>Outstanding Payment</Text></td><td className="break-words py-4 px-4 align-middle">{row.customer || '-'}</td><td className="break-words py-4 px-4 align-middle">{row.job_number || '-'}</td>
+                    <td className="py-4 px-4 align-middle text-right whitespace-nowrap tabular-nums"><Text dynamic>{row.outstanding_amount == null ? '-' : rupiah.format(Number(row.outstanding_amount))}</Text></td>
+                    <td className="py-4 px-4 align-middle whitespace-nowrap"><DateText value={row.due_date} /></td>
+                    <td className={`break-words py-4 px-4 align-middle ${row.status?.toUpperCase() === 'OVERDUE' ? 'text-rose-500' : 'text-slate-600'}`}><Text dynamic>{row.status || '-'}</Text> / {row.source || '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -121,29 +121,29 @@ export function DashboardOutstandingTable({ rows: visibleRows, tableLoading, tab
         </colgroup>
         <thead>
           <tr className="bg-violet-50/70 border-b border-slate-100 text-[9px] uppercase tracking-wider text-slate-500">
-            <th className="py-1 px-1 font-semibold truncate">Customer</th>
-            <th className="py-1 px-1 font-semibold truncate">Job Number</th>
-            <th className="py-1 px-1 font-semibold truncate">Amount</th>
-            <th className="py-1 px-1 font-semibold truncate">Due Date</th>
-            <th className="py-1 px-1 font-semibold truncate">Status</th>
+            <th className="py-1 px-1 font-semibold truncate"><Text>Customer</Text></th>
+            <th className="py-1 px-1 font-semibold truncate"><Text>Job Number</Text></th>
+            <th className="py-1 px-1 font-semibold truncate"><Text>Amount</Text></th>
+            <th className="py-1 px-1 font-semibold truncate"><Text>Due Date</Text></th>
+            <th className="py-1 px-1 font-semibold truncate"><Text>Status</Text></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 text-[9px] text-slate-700">
           {tableLoading ? (
-            <tr><td colSpan={5} className="py-2 px-1 text-center" role="status">Memuat...</td></tr>
+            <tr><td colSpan={5} className="py-2 px-1 text-center" role="status"><Text>Memuat...</Text></td></tr>
           ) : tableError ? (
-            <tr><td colSpan={5} className="py-2 px-1 text-red-600 text-center" role="alert">{tableError}</td></tr>
+            <tr><td colSpan={5} className="py-2 px-1 text-red-600 text-center" role="alert"><Text dynamic>{tableError}</Text></td></tr>
           ) : visibleRows.length === 0 ? (
-            <tr><td colSpan={5} className="py-2 px-1 text-slate-500 text-center" role="status">{emptyMessage}</td></tr>
+            <tr><td colSpan={5} className="py-2 px-1 text-slate-500 text-center" role="status"><Text dynamic>{emptyMessage}</Text></td></tr>
           ) : (
             visibleRows.map((row) => (
               <tr key={row.outstanding_row_id} className="hover:bg-slate-50/50 transition-colors">
                 <td className="py-1 px-1 truncate" title={row.customer || ''}>{row.customer || '-'}</td>
                 <td className="py-1 px-1 truncate" title={row.job_number || ''}>{row.job_number || '-'}</td>
-                <td className="py-1 px-1 whitespace-nowrap tabular-nums truncate">{row.outstanding_amount == null ? '-' : rupiah.format(Number(row.outstanding_amount))}</td>
-                <td className="py-1 px-1 whitespace-nowrap truncate">{dateLabel(row.due_date)}</td>
+                <td className="py-1 px-1 whitespace-nowrap tabular-nums truncate"><Text dynamic>{row.outstanding_amount == null ? '-' : rupiah.format(Number(row.outstanding_amount))}</Text></td>
+                <td className="py-1 px-1 whitespace-nowrap truncate"><DateText value={row.due_date} /></td>
                 <td className={`py-1 px-1 whitespace-nowrap font-semibold truncate ${row.status?.toUpperCase() === 'OVERDUE' ? 'text-rose-500' : 'text-slate-600'}`} title={row.status || '-'}>
-                  {row.status || '-'}
+                  <Text dynamic>{row.status || '-'}</Text>
                 </td>
               </tr>
             ))

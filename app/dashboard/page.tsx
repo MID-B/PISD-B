@@ -1,5 +1,6 @@
 'use client';
 
+import { Text, LanguageInput } from '@/components/language';
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -305,28 +306,28 @@ export default function SalesPerformance() {
         {/* ========================================================================= */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 shrink-0">
           <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/60 p-2.5 rounded-xl border border-emerald-200/60 shadow-2xs flex flex-col justify-between">
-            <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-wide">Total Profit</span>
+            <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-wide"><Text>Total Profit</Text></span>
             <span className="text-xs sm:text-sm font-extrabold text-emerald-900 mt-1 truncate">{formatRupiah(totalProfitVal)}</span>
           </div>
 
           <div className="bg-gradient-to-br from-amber-50 to-amber-100/60 p-2.5 rounded-xl border border-amber-200/60 shadow-2xs flex flex-col justify-between">
-            <span className="text-[9px] font-bold text-amber-700 uppercase tracking-wide">Outstanding Pay</span>
+            <span className="text-[9px] font-bold text-amber-700 uppercase tracking-wide"><Text>Outstanding Pay</Text></span>
             <span className="text-xs sm:text-sm font-extrabold text-amber-900 mt-1 truncate">{formatRupiah(totalOutstandingVal)}</span>
           </div>
 
           <div className="bg-gradient-to-br from-rose-50 to-rose-100/60 p-2.5 rounded-xl border border-rose-200/60 shadow-2xs flex flex-col justify-between">
-            <span className="text-[9px] font-bold text-rose-700 uppercase tracking-wide">Urgent Issues</span>
-            <span className="text-xs sm:text-sm font-extrabold text-rose-900 mt-1 truncate">{urgentCount} Issue</span>
+            <span className="text-[9px] font-bold text-rose-700 uppercase tracking-wide"><Text>Urgent Issues</Text></span>
+            <span className="text-xs sm:text-sm font-extrabold text-rose-900 mt-1 truncate">{urgentCount} <Text>Issue</Text></span>
           </div>
 
           <div className="bg-gradient-to-br from-blue-50 to-blue-100/60 p-2.5 rounded-xl border border-blue-200/60 shadow-2xs flex flex-col justify-between">
-            <span className="text-[9px] font-bold text-blue-700 uppercase tracking-wide">Active Customers</span>
-            <span className="text-xs sm:text-sm font-extrabold text-blue-900 mt-1 truncate">{activeCustomers} Klien</span>
+            <span className="text-[9px] font-bold text-blue-700 uppercase tracking-wide"><Text>Active Customers</Text></span>
+            <span className="text-xs sm:text-sm font-extrabold text-blue-900 mt-1 truncate">{activeCustomers} <Text>Klien</Text></span>
           </div>
 
           <div className="bg-gradient-to-br from-purple-50 to-purple-100/60 p-2.5 rounded-xl border border-purple-200/60 shadow-2xs flex flex-col justify-between col-span-2 sm:col-span-1">
-            <span className="text-[9px] font-bold text-purple-700 uppercase tracking-wide">Total Employees</span>
-            <span className="text-xs sm:text-sm font-extrabold text-purple-900 mt-1 truncate">{totalEmployees} Orang</span>
+            <span className="text-[9px] font-bold text-purple-700 uppercase tracking-wide"><Text>Total Employees</Text></span>
+            <span className="text-xs sm:text-sm font-extrabold text-purple-900 mt-1 truncate">{totalEmployees} <Text>Orang</Text></span>
           </div>
         </div>
 
@@ -345,7 +346,7 @@ export default function SalesPerformance() {
             {/* Top Purchasing Clients (Grafik Batang Kompak) */}
             <div className="bg-white p-2.5 rounded-xl shadow-2xs border border-slate-200/80 flex flex-col flex-1 min-h-0 justify-between">
               <div className="flex flex-wrap items-center justify-between gap-1 mb-0.5 shrink-0">
-                <h2 className="text-[10px] font-bold text-slate-800 uppercase tracking-wide">Top Purchasing Clients</h2>
+                <h2 className="text-[10px] font-bold text-slate-800 uppercase tracking-wide"><Text>Top Purchasing Clients</Text></h2>
                 
                 {/* KUMPULAN KONTROL FILTER (Kecil, Kustom Dropdown, & Hover #C3C6D7) */}
                 <div className="flex flex-wrap items-center gap-1">            
@@ -356,13 +357,13 @@ export default function SalesPerformance() {
                       className="bg-white text-[9px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-3 py-1 cursor-pointer hover:bg-[#C3C6D7] transition-colors flex items-center gap-1 shadow-2xs"
                     >
                       <span>
-                        {{
+                        <Text>{{
                           '3': 'Per 3 Bulan',
                           '6': 'Per 6 Bulan',
                           year: 'Per Tahun',
                           month: 'Per Bulan',
                           range: 'Rentang Tanggal'
-                        }[topClients.period]}
+                        }[topClients.period]}</Text>
                       </span>
                       <span className="text-[8px]">▾</span>
                     </button>
@@ -385,7 +386,7 @@ export default function SalesPerformance() {
                             }}
                             className="block w-full text-left px-3 py-2 text-[9px] font-bold text-slate-700 hover:bg-[#C3C6D7] transition-colors cursor-pointer"
                           >
-                            {label}
+                            <Text dynamic>{label}</Text>
                           </button>
                         ))}
                       </div>
@@ -407,7 +408,7 @@ export default function SalesPerformance() {
 
                   {/* Filter Bulan */}
                   {topClients.period === 'month' && (
-                    <input
+                    <LanguageInput
                       type="month"
                       value={topClients.selectedMonth}
                       onChange={(e) => topClients.setSelectedMonth(e.target.value)}
@@ -418,14 +419,14 @@ export default function SalesPerformance() {
                   {/* Filter Rentang Tanggal */}
                   {topClients.period === 'range' && (
                     <div className="flex items-center gap-1">
-                      <input
+                      <LanguageInput
                         type="date"
                         value={topClients.startDate}
                         onChange={(e) => topClients.setStartDate(e.target.value)}
                         className="bg-white text-[8px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-2.5 py-1 focus:outline-none shadow-2xs cursor-pointer"
                       />
-                      <span className="text-[8px] text-slate-500">s/d</span>
-                      <input
+                      <span className="text-[8px] text-slate-500"><Text>s/d</Text></span>
+                      <LanguageInput
                         type="date"
                         value={topClients.endDate}
                         onChange={(e) => topClients.setEndDate(e.target.value)}
@@ -437,11 +438,11 @@ export default function SalesPerformance() {
               </div>
 
               {topClients.loading ? (
-                <p className="text-[9px] text-slate-400 py-2 text-center">Memuat...</p>
+                <p className="text-[9px] text-slate-400 py-2 text-center"><Text>Memuat...</Text></p>
               ) : topClients.error ? (
                 <p className="text-[9px] text-rose-500 py-2 text-center">{topClients.error}</p>
               ) : topClients.chartData.length === 0 ? (
-                <p className="text-[9px] text-slate-400 py-2 text-center">Tidak ada data.</p>
+                <p className="text-[9px] text-slate-400 py-2 text-center"><Text>Tidak ada data.</Text></p>
               ) : (
                 <div className="min-w-0 w-full flex-1 min-h-[90px]">
                   <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -472,7 +473,7 @@ export default function SalesPerformance() {
             <div className="bg-white p-2 rounded-xl shadow-2xs border border-[#D9E2EC] flex-1 min-h-0 overflow-hidden [&_.p-6]:!p-0 [&_.mb-4]:!mb-0.5 [&_table]:!text-[9px] [&_th]:!py-1 [&_td]:!py-0.5">
               {/* Header dengan tombol pill biru */}
               <div className="mb-1 flex items-center justify-between shrink-0 pr-1">
-                <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">Outstanding Payments</h3>
+                <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wide"><Text>Outstanding Payments</Text></h3>
                 <Link 
                   href="/dashboard/sales-performance" 
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#3B6FF5] hover:bg-[#315be0] text-white rounded-full text-[9px] font-bold shadow-2xs transition-colors"
@@ -481,8 +482,8 @@ export default function SalesPerformance() {
                     <rect x="3" y="3" width="18" height="18" rx="2" />
                     <path d="M3 9h18M9 3v18" />
                   </svg>
-                  Lihat Semua
-                </Link>
+                  <Text>Lihat Semua
+                </Text></Link>
               </div>
               <div className="w-full overflow-hidden">
                 <DashboardOutstandingTable rows={outstanding.rows} tableLoading={outstanding.tableLoading} tableError={outstanding.tableError} />
@@ -502,7 +503,7 @@ export default function SalesPerformance() {
             {/* 3. Require Employee & Open Positions (Disamakan persis dengan Issue Board) */}
               <div className="bg-white p-2 rounded-xl shadow-2xs border border-[#D9E2EC] flex-1 min-h-0 overflow-hidden">
                 <div className="mb-1.5 flex items-center justify-between pr-1.5">
-                  <h2 className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">Require Employee & Open Positions</h2>
+                  <h2 className="text-[11px] font-bold text-slate-800 uppercase tracking-wide"><Text>Require Employee & Open Positions</Text></h2>
                   <Link 
                     href="/dashboard/job-vacancies" 
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#3B6FF5] hover:bg-[#315be0] text-white rounded-full text-[9px] font-bold shadow-2xs transition-colors"
@@ -511,8 +512,8 @@ export default function SalesPerformance() {
                       <rect x="3" y="3" width="18" height="18" rx="2" />
                       <path d="M3 9h18M9 3v18" />
                     </svg>
-                    Lihat Semua
-                  </Link>
+                    <Text>Lihat Semua
+                  </Text></Link>
                 </div>
 
               <div className="w-full overflow-hidden">
@@ -525,10 +526,10 @@ export default function SalesPerformance() {
                   </colgroup>
                   <thead>
                     <tr className="bg-violet-50/80 border-b border-slate-100 text-[9px] uppercase tracking-wider text-slate-500 font-semibold">
-                      <th className="py-1.5 px-1.5 truncate">Position</th>
-                      <th className="py-1.5 px-1.5 truncate">Department</th>
-                      <th className="py-1.5 px-1.5 truncate">Quota</th>
-                      <th className="py-1.5 px-1.5 truncate">Status</th>
+                      <th className="py-1.5 px-1.5 truncate"><Text>Position</Text></th>
+                      <th className="py-1.5 px-1.5 truncate"><Text>Department</Text></th>
+                      <th className="py-1.5 px-1.5 truncate"><Text>Quota</Text></th>
+                      <th className="py-1.5 px-1.5 truncate"><Text>Status</Text></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-[9px] text-slate-700 bg-white">
@@ -546,13 +547,13 @@ export default function SalesPerformance() {
                             {job.department}
                           </td>
                           <td className="py-1 px-1.5 font-bold text-purple-700 truncate">
-                            {job.quota} Orang
-                          </td>
+                            {job.quota} <Text>Orang
+                          </Text></td>
                           <td className="py-1 px-1.5 truncate">
                             <span className="inline-flex items-center gap-1">
                               <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: statusDotColor }} />
                               <span className="truncate font-medium text-slate-700" title={job.status}>
-                                {job.status}
+                                <Text dynamic>{job.status}</Text>
                               </span>
                             </span>
                           </td>

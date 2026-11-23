@@ -1,0 +1,40 @@
+.scrollbar {
+  scrollbar-gutter: stable;
+}
+
+.scrollbar::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar::-webkit-scrollbar-thumb {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #c3cfdf;
+  background-clip: padding-box;
+}
+
+.scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+.scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.scrollbar::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #c3cfdf transparent;
+  }
+}

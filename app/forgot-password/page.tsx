@@ -1,5 +1,6 @@
 'use client';
 
+import { Text, LanguageInput } from '@/components/language';
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -84,9 +85,9 @@ export default function ForgotPasswordPage() {
           />
         </div>
         <h1 className="font-[family-name:var(--font-poppins)] text-2xl font-extrabold leading-tight tracking-wider text-white drop-shadow-md sm:text-3xl lg:text-4xl">
-          PT. ANDIMA<br />
-          TRANSPORTINDO
-        </h1>
+          <Text>PT. ANDIMA</Text><br />
+          <Text>TRANSPORTINDO
+        </Text></h1>
       </div>
 
       {/* Panel input email */}
@@ -97,19 +98,19 @@ export default function ForgotPasswordPage() {
 
             <div className="relative z-10 mb-7 text-left">
               <h2 className="font-[family-name:var(--font-poppins)] text-xl font-bold tracking-tight text-[#0D1B2A] sm:text-2xl">
-                {greeting},
+                <Text dynamic>{greeting}</Text>,
               </h2>
               <p className="mt-1.5 font-[family-name:var(--font-poppins)] text-sm font-medium text-[#334155]">
-                Please enter your Andima Email to reset the password
-              </p>
+                <Text>Please enter your Andima Email to reset the password
+              </Text></p>
             </div>
 
             <form onSubmit={handleSubmit} noValidate className="relative z-10 space-y-6 font-[family-name:var(--font-inter)]">
               <div>
                 <label htmlFor="reset-email" className="mb-2.5 block text-xs font-bold uppercase tracking-wider text-[#0F172A]">
-                  Email
-                </label>
-                <input
+                  <Text>Email
+                </Text></label>
+                <LanguageInput
                   id="reset-email"
                   name="email"
                   type="email"
@@ -132,7 +133,7 @@ export default function ForgotPasswordPage() {
                   <svg aria-hidden="true" className="h-5 w-5 shrink-0 fill-current" viewBox="0 0 20 20">
                     <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" />
                   </svg>
-                  <span>{errorMessage}</span>
+                  <span><Text dynamic>{errorMessage}</Text></span>
                 </div>
               )}
 
@@ -146,15 +147,15 @@ export default function ForgotPasswordPage() {
                   }}
                   className="flex w-full items-center justify-center rounded-xl bg-[#31005B] px-5 py-4 text-sm font-extrabold tracking-wider text-white shadow-[0_8px_25px_rgba(49,0,91,0.3)] transition-all active:scale-[0.99]"
                 >
-                  BACK
-                </Link>
+                  <Text>BACK
+                </Text></Link>
                 <button
                   type="submit"
                   disabled={isChecking}
                   className="w-full cursor-pointer rounded-xl bg-[#3B6FF5] px-5 py-4 text-sm font-extrabold tracking-wider text-white shadow-[0_8px_25px_rgba(59,111,245,0.4)] transition-all hover:bg-[#2B5CE5] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  NEXT
-                </button>
+                  <Text>NEXT
+                </Text></button>
               </div>
             </form>
           </section>

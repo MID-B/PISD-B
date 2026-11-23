@@ -1,0 +1,210 @@
+export type Language = 'id' | 'en';
+
+// Reviewed UI terminology. Stored values, IDs and filter keys are never translated.
+const pairs: [string, string][] = [
+  ['Dasbor', 'Dashboard'], ['Dasbor Utama', 'Main Dashboard'], ['Kinerja Penjualan', 'Sales Performance'],
+  ['Papan Issue', 'Issue Board'], ['Riwayat Aktivitas', 'Log Activity'], ['Kelola Akun', 'Account Maintains'],
+  ['Riwayat Login', 'Login History'], ['Aktivitas', 'Activity'], ['Keluar', 'Logout'], ['Masuk', 'Login'],
+  ['Daftar', 'Register'], ['Memuat...', 'Loading...'], ['Memuat…', 'Loading…'], ['Keluar…', 'Signing out…'],
+  ['Cari...', 'Search...'], ['Atur ulang', 'Reset'], ['Terapkan', 'Apply'], ['Tutup', 'Close'],
+  ['Batal', 'Cancel'], ['Simpan', 'Save'], ['Simpan Perubahan', 'Save Changes'], ['Hapus', 'Delete'],
+  ['Sebelumnya', 'Previous'], ['Berikutnya', 'Next'], ['Semua', 'All'], ['Semua Departemen', 'All Department'],
+  ['Semua Departemen', 'All Departments'], ['Semua Posisi', 'All Position'], ['Semua Status', 'All Status'],
+  ['Semua Prioritas', 'All Priority'], ['Departemen', 'Department'], ['Posisi', 'Position'], ['Peran', 'Role'],
+  ['Nama Karyawan', "Employee's Name"], ['Nama Karyawan', "EMPLOYEE'S NAME"], ['Nama', 'Name'],
+  ['Nama', 'Nama'], ['Nama lengkap', 'Full Name'], ['Email', 'E-Mail'], ['Email', 'E-MAIL'], ['Email', 'Email'],
+  ['Sumber Daya Manusia', 'Human Resources'], ['Sumber Daya Manusia & Budaya', 'Human Capital & Culture'],
+  ['Teknologi Informasi', 'Information Technology'], ['Keuangan, Akuntansi & Pajak', 'Finance, Accounting & Tax'],
+  ['Komersial & Kesuksesan Pelanggan', 'Commercial & Customer Success'], ['Direktur', 'Director'],
+  ['Keuangan', 'Finance'], ['Operasional', 'Operations'], ['Staf', 'Staff'], ['Manajemen', 'Management'],
+  ['Aktif', 'Active'], ['Nonaktif', 'Inactive'], ['Nonaktif', 'Deactive'], ['Daring', 'Online'], ['Luring', 'Offline'],
+  ['Alamat IP', 'IP ADDRESS'], ['Peramban', 'BROWSER'], ['Deskripsi', 'DESCRIPTION'], ['Tanggal & Waktu', 'DATE TIME'],
+  ['Departemen', 'DEPARTMENT'], ['Peran', 'ROLE'], ['Aksi', 'ACTION'], ['Posisi', 'POSITION'],
+  ['Aktivitas Terakhir', 'LAST ACTIVITY'], ['Tanggal Terakhir', 'LAST DATE'], ['Status', 'STATUS'],
+  ['Sesi Terakhir', 'SESI TERAKHIR'], ['Sesi Terakhir', 'Latest Session'], ['Login', 'LOGIN'], ['Logout', 'LOGOUT'],
+  ['Tanggal', 'Date'], ['Tanggal', 'DATE'], ['Tanggal Mulai', 'Start Date'], ['Tanggal Akhir', 'End Date'],
+  ['Belum ada riwayat login.', 'No login history yet.'], ['Belum ada aktivitas.', 'No activity yet.'],
+  ['Tidak ada akun dengan aktivitas sesuai filter.', 'No accounts with activity matching the filters.'],
+  ['Cari nama atau email karyawan', "Search by Employee's Name or Email"],
+  ['Cari nama karyawan', "Search by Employee's Name"], ['Cari nomor pekerjaan / jatuh tempo...', 'Search Job Number / Due Date...'],
+  ['Cari kode tiket / issue...', 'Search Ticket Code / Issue...'], ['Coba lagi', 'Try again'],
+  ['Total Issue', 'Total Issues'], ['Baru', 'Open'], ['Sedang Dikerjakan', 'In Progress'],
+  ['Dalam Peninjauan', 'In Review'], ['Tertunda', 'Pending'], ['Selesai', 'Done'], ['Belum Dikerjakan', 'To Do'],
+  ['Tinggi', 'High'], ['Sedang', 'Medium'], ['Rendah', 'Low'], ['Belum Ditentukan', 'Undetermined'],
+  ['Prioritas', 'Priority'], ['PRIORITAS', 'PRIORITY'], ['Issue per Departemen', 'Issues by Department'],
+  ['Issue per Prioritas', 'Issues by Priority'], ['Umur Issue', 'Issue Aging'], ['Pemantauan Jatuh Tempo', 'Due Date Monitoring'],
+  ['Sesuai Jadwal', 'On Track'], ['Segera Jatuh Tempo', 'Due Soon'], ['Terlambat', 'Overdue'],
+  ['Lihat tabel', 'View table'], ['Lihat tabel outstanding', 'View outstanding table'], ['Lihat Semua', 'View All'],
+  ['Lihat tabel', 'Lihat tabel'], ['Lihat tabel outstanding', 'Lihat tabel outstanding'], ['Lihat Semua', 'Lihat Semua'],
+  ['Departemen / Sumber', 'Department / Source'], ['Departemen / Sumber', 'Department / Source'],
+  ['Rentang tanggal (diterima)', 'Date range (received)'], ['sampai', 'to'], ['Kode Referensi', 'Reference Code'],
+  ['Kode Tiket', 'Ticket Code'], ['Issue', 'Issue'], ['Penanggung Jawab', 'PIC'], ['Tanggal & Waktu Diterima', 'Date & Time Received'],
+  ['Jatuh Tempo', 'Due Date'], ['Detail Issue', 'Issue Details'], ['Sumber', 'Sumber'], ['Sumber', 'Source'],
+  ['Deskripsi', 'Description'], ['Deskripsi', 'Deskripsi'], ['Catatan', 'Note'], ['Status', 'Status'],
+  ['Jumlah hari sejak issue overdue diterima.', 'Days since the overdue issue was received.'],
+  ['Lengkapi tanggal mulai dan tanggal akhir.', 'Enter both the start and end dates.'],
+  ['Tanggal tidak valid.', 'Invalid date.'], ['Tanggal akhir tidak boleh sebelum tanggal mulai.', 'End date cannot precede start date.'],
+  ['Tidak ada issue yang sesuai dengan pencarian dan filter.', 'No issues match the search and filters.'],
+  ['Data belum dapat ditampilkan.', 'Data cannot be displayed yet.'], ['Memuat issue...', 'Loading issues...'],
+  ['Total Laba', 'Total Profit'], ['Margin Laba', 'Profit Margin'], ['Total Tagihan Belum Lunas', 'Total Outstanding'],
+  ['Terlambat / CCR', 'Overdue / CCR'], ['Profit terhadap total revenue', 'Profit as a proportion of total revenue'],
+  ['Tren Kinerja Penjualan', 'Sales Performance Trend'], ['Umur Tagihan Outstanding', 'Aging Outstanding Payment'],
+  ['5 Pelanggan Teratas — Outstanding', 'Top 5 Customer — Outstanding'],
+  ['Informasi Pembayaran Outstanding', 'Outstanding Payment Information'], ['Profit (dalam juta rupiah)', 'Profit (in millions of rupiah)'],
+  ['Total Pendapatan', 'Total Revenue'], ['Per 3 Bulan', 'Every 3 Months'], ['Per 6 Bulan', 'Every 6 Months'],
+  ['Per Tahun', 'Yearly'], ['Per Bulan', 'Monthly'], ['Rentang Tanggal', 'Date Range'],
+  ['Pelanggan', 'Customer'], ['Nomor Pekerjaan', 'Job Number'], ['Nominal', 'Amount'], ['Status/Sumber', 'Status/Source'],
+  ['Pembayaran Outstanding', 'Outstanding Payment'], ['Belum ada data outstanding.', 'No outstanding payments yet.'],
+  ['Tidak ada outstanding payment yang cocok dengan pencarian.', 'No outstanding payments match the search.'],
+  ['Memuat outstanding...', 'Loading outstanding payments...'], ['Memuat customer...', 'Loading customers...'],
+  ['Memuat data tagihan...', 'Loading invoices...'], ['Belum ada data customer.', 'No customers yet.'],
+  ['Data customer belum dapat ditampilkan.', 'Customer data cannot be displayed yet.'],
+  ['Profit terhadap total revenue', 'Profit against total revenue'], ['Profit (dalam juta rupiah)', 'Profit (dalam juta rupiah)'],
+  ['Akun telah dinonaktifkan.', 'Account has been deactivated.'], ['Tambah Karyawan', '+ Add Employee'],
+  ['Edit Karyawan', 'Edit Employee'], ['Hapus Karyawan?', 'Delete Employee?'], ['Ya, Hapus', 'Yes, Delete'],
+  ['Nonaktifkan', 'Deactivate'], ['Aktifkan', 'Activate'], ['Tambah Karyawan', 'Add Employee'],
+  ['Kata Sandi', 'Password'], ['Konfirmasi Kata Sandi', 'Confirm Password'], ['Lupa kata sandi?', 'Forgot Password?'],
+  ['Nomor Telepon', 'Phone Number'], ['Status Kepegawaian', 'Employment Status'], ['Tetap', 'Permanent'],
+  ['Kontrak', 'Contract'], ['Magang', 'Internship'], ['USERNAME / EMAIL', 'USERNAME / EMAIL'],
+  ['Selamat Pagi,', 'Good Morning,'], ['Selamat Siang,', 'Good Afternoon,'], ['Selamat Malam,', 'Good Evening,'],
+  ['Silakan masuk dengan akun terdaftar untuk mengakses dasbor.', 'Please sign in with your registered account to access the dashboard.'],
+  ['Belum terdaftar?', 'Not registered?'], ['Sudah punya akun?', 'Already have an account?'],
+  ['Selamat Datang,', 'Welcome,'], ['Masuk Modul', 'Open Module'], ['Halaman Pemilihan Sistem', 'Enterprise Landing Page'],
+  ['Pilih modul divisi di bawah ini untuk masuk ke dashboard operasional Anda. Hak akses modul disesuaikan dengan posisi jabatan dan departemen Anda.', 'Choose a division module below to open your operational dashboard. Module access follows your position and department.'],
+  ['Anda belum terhubung ke modul manapun. Silakan hubungi Administrator IT.', 'You do not have access to any modules. Please contact the IT administrator.'],
+  ['Kembali', 'Back'], ['Kirim', 'Submit'], ['Verifikasi Wajah', 'Face Verification'],
+  ['Asosiet Akuntansi', 'Accounting Associate'], ['Petugas Asosiet', 'Associate Officer'], ['Penagihan', 'Billing'],
+  ['Asosiet Kas', 'Cash Associate'], ['Manajer Kas', 'Cash Manager'], ['Manajer SDM', 'HR Manager'],
+  ['Manajer Akuntansi', 'Manager of Accounting'], ['Manajer Kesuksesan Pelanggan', 'Manager of Customer Success'],
+  ['Asosiet Administrasi Penjualan', 'Sales Administration Associate'], ['Eksekutif Penjualan', 'Sales Executive'],
+  ['Asosiet Pajak', 'Tax Associate'], ['Manajer Pajak', 'Tax Manager'], ['Petugas Lapangan', 'Field Agent'],
+  ['Akses Ditolak', 'Access Denied'], ['Semua Departemen', 'All Departement'], ['Kembali', 'BACK'],
+  ['Berikutnya', 'NEXT'], ['Ubah Pengguna', 'Edit User'], ['Ubah Akun (', 'Edit Account ('],
+  ['Aktivitas (', 'Activity ('], ['Riwayat Login (', 'Login History ('], ['Alamat Email', 'Email Address'],
+  ['Tidak ada karyawan yang ditemukan.', 'No employees found.'], ['Masa Percobaan', 'Probation'],
+  ['Pilih Departemen', 'Select Department'], ['Pilih Posisi', 'Select Position'], ['Pilih Status', 'Select Status'],
+  ['Atur Ulang Kata Sandi (Opsional)', 'Reset Password (Optional)'], ['Kata Sandi Baru', 'New Password'],
+  ['Silakan masuk terlebih dahulu untuk mengakses dasbor.', 'Silakan login terlebih dahulu untuk mengakses Dashboard.'],
+  ['Memuat Dasbor IT...', 'Loading Dashboard IT...'], ['Memuat Halaman Pemilihan ANDIMA...', 'Memuat Landing Page ANDIMA...'],
+  ['Memuat Riwayat Aktivitas...', 'Memuat Log Activity...'], ['Memuat Riwayat Aktivitas...', 'Loading activity history...'],
+  ['Memuat grafik...', 'Loading chart...'], ['Belum ada data grafik pada periode ini.', 'No chart data for this period.'],
+  ['Gagal memuat Log Activity:', 'Failed to load activity history:'], ['Gagal memuat issue:', 'Failed to load issues:'],
+  ['Tidak ada data.', 'No data.'], ['Tidak ada isu', 'No issues'], ['Oke', 'OK'], ['OKE', 'OK'],
+  ['Tagihan Belum Lunas', 'Outstanding Pay'], ['Tagihan Belum Lunas', 'Outstanding Payments'],
+  ['Pelanggan Teratas berdasarkan Pembelian', 'Top Purchasing Clients'], ['Pelanggan Aktif', 'Active Customers'],
+  ['Total Karyawan', 'Total Employees'], ['Issue Mendesak', 'Urgent Issues'], ['Klien', 'Clients'], ['Orang', 'People'],
+  ['Kuota', 'Quota'], ['Kebutuhan Karyawan & Posisi Terbuka', 'Require Employee & Open Positions'],
+  ['Kumpulan Aplikasi Logistik', 'Logistics Suite'], ['Verifikasi kamera', 'Camera verification'],
+  ['Verifikasi wajah dan gerakan langsung', 'Facial verification and liveness action'], ['Pemindaian identitas aman', 'Secure identity scan'],
+  ['Masukan identitas langsung', 'Live identity input'], ['Verifikasi keaktifan', 'Liveness'], ['Terverifikasi', 'Verified'],
+  ['Silakan lengkapi verifikasi wajah untuk menyelesaikan pengaturan ulang kata sandi', 'Please complete the facial verification to finish the password reset process'],
+  ['Silakan masukkan dan konfirmasi kata sandi baru Anda.', 'Please enter and confirm your new password.'],
+  ['Masukkan email Andima Anda untuk mengatur ulang kata sandi', 'Please enter your Andima Email to reset the password'],
+  ['Perbaiki kesalahan berikut sebelum mengirim.', 'Please fix the errors below before submitting.'],
+  ['Silakan daftar menggunakan identitas Anda.', 'Please register with your identity.'],
+  ['Apakah Anda yakin ingin', 'Are you sure you want to'], ['Apakah Anda yakin ingin menghapus permanen karyawan', 'Are you sure you want to permanently delete employee'],
+  ['akun', 'accounts'], ['data', 'records'], ['sesuai filter tanggal', 'matching date filter'],
+  ['Total laba laporan penjualan perusahaan periode', 'Total profit company sales report periode'],
+  ['Total laba laporan penjualan perusahaan periode', 'Company sales report total profit for'],
+  ['belum Selesai. Segera jatuh tempo: hari ini sampai 2 hari lagi.', 'belum Done. Due Soon: hari ini s.d. 2 hari lagi.'],
+  ['belum Selesai. Segera jatuh tempo: hari ini sampai 2 hari lagi.', 'not done. Due Soon: today through the next 2 days.'],
+  ['issue memakai prioritas lain di luar kategori di atas.', 'issue memakai priority lain di luar kategori di atas.'],
+  ['issue memakai prioritas lain di luar kategori di atas.', 'issues have priorities outside the categories above.'],
+  ['terlambat tanpa tanggal diterima valid;', 'overdue tanpa tanggal diterima valid;'],
+  ['terlambat tanpa tanggal diterima valid;', 'overdue issues without valid received dates;'],
+  ['terlambat dengan tanggal diterima di masa depan.', 'overdue bertanggal diterima di masa depan.'],
+  ['terlambat dengan tanggal diterima di masa depan.', 'overdue issues with future received dates.'],
+  ['Memproses...', 'Processing...'], ['Tersimpan', 'Saved'], ['Akun Diblokir', 'ACCOUNT BLOCKED'], ['Sedang Masuk…', 'SIGNING IN…'],
+  ['Nonaktifkan Karyawan?', 'Deactivate Employee?'], ['Aktifkan Karyawan?', 'Activate Employee?'],
+  ['nonaktifkan', 'deactivate'], ['aktifkan kembali', 'reactivate'], ['Ya, Nonaktifkan', 'Yes, Deactivate'], ['Ya, Aktifkan', 'Yes, Activate'],
+  ['Grafik dan ringkasan profit menunggu rentang tanggal yang valid.', 'The chart and profit summary require a valid date range.'],
+  ['Perbandingan pertumbuhan tersedia jika terdapat minimal dua bulan profit.', 'Growth comparisons require at least two months of profit data.'],
+  ['Tampilan', 'Show'], ['entri', 'entries'], ['Terima kasih', 'Thank you'],
+  ['Nama lengkap wajib diisi.', 'Full name is required.'], ['Nama lengkap maksimal 50 karakter.', 'Full name cannot exceed 50 characters.'],
+  ['Nama lengkap hanya boleh berisi huruf dan spasi.', 'Full name must contain letters and spaces only.'],
+  ['Alamat email wajib diisi.', 'Email address is required.'], ['Alamat email maksimal 30 karakter.', 'Email address cannot exceed 30 characters.'],
+  ['Alamat email harus menggunakan domain @andima.co.id', 'Email address must use the domain @andima.co.id'],
+  ['Kata sandi wajib diisi.', 'Password is required.'], ['Kata sandi minimal 8 karakter.', 'The password must be at least 8 characters long.'],
+  ['Kata sandi maksimal 15 karakter.', 'Password cannot exceed 15 characters.'],
+  ['Kata sandi harus berisi huruf, angka, dan karakter khusus.', 'Password must include letters, numbers, and special characters.'],
+  ['Nomor telepon wajib diisi.', 'Phone number is required.'], ['Nomor telepon hanya boleh berisi angka.', 'Phone number must contain numbers only.'],
+  ['Nomor telepon maksimal 12 digit.', 'Phone number cannot exceed 12 digits.'], ['Pilih status kepegawaian.', 'Please select employment status.'],
+  ['Pilih posisi.', 'Please select a position.'], ['Pilih departemen.', 'Please select a department.'],
+  ['Memeriksa', 'Checking'], ['Memindai', 'Scanning'], ['Siap', 'Ready'], ['Gagal', 'Failed'],
+  ['Menyiapkan kamera', 'Preparing camera'], ['Memeriksa kecocokan wajah', 'Checking face match'],
+  ['Kata sandi berhasil diperbarui.', 'Password updated'], ['Verifikasi wajah gagal', 'Face verification failed'],
+  ['Kamera belum aktif', 'Camera not yet active'], ['Verifikasi Wajah Berhasil', 'Face Verification Success'], ['Verifikasi Wajah Gagal', 'Face Verification Failed'],
+  ['Silakan periksa email atau pindai wajah kembali.', 'Please check your email or scan your face again.'],
+  ['Memuat kamera dan model wajah…', 'Loading the camera and face model…'], ['Tunggu sebentar…', 'Please wait…'],
+  ['Klik Pindai untuk memberikan akses kamera dan memuat model', 'Click Scanning to grant camera access and load the model'],
+  ['Menyiapkan', 'Preparing'], ['Memeriksa…', 'Checking…'], ['Memindai…', 'Scanning…'],
+  ['Total laba ÷ total pendapatan × 100%', 'Total profit ÷ total revenue × 100%'],
+  ['Margin belum dapat dihitung. Data profit/revenue harus lengkap dan revenue lebih dari nol.', 'Margin cannot be calculated. Profit and revenue must be complete and revenue must be positive.'],
+  ['isu', 'issues'], ['s/d', 'until'], ['Posisi yang dipilih tidak sesuai departemen.', 'Selected position does not match the department.'],
+  ['Departemen yang dipilih tidak sesuai posisi.', 'Selected department does not match the position.'],
+  ['Email dan kata sandi wajib diisi.', 'Email and Password are required.'], ['Email wajib diisi.', 'Email are required.'],
+  ['Format email tidak valid (contoh: name@andima.co.id).', 'Invalid email format (example: name@andima.co.id).'],
+  ['Akun Anda diblokir. Silakan hubungi administrator IT.', 'Your account has been blocked. Please contact the IT administrator.'],
+  ['Kata sandi harus berisi kombinasi huruf, angka, dan karakter khusus.', 'The password must contain a combination of letters, numbers, and special characters.'],
+  ['Email belum dapat diperiksa. Silakan coba lagi.', 'Email could not be checked. Please try again.'],
+  ['Kata sandi belum dapat diperiksa. Silakan coba lagi.', 'Password could not be checked. Please try again.'],
+  ['Gagal mengambil data profil dari server.', 'Failed to retrieve your profile from the server.'],
+  ['Email Anda terautentikasi, namun data profil belum terdaftar di database.', 'Your email is authenticated, but no profile is registered in the database.'],
+  ['Akun Anda telah dinonaktifkan. Silakan hubungi IT / HR Admin.', 'Your account has been deactivated. Please contact IT / HR Admin.'],
+  ['Login berhasil, tetapi riwayat login tidak berhasil disimpan.', 'Login succeeded, but the login history could not be saved.'],
+  ['Tidak dapat menghubungi server login. Silakan coba lagi.', 'The login server could not be reached. Please try again.'],
+  ['Masukkan nama lengkap Anda', 'Enter your full name'], ['Min. 8 karakter (huruf, angka, simbol)', 'Min. 8 chars (letters, numbers, symbols)'],
+  ['Maks. 12 digit (contoh: 08123456789)', 'Max. 12 digits (e.g. 08123456789)'],
+];
+
+const key = (text: string) => text.replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+const dictionaries: Record<Language, Map<string, string>> = { id: new Map(), en: new Map() };
+for (const [id, en] of pairs) {
+  for (const source of [id, en]) {
+    // Retain the first canonical pair when aliases share a spelling.
+    if (!dictionaries.id.has(key(source))) dictionaries.id.set(key(source), id);
+    if (!dictionaries.en.has(key(source))) dictionaries.en.set(key(source), en);
+  }
+}
+
+export function translateUi(text: string, language: Language): string | undefined {
+  const translated = dictionaries[language].get(key(text));
+  if (translated !== undefined) {
+    const upper = text.trim().length > 1 && text.trim() === text.trim().toUpperCase();
+    return (text.match(/^\s*/)?.[0] ?? '') + (upper ? translated.toUpperCase() : translated) + (text.match(/\s*$/)?.[0] ?? '');
+  }
+  const rules: [RegExp, (match: RegExpMatchArray) => string, (match: RegExpMatchArray) => string][] = [
+    [/^(\d+) data tagihan$/, m => m[0], m => `${m[1]} invoices`],
+    [/^([+\d.,-]+%) selama periode terpilih$/, m => m[0], m => `${m[1]} over the selected period`],
+    [/^(\d+%) dari total$/, m => m[0], m => `${m[1]} of total`],
+    [/^\s*· (\d+) data tagihan$/, m => ` · ${m[1]} data tagihan`, m => ` · ${m[1]} invoices`],
+    [/^([>\d–—-]+)\s*(?:Days|days|hari)$/, m => `${m[1]} hari`, m => `${m[1]} days`],
+    [/^Please wait (\d+)s$/, m => `Tunggu ${m[1]} detik`, m => m[0]],
+    [/^\s*\((\d+) status lain\)$/, m => ` (${m[1]} status lain)`, m => ` (${m[1]} other statuses)`],
+    [/^Total profit (menurun|meningkat|berubah) ([\d.,]+)% selama periode (.+)\.$/,
+      m => `Total laba ${m[1]} ${m[2]}% selama periode ${localizeMonthLabel(m[3], language)}.`,
+      m => `Total profit ${m[1] === 'menurun' ? 'decreased' : m[1] === 'meningkat' ? 'increased' : 'changed'} by ${m[2]}% over ${localizeMonthLabel(m[3], language)}.`],
+  ];
+  for (const [pattern, id, en] of rules) {
+    const match = text.match(pattern);
+    if (match) return (language === 'id' ? id : en)(match);
+  }
+  // Units and short labels that surround React-rendered values.
+  const units: [RegExp, string, string][] = [
+    [/^Menampilkan$/i, 'Menampilkan', 'Showing'], [/^dari$/i, 'dari', 'of'],
+    [/^aktivitas$/i, 'aktivitas', 'activities'], [/^sesi login$/i, 'sesi login', 'login sessions'],
+    [/^data tagihan$/i, 'data tagihan', 'invoices'], [/^belum Done$/i, 'belum Done', 'not done'],
+    [/^hari$/i, 'hari', 'days'], [/^issue dengan due date valid$/i, 'issue dengan due date valid', 'issues with valid due dates'],
+    [/^issue tanpa due date valid$/i, 'issue tanpa due date valid', 'issues without valid due dates'],
+    [/^Diterima:$/i, 'Diterima:', 'Received:'],
+  ];
+  const unit = units.find(([pattern]) => pattern.test(text.trim()))?.[language === 'id' ? 1 : 2];
+  return typeof unit === 'string' ? (text.match(/^\s*/)?.[0] ?? '') + unit + (text.match(/\s*$/)?.[0] ?? '') : undefined;
+}
+
+export function localizeMonthLabel(text: string, language: Language) {
+  const months: Record<string, string> = language === 'en' ? { Mei: 'May', Agu: 'Aug', Agustus: 'August', Okt: 'Oct', Des: 'Dec' } : { May: 'Mei', Aug: 'Agu', August: 'Agustus', Oct: 'Okt', Dec: 'Des' };
+  return text.replace(/\b(?:Mei|May|Agu|Aug|Agustus|August|Okt|Oct|Des|Dec)\b/g, word => months[word] ?? word);
+}
+
+export function isLanguage(value: unknown): value is Language { return value === 'id' || value === 'en'; }

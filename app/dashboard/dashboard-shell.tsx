@@ -1,5 +1,7 @@
 'use client';
 
+import { Text } from '@/components/language';
+import { LanguageSwitcher } from '@/components/language';
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
@@ -272,7 +274,7 @@ export default function DashboardShell({ activePage, headerActions, children }: 
               </div>
               <div>
                 <div style={{ color: "#ffffff", fontSize: "16px", fontWeight: 800, letterSpacing: "0.5px" }}>ANDIMA</div>
-                <div style={{ color: "#94a3b8", fontSize: "11px", marginTop: "1px" }}>Logistics Suite</div>
+                <div style={{ color: "#94a3b8", fontSize: "11px", marginTop: "1px" }}><Text>Logistics Suite</Text></div>
               </div>
             </div>
 
@@ -340,7 +342,7 @@ export default function DashboardShell({ activePage, headerActions, children }: 
                             className="w-2 h-2 rounded-full shrink-0"
                           />
                         )}
-                        <span>Dashboard</span>
+                        <span><Text>Dashboard</Text></span>
                       </Link>
 
                       <Link
@@ -362,7 +364,7 @@ export default function DashboardShell({ activePage, headerActions, children }: 
                             className="w-2 h-2 rounded-full shrink-0"
                           />
                         )}
-                        <span>Sales Performance</span>
+                        <span><Text>Sales Performance</Text></span>
                       </Link>
 
                       <Link
@@ -384,7 +386,7 @@ export default function DashboardShell({ activePage, headerActions, children }: 
                             className="w-2 h-2 rounded-full shrink-0"
                           />
                         )}
-                        <span>Issue Board</span>
+                        <span><Text>Issue Board</Text></span>
                       </Link>
                     </div>
                   </div>
@@ -403,9 +405,9 @@ export default function DashboardShell({ activePage, headerActions, children }: 
                 fontSize: "15px", fontWeight: 700, marginTop: "auto", transition: "all 0.2s ease"
               }}
             >
-              {signingOut ? 'Keluar…' : 'Logout'}
+              <Text dynamic>{signingOut ? 'Keluar…' : 'Logout'}</Text>
             </button>
-            {logoutError && <p role="alert" className="mt-2 text-[10px] text-rose-200">{logoutError}</p>}
+            {logoutError && <p role="alert" className="mt-2 text-[10px] text-rose-200"><Text dynamic>{logoutError}</Text></p>}
           </div>
         )}
 
@@ -433,12 +435,13 @@ export default function DashboardShell({ activePage, headerActions, children }: 
             <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>ANDIMA MID</span>
             <span style={{ color: "#cbd5e1" }}>|</span>
             <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
-              {activePage === 'dashboard' ? 'Main Dashboard' : activePage === 'issue-board' ? 'Issue Board' : 'Sales Performance'}
+              <Text dynamic>{activePage === 'dashboard' ? 'Main Dashboard' : activePage === 'issue-board' ? 'Issue Board' : 'Sales Performance'}</Text>
             </span>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             {headerActions}
+            <LanguageSwitcher />
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }} aria-label={`Profil: ${profile.name}, ${profile.position}`} aria-live="polite">
               <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#bbf7d0", color: "#166534", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800 }}>
                 {initials}
@@ -448,7 +451,7 @@ export default function DashboardShell({ activePage, headerActions, children }: 
                   {firstName}
                 </div>
                 <div style={{ fontSize: "9px", color: "#64748b", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={profile.position}>
-                  {profile.position}
+                  <Text dynamic>{profile.position}</Text>
                 </div>
               </div>
             </div>

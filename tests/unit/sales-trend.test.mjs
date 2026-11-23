@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import test from 'node:test';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
+import { languageUi } from '../helpers/language-ui.mjs';
 
 const require = createRequire(import.meta.url);
 const reports = ['2026-06-01', '2026-07-01', '2026-08-01'].map(period_month => ({
@@ -22,7 +23,7 @@ function loadTrend({ period = '3', start = '', end = '' } = {}) {
     require: name => name === 'react' ? {
       useState: initial => [index < states.length ? states[index++] : initial, () => {}],
       useEffect() {},
-    } : name === '@/lib/supabaseClient' ? { supabase: {} } : name === 'recharts' ? {} : require(name),
+    } : name === '@/lib/i18n/messages' ? { localizeMonthLabel: value => value } : name === '@/components/language' ? languageUi : name === '@/lib/supabaseClient' ? { supabase: {} } : name === 'recharts' ? {} : require(name),
   });
   return exports;
 }

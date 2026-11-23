@@ -1,5 +1,6 @@
 'use client';
 
+import { Text } from '@/components/language';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Ban, Camera, CameraOff, CheckCircle2, LoaderCircle } from 'lucide-react';
@@ -373,19 +374,19 @@ export default function FaceVerificationPage() {
     <main className="min-h-screen bg-[#f5f7fb] px-4 py-8 text-[#172033] sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1440px]">
         <section className="rounded-2xl border border-[#9bb4ff] bg-white p-5 shadow-[0_4px_18px_rgba(27,53,102,0.04)] sm:p-7">
-          <p className="mb-2 text-base font-medium text-[#1769ff]">Secure identity scan</p>
-          <h1 className="text-xl font-bold tracking-[-0.35px] text-black sm:text-2xl">Facial verification and liveness action</h1>
-          <p className="mt-2 text-sm leading-6 text-[#202124]">Please complete the facial verification to finish the password reset process</p>
+          <p className="mb-2 text-base font-medium text-[#1769ff]"><Text>Secure identity scan</Text></p>
+          <h1 className="text-xl font-bold tracking-[-0.35px] text-black sm:text-2xl"><Text>Facial verification and liveness action</Text></h1>
+          <p className="mt-2 text-sm leading-6 text-[#202124]"><Text>Please complete the facial verification to finish the password reset process</Text></p>
         </section>
 
         <section className="mx-auto mt-12 w-full max-w-3xl overflow-hidden rounded-2xl border border-[#91aaff] bg-white shadow-[0_4px_18px_rgba(27,53,102,0.06)]">
           <div className="flex h-11 items-center justify-between bg-[#e9edfb] px-5">
             <div>
-              <p className="text-[10px] font-medium uppercase tracking-wide text-[#3778ff]">Live identity input</p>
-              <p className="text-xs font-bold text-[#1b3767]">Camera verification</p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-[#3778ff]"><Text>Live identity input</Text></p>
+              <p className="text-xs font-bold text-[#1b3767]"><Text>Camera verification</Text></p>
             </div>
             <span className="rounded-full border border-[#d5def2] bg-white px-3 py-0.5 text-[10px] font-medium uppercase text-[#1b3767]">
-              {scanState === 'loading' || scanState === 'submitting' ? 'Memeriksa' : scanState === 'scanning' ? 'Memindai' : scanState === 'success' ? 'Terverifikasi' : scanState === 'failed' || scanState === 'error' ? 'Gagal' : 'Siap'}
+              <Text dynamic>{scanState === 'loading' || scanState === 'submitting' ? 'Memeriksa' : scanState === 'scanning' ? 'Memindai' : scanState === 'success' ? 'Terverifikasi' : scanState === 'failed' || scanState === 'error' ? 'Gagal' : 'Siap'}</Text>
             </span>
           </div>
 
@@ -400,8 +401,8 @@ export default function FaceVerificationPage() {
               {scanState !== 'scanning' && (
                 <div className="relative z-10 max-w-[245px] px-5 text-center text-white">
                   {scanState === 'success' ? <CheckCircle2 className="mx-auto" size={28} /> : scanState === 'failed' ? <Ban className="mx-auto" size={28} /> : scanState === 'loading' || scanState === 'submitting' ? <LoaderCircle className="mx-auto animate-spin" size={28} /> : <Camera className="mx-auto" size={28} />}
-                  <p className="mt-3 text-sm font-bold">{scanState === 'success' ? 'Password updated' : scanState === 'failed' ? 'Face verification failed' : scanState === 'loading' ? 'Menyiapkan kamera' : scanState === 'submitting' ? 'Memeriksa kecocokan wajah' : 'Camera not yet active'}</p>
-                  <p className="mt-1 text-xs font-semibold text-[#c5cede]">{scanState === 'success' ? 'Password berhasil diperbarui.' : scanState === 'failed' ? 'Silakan periksa email atau pindai wajah kembali.' : scanState === 'loading' ? 'Memuat kamera dan model wajah…' : scanState === 'submitting' ? 'Tunggu sebentar…' : 'Click Scanning to grant camera access and load the model'}</p>
+                  <p className="mt-3 text-sm font-bold"><Text dynamic>{scanState === 'success' ? 'Password updated' : scanState === 'failed' ? 'Face verification failed' : scanState === 'loading' ? 'Menyiapkan kamera' : scanState === 'submitting' ? 'Memeriksa kecocokan wajah' : 'Camera not yet active'}</Text></p>
+                  <p className="mt-1 text-xs font-semibold text-[#c5cede]"><Text dynamic>{scanState === 'success' ? 'Password berhasil diperbarui.' : scanState === 'failed' ? 'Silakan periksa email atau pindai wajah kembali.' : scanState === 'loading' ? 'Memuat kamera dan model wajah…' : scanState === 'submitting' ? 'Tunggu sebentar…' : 'Click Scanning to grant camera access and load the model'}</Text></p>
                 </div>
               )}
               {scanState === 'scanning' && (
@@ -409,7 +410,7 @@ export default function FaceVerificationPage() {
                   <div className="pointer-events-none absolute inset-[9%] rounded-full border-2 border-[#9dc7ff] shadow-[0_0_22px_rgba(71,166,255,0.7)]" />
                   {activeChallenge && (
                     <div className="absolute inset-x-5 top-8 rounded-xl border border-white/20 bg-[#061326]/85 p-3 text-center text-white shadow-lg">
-                      <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#9ed1ff]">Liveness {completedChallenges.length + 1}/{challengeOrder.length}</p>
+                      <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#9ed1ff]"><Text>Liveness </Text>{completedChallenges.length + 1}/{challengeOrder.length}</p>
                       <p className="mt-1 text-sm font-bold">{challengeDetails[activeChallenge].label}</p>
                       <p className="mt-0.5 text-[11px] text-[#dcefff]">{challengeDetails[activeChallenge].helper}</p>
                     </div>
@@ -420,9 +421,9 @@ export default function FaceVerificationPage() {
             </div>
 
             <div className="mt-8 min-h-5 text-center text-xs font-medium text-[#52617d]" role="status" aria-live="polite">
-              {scanState === 'scanning' ? prompt : scanState === 'submitting' ? faceStatus : ''}
+              <Text dynamic>{scanState === 'scanning' ? prompt : scanState === 'submitting' ? faceStatus : ''}</Text>
             </div>
-            {errorMessage && <p className="mt-1 text-center text-xs font-semibold text-red-600">{errorMessage}</p>}
+            {errorMessage && <p className="mt-1 text-center text-xs font-semibold text-red-600"><Text dynamic>{errorMessage}</Text></p>}
 
             <div className="mt-5 flex w-full flex-wrap justify-center gap-4">
               <button
@@ -430,16 +431,16 @@ export default function FaceVerificationPage() {
                 onClick={() => { stopCamera(); router.push('/forgot-password/update-password'); }}
                 className="inline-flex min-w-[190px] items-center justify-center gap-3 rounded-lg bg-[#dc3048] px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#c3263d]"
               >
-                <Ban size={24} /> Cancel
-              </button>
+                <Ban size={24} /> <Text>Cancel
+              </Text></button>
               {scanState === 'success' ? (
                 <button
                   type="button"
                   disabled
                   className="inline-flex min-w-[190px] items-center justify-center gap-3 rounded-lg bg-[#1762f5] px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0e53dc]"
                 >
-                  <CheckCircle2 size={24} /> Verified
-                </button>
+                  <CheckCircle2 size={24} /> <Text>Verified
+                </Text></button>
               ) : (
                 <button
                   type="button"
@@ -448,7 +449,7 @@ export default function FaceVerificationPage() {
                   className="inline-flex min-w-[190px] items-center justify-center gap-3 rounded-lg bg-[#1762f5] px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0e53dc] disabled:cursor-wait disabled:opacity-75"
                 >
                   {scanState === 'loading' || scanState === 'submitting' ? <LoaderCircle className="animate-spin" size={24} /> : scanState === 'scanning' ? <CameraOff size={24} /> : <Camera size={24} />}
-                  {scanState === 'loading' ? 'Preparing' : scanState === 'submitting' ? 'Checking…' : scanState === 'scanning' ? 'Scanning…' : scanState === 'error' || scanState === 'failed' ? 'Try again' : 'Scanning'}
+                  <Text dynamic>{scanState === 'loading' ? 'Preparing' : scanState === 'submitting' ? 'Checking…' : scanState === 'scanning' ? 'Scanning…' : scanState === 'error' || scanState === 'failed' ? 'Try again' : 'Scanning'}</Text>
                 </button>
               )}
             </div>
@@ -469,7 +470,7 @@ export default function FaceVerificationPage() {
               {modalState === 'success' ? <CheckCircle2 size={27} /> : <Ban size={27} />}
             </div>
             <h2 id="face-result-title" className="mt-8 text-3xl font-bold tracking-tight text-black sm:text-4xl">
-              {modalState === 'success' ? 'Face Verification Success' : 'Face Verification Failed'}
+              <Text dynamic>{modalState === 'success' ? 'Face Verification Success' : 'Face Verification Failed'}</Text>
             </h2>
             <p id="face-result-description" className="mt-4 max-w-2xl text-sm leading-6 text-[#202124]">
               {modalMessage}
@@ -493,8 +494,8 @@ export default function FaceVerificationPage() {
               }}
               className="mt-16 w-full max-w-[264px] rounded-xl bg-[#3B6FF5] px-8 py-5 text-sm font-extrabold tracking-wider text-white shadow-[0_8px_25px_rgba(59,111,245,0.4)] transition hover:bg-[#2B5CE5] active:scale-[0.99]"
             >
-              OKE
-            </button>
+              <Text>OKE
+            </Text></button>
           </section>
         </div>
       )}

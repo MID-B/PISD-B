@@ -7,7 +7,8 @@ import ts from 'typescript';
 // Extract the actual registration ID generator; all database calls below are mocked.
 const source = readFileSync(new URL('../../app/register/page.tsx', import.meta.url), 'utf8');
 const ast = ts.createSourceFile('page.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-const names = ['DEPARTMENT_PREFIX_MAP', 'DIRECTOR_POSITION_ID', 'DIRECTOR_CODE_BY_DEPARTMENT', 'generateNextEmployeeId'];
+// Latest B2 registration maps prefixes by position; keep those rules unchanged.
+const names = ['POSITION_PREFIX_MAP', 'DIRECTOR_POSITION_ID', 'DIRECTOR_CODE_BY_DEPARTMENT', 'generateNextEmployeeId'];
 const declarations = new Map();
 function visit(node) {
   if (ts.isVariableDeclaration(node) && names.includes(node.name.getText(ast))) declarations.set(node.name.getText(ast), node.getText(ast));
@@ -22,11 +23,11 @@ function generator(supabase) {
   return runInNewContext(`${outputText}\ngenerateNextEmployeeId;`, { supabase });
 }
 
-for (const [department, prefix] of [
-  ['8113ab6f-d5cc-4c94-bbf6-e08047931fab', 'IT-DEV'],
-  ['6e116b24-22fe-4b8f-be7e-2159b99022bd', 'HCC-HR-MGR'],
-  ['1653db5f-2b64-418f-b28b-68cb7b9dae8e', 'FNC-CS'],
-  ['97ac5d35-5da2-4f5d-9d36-78500f403cc7', 'COM-CS-MGR'],
+for (const [department, position, prefix] of [
+  ['8113ab6f-d5cc-4c94-bbf6-e08047931fab', '265c9357-105c-437c-a244-6897122f17c1', 'IT'],
+  ['6e116b24-22fe-4b8f-be7e-2159b99022bd', '446c8f5a-e923-4668-924d-75e28002fa03', 'HCC-HR-MGR'],
+  ['1653db5f-2b64-418f-b28b-68cb7b9dae8e', '8b14d133-0c6c-4867-a807-373cf462e5fe', 'FAT-ACC-MGR'],
+  ['97ac5d35-5da2-4f5d-9d36-78500f403cc7', '48e90a83-86bd-4bd9-8b34-0fe7da11cc18', 'COM-CS-MGR'],
 ]) {
   test(`registration requests the ${prefix} ID through RPC without reading the register table`, async () => {
     const generate = generator({
@@ -37,7 +38,7 @@ for (const [department, prefix] of [
       },
       from() { assert.fail('Ordinary registration must not read existing profiles to generate an ID'); },
     });
-    assert.equal(await generate(department, 'staff-position'), `${prefix}-123`);
+    assert.equal(await generate(department, position), `${prefix}-123`);
   });
 }
 
@@ -47,7 +48,7 @@ for (const [label, result] of [
 ]) {
   test(`registration stops instead of inventing an Employee ID on ${label}`, async () => {
     const generate = generator({ rpc: async () => result });
-    await assert.rejects(generate('8113ab6f-d5cc-4c94-bbf6-e08047931fab', 'staff-position'), /Gagal men-generate ID registrasi/);
+    await assert.rejects(generate('8113ab6f-d5cc-4c94-bbf6-e08047931fab', '265c9357-105c-437c-a244-6897122f17c1'), /Gagal men-generate ID registrasi/);
   });
 }
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { Text, LanguageInput } from '@/components/language';
+import { LanguageSwitcher } from '@/components/language';
 import React, { Suspense, useState, useEffect } from "react";
 import LogActivity from '@/app/smki/log-activity';
 import HistoryPagination from '@/components/history-pagination';
@@ -679,8 +681,8 @@ function SmkiDashboard() {
   if (isLoading) {
     return (
       <div style={{ background: "#07111f", color: "#fff", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif" }}>
-        Loading Dashboard IT...
-      </div>
+        <Text>Loading Dashboard IT...
+      </Text></div>
     );
   }
 
@@ -716,7 +718,7 @@ function SmkiDashboard() {
               </div>
               <div>
                 <div style={{ color: "#ffffff", fontSize: "15px", fontWeight: 800, letterSpacing: "0.4px", lineHeight: "1.1" }}>ANDIMA</div>
-                <div style={{ color: "#94a3b8", fontSize: "11px", marginTop: "2px" }}>Logistics Suite</div>
+                <div style={{ color: "#94a3b8", fontSize: "11px", marginTop: "2px" }}><Text>Logistics Suite</Text></div>
               </div>
             </div>
 
@@ -786,7 +788,7 @@ function SmkiDashboard() {
                         {activeTab === "account-maintains" && (
                           <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#0D9488", flexShrink: 0 }} />
                         )}
-                        <span>Account Maintains</span>
+                        <span><Text>Account Maintains</Text></span>
                       </button>
 
                       <button
@@ -812,7 +814,7 @@ function SmkiDashboard() {
                         {activeTab === "log-activity" && (
                           <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#0D9488", flexShrink: 0 }} />
                         )}
-                        <span>Log Activity</span>
+                        <span><Text>Log Activity</Text></span>
                       </button>
                     </div>
                   </div>
@@ -827,8 +829,8 @@ function SmkiDashboard() {
                 alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "15px", fontWeight: 700, marginTop: "auto", transition: "all 0.2s ease",
               }}
             >
-              Logout
-            </button>
+              <Text>Logout
+            </Text></button>
           </div>
         )}
       </aside>
@@ -852,11 +854,12 @@ function SmkiDashboard() {
             <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>ANDIMA SMKI</span>
             <span style={{ color: "#cbd5e1" }}>|</span>
             <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
-              {activeTab === "log-activity" ? "Log Activity" : "Account Maintains"}
+              <Text dynamic>{activeTab === "log-activity" ? "Log Activity" : "Account Maintains"}</Text>
             </span>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <LanguageSwitcher />
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#bbf7d0", color: "#166534", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800 }}>
                 IT
@@ -865,7 +868,7 @@ function SmkiDashboard() {
                 <div style={{ fontSize: "11px", fontWeight: 700, color: "#0f172a", lineHeight: "1.2" }}>
                   {currentUserFullName}
                 </div>
-                <div style={{ fontSize: "9px", color: "#64748b" }}>Information Technology</div>
+                <div style={{ fontSize: "9px", color: "#64748b" }}><Text>Information Technology</Text></div>
               </div>
             </div>
           </div>
@@ -878,7 +881,7 @@ function SmkiDashboard() {
             {/* Banner Sukses Global */}
             {successMessage && (
               <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", padding: "12px 16px", borderRadius: "12px", fontSize: "13px", fontWeight: 600, marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span>{successMessage}</span>
+                <span><Text dynamic>{successMessage}</Text></span>
                 <button onClick={() => setSuccessMessage("")} style={{ background: "transparent", border: 0, color: "#16a34a", fontWeight: "bold", cursor: "pointer" }}>✕</button>
               </div>
             )}
@@ -896,7 +899,7 @@ function SmkiDashboard() {
                       <line x1="21" y1="21" x2="16.65" y2="16.65" />
                     </svg>
                   </div>
-                  <input
+                  <LanguageInput
                     type="text"
                     placeholder="Search by Employee's Name"
                     value={searchQuery}
@@ -938,9 +941,9 @@ function SmkiDashboard() {
                   }}
                   className="h-9 px-2 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 min-w-0 truncate"
                 >
-                  <option value="All">All Departement</option>
+                  <option value="All"><Text>All Departement</Text></option>
                   {DEPARTMENT_OPTIONS.map((dept) => (
-                    <option key={dept} value={dept}>{dept}</option>
+                    <option key={dept} value={dept}><Text dynamic>{dept}</Text></option>
                   ))}
                 </select>
 
@@ -950,7 +953,7 @@ function SmkiDashboard() {
                   onChange={(e) => { setSelectedPosition(e.target.value); setCurrentPageNum(1); }}
                   className="h-9 px-2 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 min-w-0 truncate"
                 >
-                  <option value="All">All Position</option>
+                  <option value="All"><Text>All Position</Text></option>
                   {POSITION_OPTIONS
                     .filter((pos) => {
                       if (selectedDepartment === "All") return true;
@@ -964,7 +967,7 @@ function SmkiDashboard() {
                       return VALID_POSITION_DEPARTMENTS[pos] === selectedDepartment;
                     })
                     .map((pos) => (
-                      <option key={pos} value={pos}>{pos}</option>
+                      <option key={pos} value={pos}><Text dynamic>{pos}</Text></option>
                     ))}
                 </select>
 
@@ -974,9 +977,9 @@ function SmkiDashboard() {
                   onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPageNum(1); }}
                   className="h-9 px-1.5 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 min-w-0 truncate"
                 >
-                  <option value="All">All Status</option>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
+                  <option value="All"><Text>All Status</Text></option>
+                  <option value="Active"><Text>Active</Text></option>
+                  <option value="Inactive"><Text>Inactive</Text></option>
                 </select>
 
                 {/* 5. Button Reset */}
@@ -989,7 +992,7 @@ function SmkiDashboard() {
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                     <path d="M3 3v5h5" />
                   </svg>
-                  <span>Reset</span>
+                  <span><Text>Reset</Text></span>
                 </button>
               </div>
 
@@ -1003,18 +1006,18 @@ function SmkiDashboard() {
                   <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                   <circle cx="8.5" cy="7" r="4" />
                 </svg>
-                <span>+ Add Employee</span>
+                <span><Text>+ Add Employee</Text></span>
               </button>
             </div>
 
             {/* TABEL DATA KARYAWAN */}
             <div style={{ background: "#ffffff", borderRadius: "6px", border: "1px solid #e2e8f0", overflow: "hidden", width: "100%" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.1fr 1.1fr 0.8fr", alignItems: "center", padding: "10px 16px", background: "#f8fafc", color: "#64748b", fontSize: "11px", fontWeight: 800, letterSpacing: "0.5px", borderBottom: "1px solid #e2e8f0" }}>
-                <div>EMPLOYEE'S NAME</div>
-                <div>E-MAIL</div>
-                <div>DEPARTMENT</div>
-                <div>POSITION</div>
-                <div style={{ textAlign: "center" }}>ACTION</div>
+                <div><Text>EMPLOYEE'S NAME</Text></div>
+                <div><Text>E-MAIL</Text></div>
+                <div><Text>DEPARTMENT</Text></div>
+                <div><Text>POSITION</Text></div>
+                <div style={{ textAlign: "center" }}><Text>ACTION</Text></div>
               </div>
 
               {currentEmployees.length > 0 ? (
@@ -1031,11 +1034,11 @@ function SmkiDashboard() {
                     <div style={{ color: "#64748b" }}>{employee.email}</div>
 
                     <div style={{ fontWeight: 600, color: "#334155" }}>
-                      {employee.department}
+                      <Text dynamic>{employee.department}</Text>
                     </div>
 
                     <div style={{ fontWeight: 600, color: "#334155" }}>
-                      {employee.position}
+                      <Text dynamic>{employee.position}</Text>
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
@@ -1054,13 +1057,13 @@ function SmkiDashboard() {
                 ))
               ) : (
                 <div style={{ padding: "24px", textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
-                  No employees found.
-                </div>
+                  <Text>No employees found.
+                </Text></div>
               )}
             </div>
 
             <footer className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <p role="status" className="text-[11px] text-slate-500">Menampilkan {filteredEmployees.length ? indexOfFirstItem + 1 : 0}&ndash;{Math.min(indexOfLastItem, filteredEmployees.length)} dari {filteredEmployees.length} akun</p>
+              <p role="status" className="text-[11px] text-slate-500"><Text>Menampilkan </Text><Text dynamic>{filteredEmployees.length ? indexOfFirstItem + 1 : 0}</Text><Text>&ndash;</Text>{Math.min(indexOfLastItem, filteredEmployees.length)} <Text>dari </Text>{filteredEmployees.length} <Text>akun</Text></p>
               <HistoryPagination page={currentPageNum} totalPages={totalPages} onChange={setCurrentPageNum} label="Pagination Account Maintains" />
             </footer>
           </div>
@@ -1077,7 +1080,7 @@ function SmkiDashboard() {
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
-                Edit Account ({editingEmployee.employeeId})
+                <Text>Edit Account (</Text>{editingEmployee.employeeId})
               </h3>
               <button
                 onClick={() => {
@@ -1152,8 +1155,8 @@ function SmkiDashboard() {
               style={{ display: "flex", flexDirection: "column", gap: "14px" }}
             >
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Full Name</label>
-                <input
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Full Name</Text></label>
+                <LanguageInput
                   type="text"
                   value={editForm.name}
                   onChange={(e) => {
@@ -1162,12 +1165,12 @@ function SmkiDashboard() {
                   }}
                   style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: fieldErrors.name ? "1px solid #ef4444" : "1px solid #cbd5e1", fontSize: "13px", boxSizing: "border-box" }}
                 />
-                {fieldErrors.name && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>{fieldErrors.name}</span>}
+                {fieldErrors.name && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}><Text dynamic>{fieldErrors.name}</Text></span>}
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Email Address</label>
-                <input
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Email Address</Text></label>
+                <LanguageInput
                   type="text"
                   value={editForm.email}
                   onChange={(e) => {
@@ -1176,12 +1179,12 @@ function SmkiDashboard() {
                   }}
                   style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: fieldErrors.email ? "1px solid #ef4444" : "1px solid #cbd5e1", fontSize: "13px", boxSizing: "border-box" }}
                 />
-                {fieldErrors.email && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>{fieldErrors.email}</span>}
+                {fieldErrors.email && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}><Text dynamic>{fieldErrors.email}</Text></span>}
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Phone Number</label>
-                <input
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Phone Number</Text></label>
+                <LanguageInput
                   type="text"
                   placeholder="Max. 12 digits (e.g. 08123456789)"
                   value={editForm.phone}
@@ -1191,11 +1194,11 @@ function SmkiDashboard() {
                   }}
                   style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: fieldErrors.phone ? "1px solid #ef4444" : "1px solid #cbd5e1", fontSize: "13px", boxSizing: "border-box" }}
                 />
-                {fieldErrors.phone && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>{fieldErrors.phone}</span>}
+                {fieldErrors.phone && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}><Text dynamic>{fieldErrors.phone}</Text></span>}
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Employment Status</label>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Employment Status</Text></label>
                 <select
                   value={editForm.employmentStatus}
                   onChange={(e) => {
@@ -1204,15 +1207,15 @@ function SmkiDashboard() {
                   }}
                   style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: fieldErrors.employmentStatus ? "1px solid #ef4444" : "1px solid #cbd5e1", fontSize: "13px", background: "#fff", boxSizing: "border-box" }}
                 >
-                  <option value="Probation">Probation</option>
-                  <option value="Permanent">Permanent</option>
+                  <option value="Probation"><Text>Probation</Text></option>
+                  <option value="Permanent"><Text>Permanent</Text></option>
                 </select>
-                {fieldErrors.employmentStatus && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>{fieldErrors.employmentStatus}</span>}
+                {fieldErrors.employmentStatus && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}><Text dynamic>{fieldErrors.employmentStatus}</Text></span>}
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", alignItems: "start" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Department</label>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Department</Text></label>
                   <select
                     value={editForm.department}
                     onChange={(e) => {
@@ -1227,16 +1230,16 @@ function SmkiDashboard() {
                     }}
                     style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: fieldErrors.department ? "1px solid #ef4444" : "1px solid #cbd5e1", fontSize: "13px", background: "#fff", boxSizing: "border-box" }}
                   >
-                    <option value="">Select Department</option>
+                    <option value=""><Text>Select Department</Text></option>
                     {DEPARTMENT_OPTIONS.map((dept) => (
-                      <option key={dept} value={dept}>{dept}</option>
+                      <option key={dept} value={dept}><Text dynamic>{dept}</Text></option>
                     ))}
                   </select>
-                  {fieldErrors.department && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>{fieldErrors.department}</span>}
+                  {fieldErrors.department && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}><Text dynamic>{fieldErrors.department}</Text></span>}
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>Position</label>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Position</Text></label>
                   <select
                     value={editForm.position}
                     onChange={(e) => {
@@ -1245,22 +1248,22 @@ function SmkiDashboard() {
                     }}
                     style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: fieldErrors.position ? "1px solid #ef4444" : "1px solid #cbd5e1", fontSize: "13px", background: "#fff", boxSizing: "border-box" }}
                   >
-                    <option value="">Select Position</option>
+                    <option value=""><Text>Select Position</Text></option>
                     {POSITION_OPTIONS
                       .filter((pos) => isValidPositionForDepartment(pos, editForm.department))
                       .map((pos) => (
-                        <option key={pos} value={pos}>{pos}</option>
+                        <option key={pos} value={pos}><Text dynamic>{pos}</Text></option>
                       ))}
                   </select>
-                  {fieldErrors.position && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>{fieldErrors.position}</span>}
+                  {fieldErrors.position && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}><Text dynamic>{fieldErrors.position}</Text></span>}
                 </div>
               </div>
 
               <div>
                 <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>
-                  Reset Password (Optional)
-                </label>
-                <input
+                  <Text>Reset Password (Optional)
+                </Text></label>
+                <LanguageInput
                   type="password"
                   placeholder="Min. 8 chars (letters, numbers, symbols)"
                   value={editForm.newPassword || ""}
@@ -1270,7 +1273,7 @@ function SmkiDashboard() {
                   }}
                   style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: fieldErrors.newPassword ? "1px solid #ef4444" : "1px solid #cbd5e1", fontSize: "13px", boxSizing: "border-box" }}
                 />
-                {fieldErrors.newPassword && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>{fieldErrors.newPassword}</span>}
+                {fieldErrors.newPassword && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}><Text dynamic>{fieldErrors.newPassword}</Text></span>}
               </div>
 
               {Object.values(fieldErrors).some((error) => Boolean(error)) && (
@@ -1286,8 +1289,8 @@ function SmkiDashboard() {
                     fontWeight: 600,
                   }}
                 >
-                  Please fix the errors below before submitting.
-                </div>
+                  <Text>Please fix the errors below before submitting.
+                </Text></div>
               )}
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "12px" }}>
@@ -1299,14 +1302,14 @@ function SmkiDashboard() {
                   }}
                   style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: "#1e293b", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
                 >
-                  Cancel
-                </button>
+                  <Text>Cancel
+                </Text></button>
                 <button
                   type="submit"
                   style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: "#3B6FF5", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
                 >
-                  Edit User
-                </button>
+                  <Text>Edit User
+                </Text></button>
               </div>
             </form>
           </div>
@@ -1322,11 +1325,11 @@ function SmkiDashboard() {
             </div>
 
             <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
-              {statusConfirmEmployee.isActive ? "Deactivate Employee?" : "Activate Employee?"}
+              <Text dynamic>{statusConfirmEmployee.isActive ? "Deactivate Employee?" : "Activate Employee?"}</Text>
             </h3>
 
             <p style={{ fontSize: "13px", color: "#64748b", lineHeight: "1.5", margin: "0 0 24px 0" }}>
-              Are you sure you want to {statusConfirmEmployee.isActive ? "deactivate" : "reactivate"}{" "}
+              <Text>Are you sure you want to </Text><Text dynamic>{statusConfirmEmployee.isActive ? "deactivate" : "reactivate"}</Text>{" "}
               <b>{statusConfirmEmployee.name}</b> ({statusConfirmEmployee.employeeId})?
             </p>
 
@@ -1336,14 +1339,14 @@ function SmkiDashboard() {
                 onClick={() => setStatusConfirmEmployee(null)}
                 style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: "#1e293b", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
               >
-                Cancel
-              </button>
+                <Text>Cancel
+              </Text></button>
               <button
                 type="button"
                 onClick={handleConfirmToggleStatus}
                 style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: statusConfirmEmployee.isActive ? "#ef4444" : "#3B6FF5", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
               >
-                {statusConfirmEmployee.isActive ? "Yes, Deactivate" : "Yes, Activate"}
+                <Text dynamic>{statusConfirmEmployee.isActive ? "Yes, Deactivate" : "Yes, Activate"}</Text>
               </button>
             </div>
           </div>
@@ -1359,11 +1362,11 @@ function SmkiDashboard() {
             </div>
 
             <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
-              Delete Employee?
-            </h3>
+              <Text>Delete Employee?
+            </Text></h3>
 
             <p style={{ fontSize: "13px", color: "#64748b", lineHeight: "1.5", margin: "0 0 24px 0" }}>
-              Are you sure you want to permanently delete employee <b>{deleteConfirmEmployee.name}</b> ({deleteConfirmEmployee.employeeId})?
+              <Text>Are you sure you want to permanently delete employee </Text><b>{deleteConfirmEmployee.name}</b> ({deleteConfirmEmployee.employeeId})?
             </p>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
@@ -1372,15 +1375,15 @@ function SmkiDashboard() {
                 onClick={() => setDeleteConfirmEmployee(null)}
                 style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: "#1e293b", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
               >
-                Cancel
-              </button>
+                <Text>Cancel
+              </Text></button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
                 style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: "#ef4444", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(239,68,68,0.35)" }}
               >
-                Yes, Delete
-              </button>
+                <Text>Yes, Delete
+              </Text></button>
             </div>
           </div>
         </div>
@@ -1392,7 +1395,7 @@ function SmkiDashboard() {
 
 export default function SmkiPage() {
   return (
-    <Suspense fallback={<main className="flex h-screen items-center justify-center bg-[#07111f] text-white">Loading Dashboard IT...</main>}>
+    <Suspense fallback={<main className="flex h-screen items-center justify-center bg-[#07111f] text-white"><Text>Loading Dashboard IT...</Text></main>}>
       <SmkiDashboard />
     </Suspense>
   );
