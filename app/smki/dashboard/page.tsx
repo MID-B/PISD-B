@@ -12,7 +12,7 @@ from '@/query/activity';
 
 /* MASTER DATA OPTIONS */
 const DEPARTMENT_OPTIONS = [
-  "Human Resources",
+  "Human Capital & Culture",
   "Information Technology",
   "Finance, Accounting & Tax",
   "Commercial & Customer Success",
@@ -38,7 +38,7 @@ const POSITION_OPTIONS = [
 
 /* PEMETAAN NAMA DEPARTEMEN KE UUID SUPABASE */
 const DEPARTMENT_UUID_MAP: Record<string, string> = {
-  "Human Resources": "6e116b24-22fe-4b8f-be7e-2159b99022bd",
+  "Human Capital & Culture": "6e116b24-22fe-4b8f-be7e-2159b99022bd",
   "Information Technology": "8113ab6f-d5cc-4c94-bbf6-e08047931fab",
   "Finance, Accounting & Tax": "1653db5f-2b64-418f-b28b-68cb7b9dae8e",
   "Commercial & Customer Success": "97ac5d35-5da2-4f5d-9d36-78500f403cc7",
@@ -46,7 +46,7 @@ const DEPARTMENT_UUID_MAP: Record<string, string> = {
 
 /* PEMETAAN UUID DEPARTEMEN KE NAMA TAMPILAN */
 const UUID_DEPARTMENT_MAP: Record<string, string> = {
-  "6e116b24-22fe-4b8f-be7e-2159b99022bd": "Human Resources",
+  "6e116b24-22fe-4b8f-be7e-2159b99022bd": "Human Capital & Culture",
   "8113ab6f-d5cc-4c94-bbf6-e08047931fab": "Information Technology",
   "1653db5f-2b64-418f-b28b-68cb7b9dae8e": "Finance, Accounting & Tax",
   "97ac5d35-5da2-4f5d-9d36-78500f403cc7": "Commercial & Customer Success",
@@ -77,8 +77,8 @@ const UUID_POSITION_MAP: Record<string, string> = Object.fromEntries(
 );
 
 const VALID_POSITION_DEPARTMENTS: Record<string, string> = {
-  "HR Manager": "Human Resources",
-  "Associate Officer": "Human Resources",
+  "HR Manager": "Human Capital & Culture",
+  "Associate Officer": "Human Capital & Culture",
   "Information Technology": "Information Technology",
   "Accounting Associate": "Finance, Accounting & Tax",
   "Manager of Accounting": "Finance, Accounting & Tax",
@@ -92,6 +92,20 @@ const VALID_POSITION_DEPARTMENTS: Record<string, string> = {
   "Manager of Customer Success": "Commercial & Customer Success",
   "Field Agent": "Commercial & Customer Success",
 };
+
+const DIRECTOR_DEPARTMENTS = [
+  "Human Capital & Culture",
+  "Finance, Accounting & Tax",
+  "Commercial & Customer Success",
+];
+
+function isValidPositionForDepartment(position: string, department: string): boolean {
+  if (!department || department === "All") return true;
+  if (position === "Director") {
+    return DIRECTOR_DEPARTMENTS.includes(department);
+  }
+  return VALID_POSITION_DEPARTMENTS[position] === department;
+}
 
 /* TYPES */
 type Employee = {
@@ -904,13 +918,22 @@ function SmkiDashboard() {
                   value={selectedDepartment}
                   onChange={(e) => {
                     const newDept = e.target.value;
+                    const directorAllowedDepts = [
+                      "Human Capital & Culture",
+                      "Finance, Accounting & Tax",
+                      "Commercial & Customer Success",
+                    ];
+                    const isCurrentPosValid =
+                      newDept === "All" ||
+                      selectedPosition === "All" ||
+                      (selectedPosition === "Director"
+                        ? directorAllowedDepts.includes(newDept)
+                        : VALID_POSITION_DEPARTMENTS[selectedPosition] === newDept);
+
                     setSelectedDepartment(newDept);
                     setCurrentPageNum(1);
-                    if (newDept !== "All" && selectedPosition !== "All") {
-                      const validDept = VALID_POSITION_DEPARTMENTS[selectedPosition];
-                      if (validDept && validDept !== newDept && selectedPosition !== "Director") {
-                        setSelectedPosition("All");
-                      }
+                    if (!isCurrentPosValid) {
+                      setSelectedPosition("All");
                     }
                   }}
                   className="h-9 px-2 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 min-w-0 truncate"
@@ -929,7 +952,17 @@ function SmkiDashboard() {
                 >
                   <option value="All">All Position</option>
                   {POSITION_OPTIONS
-                    .filter(pos => selectedDepartment === "All" || pos === "Director" || VALID_POSITION_DEPARTMENTS[pos] === selectedDepartment)
+                    .filter((pos) => {
+                      if (selectedDepartment === "All") return true;
+                      if (pos === "Director") {
+                        return [
+                          "Human Capital & Culture",
+                          "Finance, Accounting & Tax",
+                          "Commercial & Customer Success",
+                        ].includes(selectedDepartment);
+                      }
+                      return VALID_POSITION_DEPARTMENTS[pos] === selectedDepartment;
+                    })
                     .map((pos) => (
                       <option key={pos} value={pos}>{pos}</option>
                     ))}
@@ -1184,7 +1217,9 @@ function SmkiDashboard() {
                     value={editForm.department}
                     onChange={(e) => {
                       const newDept = e.target.value;
-                      const availablePositions = POSITION_OPTIONS.filter(pos => pos === "Director" || VALID_POSITION_DEPARTMENTS[pos] === newDept);
+                      const availablePositions = POSITION_OPTIONS.filter((pos) =>
+                        isValidPositionForDepartment(pos, newDept)
+                      );
                       const newPos = availablePositions.includes(editForm.position) ? editForm.position : "";
 
                       setEditForm({ ...editForm, department: newDept, position: newPos });
@@ -1212,7 +1247,7 @@ function SmkiDashboard() {
                   >
                     <option value="">Select Position</option>
                     {POSITION_OPTIONS
-                      .filter(pos => !editForm.department || pos === "Director" || VALID_POSITION_DEPARTMENTS[pos] === editForm.department)
+                      .filter((pos) => isValidPositionForDepartment(pos, editForm.department))
                       .map((pos) => (
                         <option key={pos} value={pos}>{pos}</option>
                       ))}

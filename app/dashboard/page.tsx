@@ -15,9 +15,9 @@ import type { ViewIssue } from './issue-board/board-model';
 
 function formatRupiah(num: number) {
   if (num >= 1_000_000_000) {
-    return `Rp ${(num / 1_000_000_000).toFixed(2)} B`;
+    return `Rp ${(num / 1_000_000_000).toFixed(2)} M`;
   } else if (num >= 1_000_000) {
-    return `Rp ${(num / 1_000_000).toFixed(1)} M`;
+    return `Rp ${(num / 1_000_000).toFixed(1)} jt`;
   }
   return `Rp ${num.toLocaleString('id-ID')}`;
 }

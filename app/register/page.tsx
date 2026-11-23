@@ -44,18 +44,39 @@ export default function RegisterPage() {
   const [generalError, setGeneralError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
 
-  // 1. Pemetaan Prefiks ID berdasarkan ID Departemen
-  const DEPARTMENT_PREFIX_MAP: Record<string, string> = {
-    '6e116b24-22fe-4b8f-be7e-2159b99022bd': 'HCC-HR-MGR', // HRMS
-    '8113ab6f-d5cc-4c94-bbf6-e08047931fab': 'IT-DEV',      // IT
-    '1653db5f-2b64-418f-b28b-68cb7b9dae8e': 'FNC-CS',     // Finance & Tax
-    '97ac5d35-5da2-4f5d-9d36-78500f403cc7': 'COM-CS-MGR',  // CRM / Commercial
+  // // 1. Pemetaan Prefiks ID berdasarkan ID Departemen
+  // const DEPARTMENT_PREFIX_MAP: Record<string, string> = {
+  //   '6e116b24-22fe-4b8f-be7e-2159b99022bd': 'HCC-HR-MGR', // HRMS
+  //   '8113ab6f-d5cc-4c94-bbf6-e08047931fab': 'IT-DEV',      // IT
+  //   '1653db5f-2b64-418f-b28b-68cb7b9dae8e': 'FNC-CS',     // Finance & Tax
+  //   '97ac5d35-5da2-4f5d-9d36-78500f403cc7': 'COM-CS-MGR',  // CRM / Commercial
+  // };
+
+  const POSITION_PREFIX_MAP: Record<string, string> = {
+    // Human Capital & Culture (HCC)
+    '446c8f5a-e923-4668-924d-75e28002fa03': 'HCC-HR-MGR',   // HR Manager
+    '7f6c629b-2300-4229-8c24-9df137c3cff2': 'HCC-HRA',      // Associate Officer 
+
+    // IT
+    '265c9357-105c-437c-a244-6897122f17c1': 'IT',           // IT / Information Technology
+
+    // Finance, Accounting & Tax (FAT)
+    '8b14d133-0c6c-4867-a807-373cf462e5fe': 'FAT-ACC-MGR',  // Manager of Accounting
+    '8669bd7b-bad6-497e-8bbd-39039949224a': 'FAT-BIL',      // Accounting Associate 
+    'a8be934a-5d25-46cc-94c7-3be79e3ba035': 'FAT-TRS-MGR',  // Cash Manager 
+    '67a8e1ba-daa7-4230-9c82-8dfef7e8fd15': 'FAT-TAX-MGR',  // Tax Manager
+    '44f4f4b2-edb9-46c8-933d-9c0dc0fd3646': 'FAT-TAX-ASC',  // Tax Associate (di gambar: FAT-TAX-ASC-001)
+
+    // Commercial / CRM (COM)
+    '2f1901c6-0617-45ba-852f-9556ed957f21': 'COM-FA',       // Field Agent
+    '48e90a83-86bd-4bd9-8b34-0fe7da11cc18': 'COM-CS-MGR',   // Manager of Customer Success
+    'ba43f1eb-7e99-4a85-8471-9d3e54e526b9': 'COM-SA',       // Sales Administration Associate
+    'bc015ef6-0515-4875-a15d-0f38dbf3d2c3': 'COM-SLS',      // Sales Executive (di gambar: COM-SLS-003)
   };
 
   const VALID_POSITION_DEPARTMENTS: Record<string, string> = {
-    '446c8f5a-e923-4668-924d-75e28002fa03': '6e116b24-22fe-4b8f-be7e-2159b99022bd', // HR Manager -> Human Resources
+    '446c8f5a-e923-4668-924d-75e28002fa03': '6e116b24-22fe-4b8f-be7e-2159b99022bd', // HR Manager -> Human Capital & Culture
     '265c9357-105c-437c-a244-6897122f17c1': '8113ab6f-d5cc-4c94-bbf6-e08047931fab', // Information Technology -> IT
-    '7539f5e1-5729-423e-bd87-e15a51fae54c': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Billing -> Finance 
     'bc015ef6-0515-4875-a15d-0f38dbf3d2c3': '97ac5d35-5da2-4f5d-9d36-78500f403cc7', // Sales Executive -> Commercial, Customer Success Executive -> Cust Success
     '48e90a83-86bd-4bd9-8b34-0fe7da11cc18': '97ac5d35-5da2-4f5d-9d36-78500f403cc7', // Manager of Customer Success -> Commercial, Customer Success Manager -> Cust Success
     '2f1901c6-0617-45ba-852f-9556ed957f21': '97ac5d35-5da2-4f5d-9d36-78500f403cc7', // Field Agent -> Commercial 
@@ -64,7 +85,7 @@ export default function RegisterPage() {
     '67a8e1ba-daa7-4230-9c82-8dfef7e8fd15': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Tax Manager -> Finance 
     '44f4f4b2-edb9-46c8-933d-9c0dc0fd3646': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Tax Associate -> Finance 
     'ba43f1eb-7e99-4a85-8471-9d3e54e526b9': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Sales Administration Associate -> Customer Success
-    '7f6c629b-2300-4229-8c24-9df137c3cff2': '6e116b24-22fe-4b8f-be7e-2159b99022bd', // Associate Officer -> Human Resources
+    '7f6c629b-2300-4229-8c24-9df137c3cff2': '6e116b24-22fe-4b8f-be7e-2159b99022bd', // Associate Officer -> Human Capital & Culture
     '8669bd7b-bad6-497e-8bbd-39039949224a': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Accounting Associate -> Finance
   };
   
@@ -73,7 +94,7 @@ export default function RegisterPage() {
   const DIRECTOR_CODE_BY_DEPARTMENT: Record<string, string> = {
     '1653db5f-2b64-418f-b28b-68cb7b9dae8e': 'DRT-FAT-001', // Finance
     '97ac5d35-5da2-4f5d-9d36-78500f403cc7': 'DRT-COM-001', // Commercial
-    '6e116b24-22fe-4b8f-be7e-2159b99022bd': 'DRT-HCC-001', // Human Resources
+    '6e116b24-22fe-4b8f-be7e-2159b99022bd': 'DRT-HCC-001', // Human Capital & Culture
   };
 
   // 3. Fungsi Generate ID menggunakan RPC Database (Aman dari RLS)
@@ -106,7 +127,11 @@ export default function RegisterPage() {
     }
 
     // Karyawan Biasa: Memanggil fungsi RPC PostgreSQL
-    const prefix = DEPARTMENT_PREFIX_MAP[selectedDepartmentId] || 'AND';
+    const prefix = POSITION_PREFIX_MAP[selectedPositionId];
+
+    if (!prefix) {
+      throw new Error(`Prefiks untuk positionId "${selectedPositionId}" belum terdaftar.`);
+    }
 
     const { data: nextId, error: rpcError } = await supabase
       .rpc('get_next_employee_id', { dept_prefix: prefix });
@@ -426,7 +451,7 @@ export default function RegisterPage() {
                   }`}
                 >
                   <option value="">Select Department</option>
-                  <option value="6e116b24-22fe-4b8f-be7e-2159b99022bd">Human Resources</option>
+                  <option value="6e116b24-22fe-4b8f-be7e-2159b99022bd">Human Capital & Culture</option>
                   <option value="8113ab6f-d5cc-4c94-bbf6-e08047931fab">Information Technology</option>
                   <option value="1653db5f-2b64-418f-b28b-68cb7b9dae8e">Finance, Accounting & Tax</option>
                   <option value="97ac5d35-5da2-4f5d-9d36-78500f403cc7">Commercial & Customer Success</option>
@@ -450,7 +475,12 @@ export default function RegisterPage() {
                 >
                   <option value="">Select Position</option>
                   
-                  <option value={DIRECTOR_POSITION_ID}>Director</option>
+                  {(!departementId ||
+                    departementId === '6e116b24-22fe-4b8f-be7e-2159b99022bd' || // Human Capital & Culture
+                    departementId === '1653db5f-2b64-418f-b28b-68cb7b9dae8e' || // Finance, Accounting & Tax
+                    departementId === '97ac5d35-5da2-4f5d-9d36-78500f403cc7') && ( // Commercial & Customer Success
+                    <option value={DIRECTOR_POSITION_ID}>Director</option>
+                  )}
 
                   {(!departementId || departementId === '6e116b24-22fe-4b8f-be7e-2159b99022bd') && (
                     <>
