@@ -19,7 +19,6 @@ const DEPARTMENTS = [
   { id: '97ac5d35-5da2-4f5d-9d36-78500f403cc7', name: 'Commercial & Customer Success' },
 ];
 type HistoryTab = 'activity' | 'login';
-const ACCOUNT_PAGE_SIZE = 10;
 const ACTIVITY_PAGE_SIZE = 10;
 
 function Status({ online, isActive }: { online: boolean; isActive: boolean }) {
@@ -44,6 +43,7 @@ export default function LogActivity({ active }: { active: boolean }) {
   const [tab, setTab] = useState<HistoryTab>('activity');
   const [requestedPage, setRequestedPage] = useState(1);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const [accountPageSize, setAccountPageSize] = useState<number | 'all'>(10);
 
   useEffect(() => {
     if (!active) return;
@@ -90,10 +90,18 @@ export default function LogActivity({ active }: { active: boolean }) {
   }, [active, selectedId]);
 
   const rows = useMemo(() => filterAccountSummaries(accounts, { search, departmentId, date }), [accounts, search, departmentId, date]);
-  const accountTotalPages = Math.max(1, Math.ceil(rows.length / ACCOUNT_PAGE_SIZE));
+  const isShowAllAccounts = accountPageSize === 'all';
+  const effectiveAccountPageSize = isShowAllAccounts
+    ? Math.max(1, rows.length)
+    : accountPageSize;
+  const accountTotalPages = isShowAllAccounts
+    ? 1
+    : Math.max(1, Math.ceil(rows.length / effectiveAccountPageSize));
   const accountPage = Math.min(requestedAccountPage, accountTotalPages);
-  const accountOffset = (accountPage - 1) * ACCOUNT_PAGE_SIZE;
-  const visibleAccounts = rows.slice(accountOffset, accountOffset + ACCOUNT_PAGE_SIZE);
+  const accountOffset = isShowAllAccounts ? 0 : (accountPage - 1) * effectiveAccountPageSize;
+  const visibleAccounts = isShowAllAccounts
+    ? rows
+    : rows.slice(accountOffset, accountOffset + effectiveAccountPageSize);
   const departments = useMemo(() => {
     const choices = new Map(DEPARTMENTS.map((department) => [department.id, department.name]));
     for (const account of accounts) if (account.department !== '-') choices.set(account.departmentId || `name:${account.department}`, account.department);
@@ -165,10 +173,111 @@ export default function LogActivity({ active }: { active: boolean }) {
           </tbody>
         </table>
       </div>
-      {!loading && <footer className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-        <p role="status" className="text-[11px] text-slate-500"><Text>Menampilkan </Text><Text dynamic>{rows.length ? accountOffset + 1 : 0}</Text><Text>&ndash;</Text>{Math.min(accountOffset + ACCOUNT_PAGE_SIZE, rows.length)} <Text>dari </Text>{rows.length} <Text>akun</Text></p>
-        <HistoryPagination page={accountPage} totalPages={accountTotalPages} onChange={setRequestedAccountPage} />
-      </footer>}
+      
+      {!loading && (
+      <footer className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+        {/* KIRI: Page X of Y | per halaman [Dropdown] */}
+        <div className="flex flex-wrap items-center gap-2.5 text-[12px] text-slate-500">
+          <p role="status" className="m-0">
+            <Text>Page</Text>{" "}
+            <span className="font-bold text-slate-800">{accountPage}</span>{" "}
+            <Text>of</Text>{" "}
+            <span className="font-bold text-slate-800">{accountTotalPages}</span>
+          </p>
+
+          <span aria-hidden="true" className="h-3.5 w-[1px] bg-slate-200" />
+
+          <span className="font-medium text-slate-500">
+            <Text>per halaman</Text>
+          </span>
+
+          <div className="relative">
+            <select
+              aria-label="Jumlah baris per halaman"
+              value={accountPageSize}
+              onChange={(e) => {
+                const val = e.target.value;
+                setAccountPageSize(val === "all" ? "all" : Number(val));
+                setRequestedAccountPage(1);
+              }}
+              className="h-9 min-w-[76px] appearance-none rounded-lg border border-slate-200 bg-white pl-3.5 pr-8 text-[12px] font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-[#3B6FF5] cursor-pointer"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={150}>150</option>
+            </select>
+            <span className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-slate-600">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-3.5 w-3.5 fill-none stroke-current stroke-2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </span>
+          </div>
+        </div>
+
+        {/* KANAN: Kapsul Navigasi Halaman */}
+        <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1">
+          <button
+            type="button"
+            aria-label="Halaman sebelumnya"
+            disabled={accountPage <= 1}
+            onClick={() => setRequestedAccountPage((prev) => Math.max(1, prev - 1))}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-3.5 w-3.5 fill-none stroke-current stroke-[2.2]"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
+
+          {Array.from({ length: accountTotalPages }, (_, idx) => idx + 1).map((pageNum) => {
+            const isActive = pageNum === accountPage;
+            return (
+              <button
+                key={pageNum}
+                type="button"
+                aria-current={isActive ? "page" : undefined}
+                onClick={() => setRequestedAccountPage(pageNum)}
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] transition-colors cursor-pointer ${
+                  isActive
+                    ? "bg-[#3B6FF5] font-bold text-white"
+                    : "font-medium text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+
+          <button
+            type="button"
+            aria-label="Halaman berikutnya"
+            disabled={accountPage >= accountTotalPages}
+            onClick={() => setRequestedAccountPage((prev) => Math.min(accountTotalPages, prev + 1))}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-3.5 w-3.5 fill-none stroke-current stroke-[2.2]"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </button>
+        </div>
+      </footer>
+    )}
 
       <dialog ref={dialogRef} aria-label={selected ? `Detail akun ${selected.name}` : 'Detail akun'} onClose={() => setSelectedId(null)} onClick={(event) => {
         if (event.target !== event.currentTarget) return;

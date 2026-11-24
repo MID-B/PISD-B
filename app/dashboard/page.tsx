@@ -193,8 +193,11 @@ export default function SalesPerformance() {
   const [totalProfitVal, setTotalProfitVal] = useState<number>(0);
   const [totalOutstandingVal, setTotalOutstandingVal] = useState<number>(0);
   const issueBoard = useDashboardIssues();
-
-  const urgentCount = dashboardIssues.length;
+  const urgentCount = issueBoard.issues.filter((item: any) => {
+    const priority = String(item.priority || '').trim().toLowerCase();
+    const status = String(item.status || '').trim().toLowerCase();
+    return priority === 'urgent' || priority === 'high' || status === 'urgent';
+  }).length;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -274,15 +277,14 @@ export default function SalesPerformance() {
   const availableDepartments = Array.from(
     new Set([
       'CCR', 'CRM', 'HRMS',
-      ...dashboardIssues.map((item: any) => sourceKey(item.source || item.department))
+      ...issueBoard.issues.map((item: any) => sourceKey(item.source || item.department))
     ])
   ).filter((dept) => dept && dept !== 'UNKNOWN') as string[];
 
-  // Filter baris untuk widget dashboard (dibatasi 5 baris teratas)
-  const filteredIssues = dashboardIssues.filter((item: any) => {
+  const filteredIssues = issueBoard.issues.filter((item: any) => {
     const itemDept = sourceKey(item.source || item.department);
     const matchDept = selectedDepartment === 'All' || itemDept === selectedDepartment.trim().toUpperCase();
-    
+
     const rawPriority = item.priority ? String(item.priority).trim().toUpperCase() : '';
     let matchPriority = false;
     if (selectedPriority === 'All') matchPriority = true;
