@@ -13,8 +13,8 @@ export function DepartmentChart({ segments, total }: { segments: Segment[]; tota
         const start = total ? segments.slice(0, index).reduce((sum, previous) => sum + previous.count, 0) / total * 100 : 0;
         return share > 0 ? <circle key={segment.label} cx="90" cy="90" r="66" pathLength="100" fill="none" stroke={segment.color} strokeWidth="24" strokeDasharray={`${share} ${100 - share}`} strokeDashoffset={-start} transform="rotate(-90 90 90)" /> : null;
       })}
-      <text x="90" y="88" textAnchor="middle" dominantBaseline="middle" fill="#0f172a" fontSize="30" fontWeight="700">{total}</text>
-      <text x="90" y="111" textAnchor="middle" fill="#64748b" fontSize="14"><Text>issues</Text></text>
+      <text x="90" y="88" textAnchor="middle" dominantBaseline="middle" fill="#0f172a" fontSize="30" fontWeight="700" fontFamily="var(--font-poppins), sans-serif">{total}</text>
+      <text x="90" y="111" textAnchor="middle" fill="#64748b" fontSize="14" fontFamily="var(--font-inter), sans-serif"><Text>issues</Text></text>
     </svg>
     <ul className="space-y-3 text-sm">{segments.map((segment) => <li key={segment.label} className="grid grid-cols-[12px_minmax(44px,1fr)_auto_auto] items-center gap-2.5"><span aria-hidden="true" className="h-3 w-3 rounded-sm" style={{ background: segment.color }} /><span className="text-slate-600"><Text dynamic>{segment.label}</Text></span><strong className="text-base tabular-nums text-slate-800">{segment.count}</strong><span className="tabular-nums text-slate-500"><Text dynamic>{total ? Math.round(segment.count / total * 100) : 0}</Text>%</span></li>)}</ul>
   </div>;
@@ -52,8 +52,8 @@ export function AgingChart({ segments }: { segments: Segment[] }) {
         return <g key={segment.label}>
           <title><Text dynamic>{segment.label}</Text>: {segment.count} <Text>issue</Text></title>
           <rect x={x - 32} y={baseline - height} width="64" height={height} rx="3" fill={segment.color} />
-          <text x={x} y={baseline - height - 9} textAnchor="middle" fontSize="17" fontWeight="700" fill="#334155">{segment.count}</text>
-          <text x={x} y="211" textAnchor="middle" fontSize="15" fill="#64748b"><Text dynamic>{label}</Text></text>
+          <text x={x} y={baseline - height - 9} textAnchor="middle" fontSize="17" fontWeight="700" fill="#334155" fontFamily="var(--font-poppins), sans-serif">{segment.count}</text>
+          <text x={x} y="211" textAnchor="middle" fontSize="15" fill="#64748b" fontFamily="var(--font-inter), sans-serif"><Text dynamic>{label}</Text></text>
         </g>;
       })}
     </svg>
@@ -75,8 +75,8 @@ export function DueDateChart({ onTrack, dueSoon, overdue }: { onTrack: number; d
       })}
     </div>
     <dl className="grid grid-cols-3 divide-x divide-slate-200">{segments.map(segment => <div key={segment.label} className="min-w-0 px-2 first:pl-0 last:pr-0">
-      <dt className="flex flex-wrap items-center gap-1.5 text-sm text-slate-600"><span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: segment.color }} /><Text dynamic>{segment.label}</Text></dt>
-      <dd className="mt-1 text-[28px] font-bold leading-tight tabular-nums" style={{ color: segment.color }}>{segment.count}</dd>
+      <dt className="flex flex-wrap items-center gap-1.5 font-sans text-sm text-slate-600"><span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: segment.color }} /><Text dynamic>{segment.label}</Text></dt>
+      <dd className="mt-1 font-[family-name:var(--font-poppins)] text-[28px] font-bold leading-tight tabular-nums" style={{ color: segment.color }}>{segment.count}</dd>
     </div>)}</dl>
   </div>;
 }

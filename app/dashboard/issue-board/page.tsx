@@ -18,7 +18,7 @@ import {
 const initialFilters: BoardFilters = { source: '', status: '', priority: '', start: '', end: '' };
 const initialSort: BoardSort = { column: 'date', ascending: false };
 const panelClass = 'flex min-w-0 flex-col rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs';
-const inputClass = 'h-10 cursor-pointer rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500';
+const inputClass = 'h-10 cursor-pointer rounded-lg border border-slate-200 bg-white px-3 font-sans text-sm font-medium text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500';
 const columns: { key: SortColumn; label: string }[] = [
   { key: 'reference_code', label: 'Reference Code' }, { key: 'source', label: 'Department / Source' },
   { key: 'issue', label: 'Issue' }, { key: 'pic_name', label: 'PIC' },
@@ -122,49 +122,49 @@ export default function IssueBoardPage() {
       <div aria-label="Issue Board overview" className="space-y-4">
         <section aria-label="Ringkasan status issue" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7">
           <div className="flex flex-col justify-between rounded-xl border border-blue-600 bg-blue-600 p-3.5 text-white">
-            <span className="text-sm font-semibold"><Text>Total Issues</Text></span>
+            <span className="font-[family-name:var(--font-poppins)] text-sm font-semibold"><Text>Total Issues</Text></span>
             <strong className="my-1 text-[28px] font-bold leading-tight tabular-nums">{count(summary.total)}</strong>
             <p className="text-xs text-blue-100">{count(summary.unresolved)} <Text>belum Done</Text><Text dynamic>{ready && summary.unknownStatus ? ` (${summary.unknownStatus} status lain)` : ''}</Text></p>
           </div>
           {summary.statuses.map((status) => <div key={status.name} style={{ backgroundColor: status.background, borderColor: `${status.color}40`, color: status.cardText }} className="flex flex-col justify-between rounded-xl border p-3.5">
             <span className="flex items-center gap-2 text-sm font-semibold"><span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: status.color }} /><Text dynamic>{status.label}</Text></span>
-            <strong className="my-1 text-[28px] font-bold leading-tight tabular-nums">{count(status.count)}</strong>
+            <strong className="my-1 font-[family-name:var(--font-poppins)] text-[28px] font-bold leading-tight tabular-nums">{count(status.count)}</strong>
             <p className="text-xs"><Text dynamic>{ready ? `${share(status.count)}% dari total` : '-'}</Text></p>
           </div>)}
         </section>
 
         <section aria-label="Filter Issue Board" className="flex flex-wrap items-end gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
-          <div className="min-w-0"><p className="mb-1.5 text-xs font-semibold text-slate-500"><Text>Department / Source</Text></p><div role="group" aria-label="Filter department atau source" className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1">
+          <div className="min-w-0"><p className="mb-1.5 font-[family-name:var(--font-poppins)] text-xs font-semibold text-slate-500"><Text>Department / Source</Text></p><div role="group" aria-label="Filter department atau source" className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1">
             {['', ...sourceOptions].map((source) => <button key={source} type="button" aria-pressed={filters.source === source} onClick={() => changeFilter('source', source)} className={`h-8 cursor-pointer rounded-md px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${filters.source === source ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-200/60'}`}>{source || 'All'}</button>)}
           </div></div>
-          <label className="text-xs font-semibold text-slate-500"><Text>Status</Text><select aria-label="Filter status issue" value={filters.status} onChange={(event) => changeFilter('status', event.target.value)} className={`${inputClass} mt-1.5 block w-36`}><option value=""><Text>All Status</Text></option>{STATUSES.map((status) => <option key={status.name} value={status.name}><Text dynamic>{status.label}</Text></option>)}{additionalStatuses.map((status) => <option key={status} value={status}><Text dynamic>{status}</Text></option>)}</select></label>
-          <label className="text-xs font-semibold text-slate-500"><Text>Priority</Text><select aria-label="Filter priority issue" value={filters.priority} onChange={(event) => changeFilter('priority', event.target.value)} className={`${inputClass} mt-1.5 block w-36`}><option value=""><Text>All Priority</Text></option>{PRIORITIES.map((priority) => <option key={priority.key} value={priority.key}><Text dynamic>{priority.label}</Text></option>)}{additionalPriorities.map((priority) => <option key={priority} value={priority}><Text dynamic>{priority}</Text></option>)}</select></label>
-          <fieldset className="min-w-0"><legend className="mb-1.5 text-xs font-semibold text-slate-500"><Text>Date range (received)</Text></legend><div className="flex flex-wrap items-center gap-2"><IssueDateInput label="Tanggal mulai issue diterima" value={filters.start} error={dateError} onChange={(value) => changeFilter('start', value)} /><span className="text-sm text-slate-400"><Text>to</Text></span><IssueDateInput label="Tanggal akhir issue diterima" value={filters.end} error={dateError} onChange={(value) => changeFilter('end', value)} /></div></fieldset>
-          <button type="button" onClick={resetFilters} className="ml-auto inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><RotateCcw aria-hidden="true" className="h-4 w-4" /><Text>Reset</Text></button>
+          <label className="font-[family-name:var(--font-poppins)] text-xs font-semibold text-slate-500"><Text>Status</Text><select aria-label="Filter status issue" value={filters.status} onChange={(event) => changeFilter('status', event.target.value)} className={`${inputClass} mt-1.5 block w-36 font-[family-name:var(--font-inter)]`}><option value=""><Text>All Status</Text></option>{STATUSES.map((status) => <option key={status.name} value={status.name}><Text dynamic>{status.label}</Text></option>)}{additionalStatuses.map((status) => <option key={status} value={status}><Text dynamic>{status}</Text></option>)}</select></label>
+          <label className="font-[family-name:var(--font-poppins)] text-xs font-semibold text-slate-500"><Text>Priority</Text><select aria-label="Filter priority issue" value={filters.priority} onChange={(event) => changeFilter('priority', event.target.value)} className={`${inputClass} mt-1.5 block w-36 font-[family-name:var(--font-inter)]`}><option value=""><Text>All Priority</Text></option>{PRIORITIES.map((priority) => <option key={priority.key} value={priority.key}><Text dynamic>{priority.label}</Text></option>)}{additionalPriorities.map((priority) => <option key={priority} value={priority}><Text dynamic>{priority}</Text></option>)}</select></label>
+          <fieldset className="min-w-0"><legend className="mb-1.5 font-[family-name:var(--font-poppins)] text-xs font-semibold text-slate-500"><Text>Date range (received)</Text></legend><div className="flex flex-wrap items-center gap-2"><IssueDateInput label="Tanggal mulai issue diterima" value={filters.start} error={dateError} onChange={(value) => changeFilter('start', value)} /><span className="font-[family-name:var(--font-inter)] text-sm text-slate-400"><Text>to</Text></span><IssueDateInput label="Tanggal akhir issue diterima" value={filters.end} error={dateError} onChange={(value) => changeFilter('end', value)} /></div></fieldset>
+          <button type="button" onClick={resetFilters} className="ml-auto inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 font-[family-name:var(--font-inter)] text-sm font-medium text-slate-600 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><RotateCcw aria-hidden="true" className="h-4 w-4" /><Text>Reset</Text></button>
           {dateError && <p id="issue-date-error" role="alert" className="w-full text-sm text-rose-600"><Text dynamic>{dateError}</Text></p>}
         </section>
 
         <div className="grid gap-4 xl:grid-cols-2">
           <section aria-labelledby="department-title" className={panelClass}>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id="department-title" className="text-base font-bold text-slate-800"><Text>Issues by Department</Text></h2>
+              <h2 id="department-title" className="font-[family-name:var(--font-poppins)] text-base font-bold text-slate-800"><Text>Issues by Department</Text></h2>
               <button ref={openTableRef} type="button" aria-expanded={showTable} aria-controls="issue-table" onClick={openTable} className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-[#3B6FF5] px-4 text-sm font-bold text-white shadow-2xs transition-colors hover:bg-[#315be0] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><Table2 aria-hidden="true" className="h-4 w-4" /><Text>Lihat tabel</Text></button>
             </div>
             {chartMessage ? <p role="status" className="py-8 text-sm text-slate-500"><Text dynamic>{chartMessage}</Text></p> : <DepartmentChart segments={summary.sources} total={summary.total} />}
           </section>
           <section aria-labelledby="priority-title" className={panelClass}>
-            <h2 id="priority-title" className="text-base font-bold text-slate-800"><Text>Issues by Priority</Text></h2>
+            <h2 id="priority-title" className="font-[family-name:var(--font-poppins)] text-base font-bold text-slate-800"><Text>Issues by Priority</Text></h2>
             {chartMessage ? <p role="status" className="py-8 text-sm text-slate-500"><Text dynamic>{chartMessage}</Text></p> : <PriorityCharts segments={summary.priorities} total={summary.total} />}
             {ready && summary.otherPriorities > 0 && <p className="text-sm text-slate-500">{summary.otherPriorities} <Text>issue memakai priority lain di luar kategori di atas.</Text></p>}
           </section>
           <section aria-labelledby="aging-title" className={panelClass}>
-            <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="aging-title" className="text-base font-bold text-slate-800"><Text>Issue Aging</Text></h2><p className="text-sm text-slate-500">{count(summary.overdue)} <Text>overdue</Text></p></div>
+            <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="aging-title" className="font-[family-name:var(--font-poppins)] text-base font-bold text-slate-800"><Text>Issue Aging</Text></h2><p className="font-[family-name:var(--font-inter)] text-sm text-slate-500">{count(summary.overdue)} <Text>overdue</Text></p></div>
             <p className="mt-1 text-sm text-slate-500"><Text>Jumlah hari sejak issue overdue diterima.</Text></p>
             {chartMessage ? <p role="status" className="py-8 text-sm text-slate-500"><Text dynamic>{chartMessage}</Text></p> : <AgingChart segments={summary.aging} />}
             {ready && (summary.unknownReceived > 0 || summary.futureReceived > 0) && <p className="text-sm text-slate-500">{summary.unknownReceived} <Text>overdue tanpa tanggal diterima valid; </Text>{summary.futureReceived} <Text>overdue bertanggal diterima di masa depan.</Text></p>}
           </section>
           <section aria-labelledby="due-title" className={panelClass}>
-            <h2 id="due-title" className="text-base font-bold text-slate-800"><Text>Due Date Monitoring</Text></h2>
+            <h2 id="due-title" className="font-[family-name:var(--font-poppins)] text-base font-bold text-slate-800"><Text>Due Date Monitoring</Text></h2>
             <p className="mt-1 text-sm text-slate-500">{count(summary.unresolved)} <Text>belum Done. Due Soon: hari ini s.d. 2 hari lagi.</Text></p>
             {chartMessage ? <p role="status" className="py-8 text-sm text-slate-500"><Text dynamic>{chartMessage}</Text></p> : <DueDateChart onTrack={summary.onTrack} dueSoon={summary.dueSoon} overdue={summary.overdue} />}
             {ready && <p className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
