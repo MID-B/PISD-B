@@ -685,7 +685,7 @@ function SmkiDashboard() {
   }
 
   return (
-    <main style={{ width: "100vw", height: "100vh", display: "flex", background: "#000", overflow: "hidden", fontFamily: "Arial, Helvetica, sans-serif", margin: 0, padding: 0, boxSizing: "border-box" }}>
+    <main style={{ width: "100vw", height: "100vh", display: "flex", background: "#000", overflow: "hidden", margin: 0, padding: 0, boxSizing: "border-box" }}>
 
       {/* SIDEBAR */}
       <aside style={{

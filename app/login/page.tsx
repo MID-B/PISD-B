@@ -193,6 +193,14 @@ function LoginContent() {
 
       setLoginAttempts(0);
       sessionStorage.setItem('tab-auth', 'true');
+      const jakartaToday = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Jakarta',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+      localStorage.setItem('last_login_date', jakartaToday);
+
       trackActivity('Login', 'Berhasil login ke aplikasi.');
       setSuccessMessage(`Login berhasil! Selamat datang, ${profileData.full_name || 'User'}. Mengalihkan...`);
 

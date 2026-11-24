@@ -104,6 +104,18 @@ const positionLabels: Record<string, string> = {
 type HeaderProfile = { name: string; position: string };
 const guestProfile: HeaderProfile = { name: 'Guest', position: 'Belum login' };
 
+// 1. TARUH FUNGSI INI DI LUAR KOMPONEN (DI ATAS DashboardShell)
+function getJakartaDateString(): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 export default function DashboardShell({ activePage, headerActions, children }: DashboardShellProps) {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
@@ -172,14 +184,15 @@ export default function DashboardShell({ activePage, headerActions, children }: 
     let revision = 0;
 
     if (typeof window !== 'undefined') {
-      const today = new Date().toLocaleDateString('en-CA'); // Format YYYY-MM-DD
+      const today = getJakartaDateString();
       const lastLoginDate = localStorage.getItem('last_login_date');
 
       if (lastLoginDate && lastLoginDate !== today) {
         console.warn('Hari telah berganti. Sesi otomatis diakhiri.');
         localStorage.removeItem('last_login_date');
-        void supabase.auth.signOut().then(() => {
-          window.location.href = '/login?reason=day_changed';
+        sessionStorage.removeItem('tab-auth');
+        void supabase.auth.signOut().finally(() => {
+          window.location.replace('/login?reason=day_changed');
         });
         return;
       }
@@ -239,7 +252,7 @@ export default function DashboardShell({ activePage, headerActions, children }: 
   const initials = firstName.charAt(0).toUpperCase();
 
   return (
-    <main style={{ width: "100vw", height: "100vh", display: "flex", background: "#000", overflow: "hidden", fontFamily: "Arial, Helvetica, sans-serif", margin: 0, padding: 0, boxSizing: "border-box" }}>
+    <main style={{ width: "100vw", height: "100vh", display: "flex", background: "#000", overflow: "hidden", margin: 0, padding: 0, boxSizing: "border-box" }}>
 
       {/* SIDEBAR */}
       <aside style={{
