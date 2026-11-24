@@ -1,15 +1,17 @@
 "use client";
 
+import { DateText, Text, LanguageInput } from '@/components/language';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, CalendarDays, Clock3, Search, RotateCcw, Table2, X } from 'lucide-react';
 import Pagination from '@/components/pagination';
 import DashboardShell from '../dashboard-shell';
+import styles from './scrollbar.module.css';
 import { fetchUniversalIssues } from './issue-data';
 import { AgingChart, DepartmentChart, DueDateChart, PriorityCharts } from './board-charts';
 import {
   STATUSES, PRIORITIES, PAGE_SIZE, boardDateError, currentIssueDay, filterBoard, searchBoard, sortBoard,
   sourceKey, sourceColor, normalizeStatus, priorityKey, priorityStyle, issueDay,
-  formatIssueDate as formatDate, statusStyle as getStatusStyle, summarizeBoard,
+  statusStyle as getStatusStyle, summarizeBoard,
   type ViewIssue, type BoardFilters, type BoardSort, type SortColumn,
 } from './board-model';
 
@@ -28,7 +30,7 @@ function IssueDateInput({ value, label, error, onChange }: { value: string; labe
   return <div title={label} className={`relative flex h-10 shrink-0 items-center rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-2xs focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100 ${value ? 'w-40 justify-between px-3.5' : 'w-10 justify-center'}`}>
     {value && <span aria-hidden="true">{value.split('-').reverse().join('/')}</span>}
     <CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0" />
-    <input type="date" aria-label={label} aria-invalid={Boolean(error)} aria-describedby={error ? 'issue-date-error' : undefined} value={value} onClick={(event) => {
+    <LanguageInput type="date" aria-label={label} aria-invalid={Boolean(error)} aria-describedby={error ? 'issue-date-error' : undefined} value={value} onClick={(event) => {
       try { event.currentTarget.showPicker?.(); } catch { /* Retain native date input support in browsers without a picker. */ }
     }} onChange={(event) => onChange(event.target.value)} className="absolute inset-0 h-full w-full cursor-pointer opacity-0 [color-scheme:light]" />
   </div>;
@@ -116,59 +118,59 @@ export default function IssueBoardPage() {
 
   return <DashboardShell activePage="issue-board">
     <div className="space-y-4">
-      {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">Gagal memuat issue: {error} <button type="button" onClick={() => setReload((value) => value + 1)} className="cursor-pointer underline">Coba lagi</button></div>}
+      {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700"><Text>Gagal memuat issue: </Text><Text dynamic>{error}</Text> <button type="button" onClick={() => setReload((value) => value + 1)} className="cursor-pointer underline"><Text>Coba lagi</Text></button></div>}
       <div aria-label="Issue Board overview" className="space-y-4">
         <section aria-label="Ringkasan status issue" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-7">
           <div className="flex flex-col justify-between rounded-xl border border-blue-600 bg-blue-600 p-3.5 text-white">
-            <span className="text-sm font-semibold">Total Issues</span>
+            <span className="text-sm font-semibold"><Text>Total Issues</Text></span>
             <strong className="my-1 text-[28px] font-bold leading-tight tabular-nums">{count(summary.total)}</strong>
-            <p className="text-xs text-blue-100">{count(summary.unresolved)} belum Done{ready && summary.unknownStatus ? ` (${summary.unknownStatus} status lain)` : ''}</p>
+            <p className="text-xs text-blue-100">{count(summary.unresolved)} <Text>belum Done</Text><Text dynamic>{ready && summary.unknownStatus ? ` (${summary.unknownStatus} status lain)` : ''}</Text></p>
           </div>
           {summary.statuses.map((status) => <div key={status.name} style={{ backgroundColor: status.background, borderColor: `${status.color}40`, color: status.cardText }} className="flex flex-col justify-between rounded-xl border p-3.5">
-            <span className="flex items-center gap-2 text-sm font-semibold"><span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: status.color }} />{status.label}</span>
+            <span className="flex items-center gap-2 text-sm font-semibold"><span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: status.color }} /><Text dynamic>{status.label}</Text></span>
             <strong className="my-1 text-[28px] font-bold leading-tight tabular-nums">{count(status.count)}</strong>
-            <p className="text-xs">{ready ? `${share(status.count)}% dari total` : '-'}</p>
+            <p className="text-xs"><Text dynamic>{ready ? `${share(status.count)}% dari total` : '-'}</Text></p>
           </div>)}
         </section>
 
         <section aria-label="Filter Issue Board" className="flex flex-wrap items-end gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
-          <div className="min-w-0"><p className="mb-1.5 text-xs font-semibold text-slate-500">Department / Source</p><div role="group" aria-label="Filter department atau source" className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1">
+          <div className="min-w-0"><p className="mb-1.5 text-xs font-semibold text-slate-500"><Text>Department / Source</Text></p><div role="group" aria-label="Filter department atau source" className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1">
             {['', ...sourceOptions].map((source) => <button key={source} type="button" aria-pressed={filters.source === source} onClick={() => changeFilter('source', source)} className={`h-8 cursor-pointer rounded-md px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${filters.source === source ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-200/60'}`}>{source || 'All'}</button>)}
           </div></div>
-          <label className="text-xs font-semibold text-slate-500">Status<select aria-label="Filter status issue" value={filters.status} onChange={(event) => changeFilter('status', event.target.value)} className={`${inputClass} mt-1.5 block w-36`}><option value="">All Status</option>{STATUSES.map((status) => <option key={status.name} value={status.name}>{status.label}</option>)}{additionalStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
-          <label className="text-xs font-semibold text-slate-500">Priority<select aria-label="Filter priority issue" value={filters.priority} onChange={(event) => changeFilter('priority', event.target.value)} className={`${inputClass} mt-1.5 block w-36`}><option value="">All Priority</option>{PRIORITIES.map((priority) => <option key={priority.key} value={priority.key}>{priority.label}</option>)}{additionalPriorities.map((priority) => <option key={priority} value={priority}>{priority}</option>)}</select></label>
-          <fieldset className="min-w-0"><legend className="mb-1.5 text-xs font-semibold text-slate-500">Date range (received)</legend><div className="flex flex-wrap items-center gap-2"><IssueDateInput label="Tanggal mulai issue diterima" value={filters.start} error={dateError} onChange={(value) => changeFilter('start', value)} /><span className="text-sm text-slate-400">to</span><IssueDateInput label="Tanggal akhir issue diterima" value={filters.end} error={dateError} onChange={(value) => changeFilter('end', value)} /></div></fieldset>
-          <button type="button" onClick={resetFilters} className="ml-auto inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><RotateCcw aria-hidden="true" className="h-4 w-4" />Reset</button>
-          {dateError && <p id="issue-date-error" role="alert" className="w-full text-sm text-rose-600">{dateError}</p>}
+          <label className="text-xs font-semibold text-slate-500"><Text>Status</Text><select aria-label="Filter status issue" value={filters.status} onChange={(event) => changeFilter('status', event.target.value)} className={`${inputClass} mt-1.5 block w-36`}><option value=""><Text>All Status</Text></option>{STATUSES.map((status) => <option key={status.name} value={status.name}><Text dynamic>{status.label}</Text></option>)}{additionalStatuses.map((status) => <option key={status} value={status}><Text dynamic>{status}</Text></option>)}</select></label>
+          <label className="text-xs font-semibold text-slate-500"><Text>Priority</Text><select aria-label="Filter priority issue" value={filters.priority} onChange={(event) => changeFilter('priority', event.target.value)} className={`${inputClass} mt-1.5 block w-36`}><option value=""><Text>All Priority</Text></option>{PRIORITIES.map((priority) => <option key={priority.key} value={priority.key}><Text dynamic>{priority.label}</Text></option>)}{additionalPriorities.map((priority) => <option key={priority} value={priority}><Text dynamic>{priority}</Text></option>)}</select></label>
+          <fieldset className="min-w-0"><legend className="mb-1.5 text-xs font-semibold text-slate-500"><Text>Date range (received)</Text></legend><div className="flex flex-wrap items-center gap-2"><IssueDateInput label="Tanggal mulai issue diterima" value={filters.start} error={dateError} onChange={(value) => changeFilter('start', value)} /><span className="text-sm text-slate-400"><Text>to</Text></span><IssueDateInput label="Tanggal akhir issue diterima" value={filters.end} error={dateError} onChange={(value) => changeFilter('end', value)} /></div></fieldset>
+          <button type="button" onClick={resetFilters} className="ml-auto inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><RotateCcw aria-hidden="true" className="h-4 w-4" /><Text>Reset</Text></button>
+          {dateError && <p id="issue-date-error" role="alert" className="w-full text-sm text-rose-600"><Text dynamic>{dateError}</Text></p>}
         </section>
 
         <div className="grid gap-4 xl:grid-cols-2">
           <section aria-labelledby="department-title" className={panelClass}>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id="department-title" className="text-base font-bold text-slate-800">Issues by Department</h2>
-              <button ref={openTableRef} type="button" aria-expanded={showTable} aria-controls="issue-table" onClick={openTable} className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-[#3B6FF5] px-4 text-sm font-bold text-white shadow-2xs transition-colors hover:bg-[#315be0] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><Table2 aria-hidden="true" className="h-4 w-4" />Lihat tabel</button>
+              <h2 id="department-title" className="text-base font-bold text-slate-800"><Text>Issues by Department</Text></h2>
+              <button ref={openTableRef} type="button" aria-expanded={showTable} aria-controls="issue-table" onClick={openTable} className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-[#3B6FF5] px-4 text-sm font-bold text-white shadow-2xs transition-colors hover:bg-[#315be0] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><Table2 aria-hidden="true" className="h-4 w-4" /><Text>Lihat tabel</Text></button>
             </div>
-            {chartMessage ? <p role="status" className="py-8 text-sm text-slate-500">{chartMessage}</p> : <DepartmentChart segments={summary.sources} total={summary.total} />}
+            {chartMessage ? <p role="status" className="py-8 text-sm text-slate-500"><Text dynamic>{chartMessage}</Text></p> : <DepartmentChart segments={summary.sources} total={summary.total} />}
           </section>
           <section aria-labelledby="priority-title" className={panelClass}>
-            <h2 id="priority-title" className="text-base font-bold text-slate-800">Issues by Priority</h2>
-            {chartMessage ? <p role="status" className="py-8 text-sm text-slate-500">{chartMessage}</p> : <PriorityCharts segments={summary.priorities} total={summary.total} />}
-            {ready && summary.otherPriorities > 0 && <p className="text-sm text-slate-500">{summary.otherPriorities} issue memakai priority lain di luar kategori di atas.</p>}
+            <h2 id="priority-title" className="text-base font-bold text-slate-800"><Text>Issues by Priority</Text></h2>
+            {chartMessage ? <p role="status" className="py-8 text-sm text-slate-500"><Text dynamic>{chartMessage}</Text></p> : <PriorityCharts segments={summary.priorities} total={summary.total} />}
+            {ready && summary.otherPriorities > 0 && <p className="text-sm text-slate-500">{summary.otherPriorities} <Text>issue memakai priority lain di luar kategori di atas.</Text></p>}
           </section>
           <section aria-labelledby="aging-title" className={panelClass}>
-            <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="aging-title" className="text-base font-bold text-slate-800">Issue Aging</h2><p className="text-sm text-slate-500">{count(summary.overdue)} overdue</p></div>
-            <p className="mt-1 text-sm text-slate-500">Jumlah hari sejak issue overdue diterima.</p>
-            {chartMessage ? <p role="status" className="py-8 text-sm text-slate-500">{chartMessage}</p> : <AgingChart segments={summary.aging} />}
-            {ready && (summary.unknownReceived > 0 || summary.futureReceived > 0) && <p className="text-sm text-slate-500">{summary.unknownReceived} overdue tanpa tanggal diterima valid; {summary.futureReceived} overdue bertanggal diterima di masa depan.</p>}
+            <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 id="aging-title" className="text-base font-bold text-slate-800"><Text>Issue Aging</Text></h2><p className="text-sm text-slate-500">{count(summary.overdue)} <Text>overdue</Text></p></div>
+            <p className="mt-1 text-sm text-slate-500"><Text>Jumlah hari sejak issue overdue diterima.</Text></p>
+            {chartMessage ? <p role="status" className="py-8 text-sm text-slate-500"><Text dynamic>{chartMessage}</Text></p> : <AgingChart segments={summary.aging} />}
+            {ready && (summary.unknownReceived > 0 || summary.futureReceived > 0) && <p className="text-sm text-slate-500">{summary.unknownReceived} <Text>overdue tanpa tanggal diterima valid; </Text>{summary.futureReceived} <Text>overdue bertanggal diterima di masa depan.</Text></p>}
           </section>
           <section aria-labelledby="due-title" className={panelClass}>
-            <h2 id="due-title" className="text-base font-bold text-slate-800">Due Date Monitoring</h2>
-            <p className="mt-1 text-sm text-slate-500">{count(summary.unresolved)} belum Done. Due Soon: hari ini s.d. 2 hari lagi.</p>
-            {chartMessage ? <p role="status" className="py-8 text-sm text-slate-500">{chartMessage}</p> : <DueDateChart onTrack={summary.onTrack} dueSoon={summary.dueSoon} overdue={summary.overdue} />}
+            <h2 id="due-title" className="text-base font-bold text-slate-800"><Text>Due Date Monitoring</Text></h2>
+            <p className="mt-1 text-sm text-slate-500">{count(summary.unresolved)} <Text>belum Done. Due Soon: hari ini s.d. 2 hari lagi.</Text></p>
+            {chartMessage ? <p role="status" className="py-8 text-sm text-slate-500"><Text dynamic>{chartMessage}</Text></p> : <DueDateChart onTrack={summary.onTrack} dueSoon={summary.dueSoon} overdue={summary.overdue} />}
             {ready && <p className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-slate-100 pt-3 text-xs leading-relaxed text-slate-500">
-              <span>{summary.datedCount} issue dengan due date valid</span>
+              <span>{summary.datedCount} <Text>issue dengan due date valid</Text></span>
               <span aria-hidden="true" className="text-slate-300">·</span>
-              <span>{summary.noDueDate} issue tanpa due date valid</span>
+              <span>{summary.noDueDate} <Text>issue tanpa due date valid</Text></span>
             </p>}
           </section>
         </div>
@@ -177,19 +179,19 @@ export default function IssueBoardPage() {
       </div>
 
       {showTable && <section ref={tableRef} id="issue-table" aria-labelledby="issue-table-title" className="scroll-mt-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
-        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3"><h2 id="issue-table-title" className="text-lg font-bold uppercase tracking-wide text-slate-800">ISSUE BOARD</h2><button type="button" aria-label="Tutup tabel issue" title="Tutup tabel" onClick={() => { setShowTable(false); openTableRef.current?.focus({ preventScroll: true }); openTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }} className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><X aria-hidden="true" className="h-4 w-4" /></button></div>
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3"><div className="relative w-full max-w-[380px]"><Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><input type="search" aria-label="Cari issue berdasarkan ticket code atau judul issue" placeholder="Search Ticket Code / Issue..." value={search} onChange={(event) => { setSearch(event.target.value); setRequestedPage(1); }} className="h-9 w-full rounded-lg border border-slate-200 bg-[#F5F5FA] pl-9 pr-3 text-sm text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500" /></div></div>
-        <div className="overflow-x-auto"><table aria-label="Daftar issue" className="w-full min-w-[1100px] table-fixed border-collapse text-left"><colgroup><col className="w-[11%]" /><col className="w-[13%]" /><col className="w-[21%]" /><col className="w-[12%]" /><col className="w-[14%]" /><col className="w-[9%]" /><col className="w-[10%]" /><col className="w-[10%]" /></colgroup><thead><tr className="border-y border-slate-100 bg-violet-50/70 text-xs uppercase tracking-wider text-slate-400">{columns.map((column) => {
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3"><h2 id="issue-table-title" className="text-lg font-bold uppercase tracking-wide text-slate-800"><Text>ISSUE BOARD</Text></h2><button type="button" aria-label="Tutup tabel issue" title="Tutup tabel" onClick={() => { setShowTable(false); openTableRef.current?.focus({ preventScroll: true }); openTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }} className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><X aria-hidden="true" className="h-4 w-4" /></button></div>
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3"><div className="relative w-full max-w-[380px]"><Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" /><LanguageInput type="search" aria-label="Cari issue berdasarkan ticket code atau judul issue" placeholder="Search Ticket Code / Issue..." value={search} onChange={(event) => { setSearch(event.target.value); setRequestedPage(1); }} className="h-9 w-full rounded-lg border border-slate-200 bg-[#F5F5FA] pl-9 pr-3 text-sm text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500" /></div></div>
+        <div className={`${styles.scrollbar} overflow-x-auto`}><table aria-label="Daftar issue" className="w-full min-w-[1400px] table-auto border-collapse text-left"><thead><tr className="border-y border-slate-100 bg-violet-50/70 text-xs uppercase tracking-wider text-slate-400">{columns.map((column) => {
           const sortable = column.key === 'date';
           const Icon = sort.ascending ? ArrowUp : ArrowDown;
-          return <th key={column.key} scope="col" aria-sort={sortable ? sort.ascending ? 'ascending' : 'descending' : undefined} className="px-3 py-3 font-semibold">{sortable ? <button type="button" onClick={() => handleSort('date')} className="flex cursor-pointer items-center gap-1.5 rounded text-left uppercase tracking-wider hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">{column.label}<Icon aria-hidden="true" className="h-3 w-3 shrink-0" /></button> : column.label}</th>;
-        })}</tr></thead><tbody className="divide-y divide-slate-100 text-sm text-slate-700">{loading || error || dateError || !visibleRows.length ? <tr><td colSpan={8} role="status" className="p-4 text-slate-500">{loading ? 'Memuat issue...' : error ? 'Data belum dapat ditampilkan.' : dateError || 'Tidak ada issue yang sesuai dengan pencarian dan filter.'}</td></tr> : visibleRows.map((issue, index) => {
+          return <th key={column.key} scope="col" aria-sort={sortable ? sort.ascending ? 'ascending' : 'descending' : undefined} className="whitespace-nowrap px-3 py-3 font-semibold">{sortable ? <button type="button" onClick={() => handleSort('date')} className="flex cursor-pointer items-center gap-1.5 rounded text-left uppercase tracking-wider hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"><Text dynamic>{column.label}</Text><Icon aria-hidden="true" className="h-3 w-3 shrink-0" /></button> : <Text>{column.label}</Text>}</th>;
+        })}</tr></thead><tbody className="divide-y divide-slate-100 text-sm text-slate-700">{loading || error || dateError || !visibleRows.length ? <tr><td colSpan={8} role="status" className="p-4 text-slate-500"><Text dynamic>{loading ? 'Memuat issue...' : error ? 'Data belum dapat ditampilkan.' : dateError || 'Tidak ada issue yang sesuai dengan pencarian dan filter.'}</Text></td></tr> : visibleRows.map((issue, index) => {
           const status = getStatusStyle(issue.status), priority = priorityStyle(issue.priority);
           const due = issueDay(issue.due_date);
           const overdue = normalizeStatus(issue.status) !== 'DONE' && due && due < today;
-          return <tr key={`${issue.source}:${issue.reference_code}:${offset + index}`} onClick={() => setSelectedIssue(issue)} className="cursor-pointer hover:bg-slate-50/50 focus-within:bg-slate-50/50"><th scope="row" className="px-3 py-3 font-semibold text-blue-700"><button type="button" aria-haspopup="dialog" aria-label={`Lihat detail ${issue.reference_code || 'issue'}`} onClick={(event) => { event.stopPropagation(); setSelectedIssue(issue); }} className="cursor-pointer rounded text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">{issue.reference_code || '-'}</button></th><td className="px-3 py-3"><span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: sourceColor(issue.source) }} />{issue.source || '-'}</span></td><td className="break-words px-3 py-3">{issue.issue || '-'}</td><td className="break-words px-3 py-3">{issue.pic_name || issue.pic_id || '-'}</td><td className="px-3 py-3">{formatDate(issue.date, true)}</td><td className="px-3 py-3"><span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ backgroundColor: priority.color }} />{priority.label}</span></td><td className="px-3 py-3">{formatDate(issue.due_date)}{overdue && <span className="mt-1 block text-xs text-rose-500">Overdue</span>}</td><td className="px-3 py-3"><span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-1 text-xs font-semibold" style={{ color: status.color, backgroundColor: status.background, borderColor: `${status.color}40` }}><span aria-hidden="true" className="h-1 w-1 rounded-full bg-current" />{status.label}</span></td></tr>;
+          return <tr key={`${issue.source}:${issue.reference_code}:${offset + index}`} onClick={() => setSelectedIssue(issue)} className="cursor-pointer hover:bg-slate-50/50 focus-within:bg-slate-50/50"><th scope="row" className="whitespace-nowrap px-3 py-3 font-semibold text-blue-700"><button type="button" aria-haspopup="dialog" aria-label={`Lihat detail ${issue.reference_code || 'issue'}`} onClick={(event) => { event.stopPropagation(); setSelectedIssue(issue); }} className="cursor-pointer rounded text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">{issue.reference_code || '-'}</button></th><td className="whitespace-nowrap px-3 py-3"><span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: sourceColor(issue.source) }} />{issue.source || '-'}</span></td><td className="min-w-[240px] max-w-[360px] break-words px-3 py-3"><Text dynamic protect={[issue.pic_name ?? ""]}>{issue.issue || '-'}</Text></td><td className="whitespace-nowrap px-3 py-3">{issue.pic_name || issue.pic_id || '-'}</td><td className="whitespace-nowrap px-3 py-3"><DateText value={issue.date} time /></td><td className="whitespace-nowrap px-3 py-3"><span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ backgroundColor: priority.color }} /><Text dynamic>{priority.label}</Text></span></td><td className="whitespace-nowrap px-3 py-3"><DateText value={issue.due_date} />{overdue && <span className="mt-1 block text-xs text-rose-500"><Text>Overdue</Text></span>}</td><td className="whitespace-nowrap px-3 py-3"><span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-1 text-xs font-semibold" style={{ color: status.color, backgroundColor: status.background, borderColor: `${status.color}40` }}><span aria-hidden="true" className="h-1 w-1 rounded-full bg-current" /><Text dynamic>{status.label}</Text></span></td></tr>;
         })}</tbody></table></div>
-        {ready && <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3"><p role="status" className="text-sm text-slate-500">Menampilkan {tableRows.length ? offset + 1 : 0}&ndash;{Math.min(offset + PAGE_SIZE, tableRows.length)} dari {tableRows.length} issue</p><Pagination compact label="Pagination Issue Board" page={page} totalPages={totalPages} onPageChange={setRequestedPage} /></footer>}
+        {ready && <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3"><p role="status" className="text-sm text-slate-500"><Text>Menampilkan </Text><Text dynamic>{tableRows.length ? offset + 1 : 0}</Text><Text>&ndash;</Text>{Math.min(offset + PAGE_SIZE, tableRows.length)} <Text>dari </Text>{tableRows.length} <Text>issue</Text></p><Pagination compact label="Pagination Issue Board" page={page} totalPages={totalPages} onPageChange={setRequestedPage} /></footer>}
       </section>}
     </div>
 
@@ -203,7 +205,7 @@ export default function IssueBoardPage() {
         className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[540px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 text-[#253044] shadow-2xl backdrop:bg-slate-950/40"
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-3">
-          <h2 id="issue-dialog-title" className="text-base font-bold text-slate-900">Detail Issue</h2>
+          <h2 id="issue-dialog-title" className="text-base font-bold text-slate-900"><Text>Detail Issue</Text></h2>
           <button
             type="button"
             aria-label="Tutup detail issue"
@@ -217,48 +219,48 @@ export default function IssueBoardPage() {
         {selectedIssue && (
           <div className="px-5 pb-5 pt-4">
             <div className="border-b border-slate-100 pb-4">
-              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">Issue</p>
-              <p className="text-base font-semibold leading-relaxed text-slate-900">{selectedIssue.issue || '-'}</p>
-              <p className="mt-2 flex items-center gap-2 text-sm text-slate-500"><Clock3 aria-hidden="true" className="h-4 w-4 shrink-0" />Diterima: {formatDate(selectedIssue.date, true)}</p>
+              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500"><Text>Issue</Text></p>
+              <p className="text-base font-semibold leading-relaxed text-slate-900"><Text dynamic protect={[selectedIssue.pic_name ?? ""]}>{selectedIssue.issue || '-'}</Text></p>
+              <p className="mt-2 flex items-center gap-2 text-sm text-slate-500"><Clock3 aria-hidden="true" className="h-4 w-4 shrink-0" /><Text>Diterima: </Text><DateText value={selectedIssue.date} time /></p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 border-b border-slate-100 py-4">
               <div>
-                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">Sumber</p>
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500"><Text>Sumber</Text></p>
                 <p className="text-sm font-semibold text-slate-700">{selectedIssue.source || '-'}</p>
               </div>
               <div>
-                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">PIC</p>
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500"><Text>PIC</Text></p>
                 <p className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <span aria-hidden="true" className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-500 text-xs text-white">E</span>
+                  <span aria-hidden="true" className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-500 text-xs text-white"><Text>E</Text></span>
                   {selectedIssue.pic_name || selectedIssue.pic_id || '-'}
                 </p>
               </div>
             </div>
 
             <div className="border-b border-slate-100 py-4">
-              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">Deskripsi</p>
-              <p className="text-sm leading-relaxed text-slate-600">{selectedIssue.description || '-'}</p>
+              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500"><Text>Deskripsi</Text></p>
+              <p className="text-sm leading-relaxed text-slate-600"><Text dynamic protect={[selectedIssue.pic_name ?? ""]}>{selectedIssue.description || '-'}</Text></p>
             </div>
 
             <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-4">
-              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">Note</p>
-              <p className="text-sm font-medium leading-relaxed text-slate-700">{selectedIssue.note || '-'}</p>
+              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500"><Text>Note</Text></p>
+              <p className="text-sm font-medium leading-relaxed text-slate-700"><Text dynamic protect={[selectedIssue.pic_name ?? ""]}>{selectedIssue.note || '-'}</Text></p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 border-b border-slate-100 py-4">
               <div>
-                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">Priority</p>
-                <p className="text-sm font-semibold text-slate-700">{selectedIssue.priority || '-'}</p>
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500"><Text>Priority</Text></p>
+                <p className="text-sm font-semibold text-slate-700"><Text dynamic>{selectedIssue.priority || '-'}</Text></p>
               </div>
               <div>
-                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">Due Date</p>
-                <p className="text-sm font-semibold text-slate-700">{formatDate(selectedIssue.due_date)}</p>
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500"><Text>Due Date</Text></p>
+                <p className="text-sm font-semibold text-slate-700"><DateText value={selectedIssue.due_date} /></p>
               </div>
             </div>
 
             <div className="py-4">
-              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">Status</p>
+              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-500"><Text>Status</Text></p>
               {(() => {
                 const statusStyle = getStatusStyle(selectedIssue.status);
                 return (
@@ -267,7 +269,7 @@ export default function IssueBoardPage() {
                     style={{ color: statusStyle.color, borderColor: statusStyle.color }}
                   >
                     <span aria-hidden="true" className="h-1 w-1 rounded-full bg-current" />
-                    {statusStyle.label}
+                    <Text dynamic>{statusStyle.label}</Text>
                   </span>
                 );
               })()}
@@ -278,8 +280,8 @@ export default function IssueBoardPage() {
               onClick={() => dialogRef.current?.close()}
               className="w-full cursor-pointer rounded-md bg-[#0752DF] py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
             >
-              Tutup
-            </button>
+              <Text>Tutup
+            </Text></button>
           </div>
         )}
       </dialog>

@@ -1,4 +1,6 @@
-﻿'use client';
+'use client';
+
+import { Text } from '@/components/language';
 
 type Segment = { label: string; count: number; color: string };
 
@@ -12,9 +14,9 @@ export function DepartmentChart({ segments, total }: { segments: Segment[]; tota
         return share > 0 ? <circle key={segment.label} cx="90" cy="90" r="66" pathLength="100" fill="none" stroke={segment.color} strokeWidth="24" strokeDasharray={`${share} ${100 - share}`} strokeDashoffset={-start} transform="rotate(-90 90 90)" /> : null;
       })}
       <text x="90" y="88" textAnchor="middle" dominantBaseline="middle" fill="#0f172a" fontSize="30" fontWeight="700">{total}</text>
-      <text x="90" y="111" textAnchor="middle" fill="#64748b" fontSize="14">issues</text>
+      <text x="90" y="111" textAnchor="middle" fill="#64748b" fontSize="14"><Text>issues</Text></text>
     </svg>
-    <ul className="space-y-3 text-sm">{segments.map((segment) => <li key={segment.label} className="grid grid-cols-[12px_minmax(44px,1fr)_auto_auto] items-center gap-2.5"><span aria-hidden="true" className="h-3 w-3 rounded-sm" style={{ background: segment.color }} /><span className="text-slate-600">{segment.label}</span><strong className="text-base tabular-nums text-slate-800">{segment.count}</strong><span className="tabular-nums text-slate-500">{total ? Math.round(segment.count / total * 100) : 0}%</span></li>)}</ul>
+    <ul className="space-y-3 text-sm">{segments.map((segment) => <li key={segment.label} className="grid grid-cols-[12px_minmax(44px,1fr)_auto_auto] items-center gap-2.5"><span aria-hidden="true" className="h-3 w-3 rounded-sm" style={{ background: segment.color }} /><span className="text-slate-600"><Text dynamic>{segment.label}</Text></span><strong className="text-base tabular-nums text-slate-800">{segment.count}</strong><span className="tabular-nums text-slate-500"><Text dynamic>{total ? Math.round(segment.count / total * 100) : 0}</Text>%</span></li>)}</ul>
   </div>;
 }
 
@@ -22,7 +24,7 @@ export function PriorityCharts({ segments, total }: { segments: Segment[]; total
   const maximum = Math.max(1, ...segments.map(segment => segment.count));
   return <div className="flex flex-1 flex-col justify-center py-3">
     <ul aria-label={`Prioritas dari ${total} issue`} className="space-y-4">{segments.map(segment => <li key={segment.label} className="grid grid-cols-[112px_minmax(0,1fr)_32px] items-center gap-3 text-sm">
-      <span className="break-words text-slate-600">{segment.label}</span>
+      <span className="break-words text-slate-600"><Text dynamic>{segment.label}</Text></span>
       <div className="h-6 overflow-hidden rounded bg-slate-100"><div className="h-full rounded-sm" style={{ width: `${segment.count / maximum * 100}%`, background: segment.color }} /></div>
       <strong className="text-right text-base tabular-nums text-slate-800">{segment.count}</strong>
     </li>)}</ul>
@@ -48,10 +50,10 @@ export function AgingChart({ segments }: { segments: Segment[] }) {
         const height = segment.count / axisMaximum * plotHeight;
         const label = segment.label.replace('More than 30 Days', '> 30 days').replace('Days', 'days');
         return <g key={segment.label}>
-          <title>{segment.label}: {segment.count} issue</title>
+          <title><Text dynamic>{segment.label}</Text>: {segment.count} <Text>issue</Text></title>
           <rect x={x - 32} y={baseline - height} width="64" height={height} rx="3" fill={segment.color} />
           <text x={x} y={baseline - height - 9} textAnchor="middle" fontSize="17" fontWeight="700" fill="#334155">{segment.count}</text>
-          <text x={x} y="211" textAnchor="middle" fontSize="15" fill="#64748b">{label}</text>
+          <text x={x} y="211" textAnchor="middle" fontSize="15" fill="#64748b"><Text dynamic>{label}</Text></text>
         </g>;
       })}
     </svg>
@@ -69,11 +71,11 @@ export function DueDateChart({ onTrack, dueSoon, overdue }: { onTrack: number; d
     <div role="img" aria-label={`Due date: ${onTrack} on track, ${dueSoon} due soon, ${overdue} overdue`} className="flex h-10 w-full overflow-hidden rounded-lg bg-slate-100">
       {segments.filter(segment => segment.count > 0).map(segment => {
         const share = segment.count / total * 100;
-        return <div key={segment.label} title={`${segment.label}: ${segment.count} dari ${total}`} className="flex min-w-0 items-center justify-center overflow-hidden text-sm font-semibold text-white" style={{ width: `${share}%`, backgroundColor: segment.color }}>{share >= 14 ? `${Math.round(share)}%` : null}</div>;
+        return <div key={segment.label} title={`${segment.label}: ${segment.count} dari ${total}`} className="flex min-w-0 items-center justify-center overflow-hidden text-sm font-semibold text-white" style={{ width: `${share}%`, backgroundColor: segment.color }}><Text dynamic>{share >= 14 ? `${Math.round(share)}%` : null}</Text></div>;
       })}
     </div>
     <dl className="grid grid-cols-3 divide-x divide-slate-200">{segments.map(segment => <div key={segment.label} className="min-w-0 px-2 first:pl-0 last:pr-0">
-      <dt className="flex flex-wrap items-center gap-1.5 text-sm text-slate-600"><span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: segment.color }} />{segment.label}</dt>
+      <dt className="flex flex-wrap items-center gap-1.5 text-sm text-slate-600"><span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: segment.color }} /><Text dynamic>{segment.label}</Text></dt>
       <dd className="mt-1 text-[28px] font-bold leading-tight tabular-nums" style={{ color: segment.color }}>{segment.count}</dd>
     </div>)}</dl>
   </div>;

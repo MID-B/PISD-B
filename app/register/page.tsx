@@ -1,5 +1,6 @@
 'use client';
 
+import { Text, LanguageInput } from '@/components/language';
 import React, { useState, useEffect, useRef, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -88,7 +89,7 @@ export default function RegisterPage() {
     '7f6c629b-2300-4229-8c24-9df137c3cff2': '6e116b24-22fe-4b8f-be7e-2159b99022bd', // Associate Officer -> Human Capital & Culture
     '8669bd7b-bad6-497e-8bbd-39039949224a': '1653db5f-2b64-418f-b28b-68cb7b9dae8e', // Accounting Associate -> Finance
   };
-  
+
   const DIRECTOR_POSITION_ID = '4acac2d4-8441-4cd8-bcd3-cf3ce4ca0ee0';
 
   const DIRECTOR_CODE_BY_DEPARTMENT: Record<string, string> = {
@@ -106,7 +107,7 @@ export default function RegisterPage() {
 
     if (IS_DIRECTOR) {
       const specificDirCode = DIRECTOR_CODE_BY_DEPARTMENT[selectedDepartmentId];
-      
+
       if (!specificDirCode) {
         throw new Error('Departemen yang dipilih untuk posisi Direktur tidak memiliki alokasi kode resmi.');
       }
@@ -218,7 +219,7 @@ export default function RegisterPage() {
         errors.departementId = 'Selected department does not match the position.';
       }
     }
-      
+
       if (Object.keys(errors).length > 0) {
         setFieldErrors(errors);
         setGeneralError('Please fix the errors below before submitting.');
@@ -301,23 +302,23 @@ export default function RegisterPage() {
     <main className="relative h-dvh w-full overflow-x-hidden overflow-y-auto bg-[#07111F] text-[#172033] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="w-full min-h-full lg:w-1/2 min-w-0 flex flex-col justify-center p-4 sm:p-8 lg:p-10 relative z-10">
         <div className="w-full max-w-2xl shrink-0 mx-auto p-6 sm:p-9 rounded-3xl bg-gradient-to-b from-white/85 via-white/70 to-white/60 backdrop-blur-2xl border border-white/80 shadow-[0_20px_50px_rgba(7,17,31,0.5),inset_0_2px_4px_rgba(255,255,255,0.9)] relative overflow-hidden">
-        
+
             <div className="mb-7 text-left relative z-10">
               <h2 className="font-[family-name:var(--font-syne)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
-                {greeting},
+                <Text dynamic>{greeting}</Text>,
               </h2>
               <p className="font-[family-name:var(--font-montserrat)] text-sm text-[#334155] mt-1.5 font-medium">
-                Please register with your identity.
-              </p>
+                <Text>Please register with your identity.
+              </Text></p>
             </div>
 
           <form onSubmit={handleSubmit} noValidate className="space-y-3.5 sm:space-y-4 w-full relative z-10">
-            
+
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
-                Full Name
-              </label>
-              <input
+                <Text>Full Name
+              </Text></label>
+              <LanguageInput
                 type="text"
                 placeholder="Enter your full name"
                 value={fullName}
@@ -329,14 +330,14 @@ export default function RegisterPage() {
                   fieldErrors.fullName ? 'border-red-500 focus:ring-2 focus:ring-red-500/30' : 'border-[#172033]/15 focus:border-[#3B6FF5] focus:ring-2 focus:ring-[#3B6FF5]/30'
                 }`}
               />
-              {fieldErrors.fullName && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.fullName}</p>}
+              {fieldErrors.fullName && <p className="text-red-600 text-xs font-semibold mt-1 ml-1"><Text dynamic>{fieldErrors.fullName}</Text></p>}
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
-                Email Address
-              </label>
-              <input
+                <Text>Email Address
+              </Text></label>
+              <LanguageInput
                 type="text"
                 placeholder="username@andima.co.id"
                 value={email}
@@ -348,15 +349,15 @@ export default function RegisterPage() {
                   fieldErrors.email ? 'border-red-500 focus:ring-2 focus:ring-red-500/30' : 'border-[#172033]/15 focus:border-[#3B6FF5] focus:ring-2 focus:ring-[#3B6FF5]/30'
                 }`}
               />
-              {fieldErrors.email && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.email}</p>}
+              {fieldErrors.email && <p className="text-red-600 text-xs font-semibold mt-1 ml-1"><Text dynamic>{fieldErrors.email}</Text></p>}
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
-                Password
-              </label>
+                <Text>Password
+              </Text></label>
               <div className="relative w-full">
-                <input
+                <LanguageInput
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Min. 8 chars (letters, numbers, symbols)"
                   value={password}
@@ -390,14 +391,14 @@ export default function RegisterPage() {
                   )}
                 </button>
               </div>
-              {fieldErrors.password && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.password}</p>}
+              {fieldErrors.password && <p className="text-red-600 text-xs font-semibold mt-1 ml-1"><Text dynamic>{fieldErrors.password}</Text></p>}
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
-                Phone Number
-              </label>
-              <input
+                <Text>Phone Number
+              </Text></label>
+              <LanguageInput
                 type="text"
                 placeholder="Max. 12 digits (e.g. 08123456789)"
                 value={phone}
@@ -409,13 +410,13 @@ export default function RegisterPage() {
                   fieldErrors.phone ? 'border-red-500 focus:ring-2 focus:ring-red-500/30' : 'border-[#172033]/15 focus:border-[#3B6FF5] focus:ring-2 focus:ring-[#3B6FF5]/30'
                 }`}
               />
-              {fieldErrors.phone && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.phone}</p>}
+              {fieldErrors.phone && <p className="text-red-600 text-xs font-semibold mt-1 ml-1"><Text dynamic>{fieldErrors.phone}</Text></p>}
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
-                Employment Status
-              </label>
+                <Text>Employment Status
+              </Text></label>
               <select
                 value={employmentStatus}
                 onChange={(e: ChangeEvent<HTMLSelectElement>) => {
@@ -426,18 +427,18 @@ export default function RegisterPage() {
                   fieldErrors.employmentStatus ? 'border-red-500 focus:ring-2 focus:ring-red-500/30' : 'border-[#172033]/15 focus:border-[#3B6FF5] focus:ring-2 focus:ring-[#3B6FF5]/30'
                 }`}
               >
-                <option value="">Select Status</option>
-                <option value="probation">Probation</option>
-                <option value="permanent">Permanent</option>
+                <option value=""><Text>Select Status</Text></option>
+                <option value="probation"><Text>Probation</Text></option>
+                <option value="permanent"><Text>Permanent</Text></option>
               </select>
-              {fieldErrors.employmentStatus && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.employmentStatus}</p>}
+              {fieldErrors.employmentStatus && <p className="text-red-600 text-xs font-semibold mt-1 ml-1"><Text dynamic>{fieldErrors.employmentStatus}</Text></p>}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
-                  Department
-                </label>
+                  <Text>Department
+                </Text></label>
                 <select
                   value={departementId}
                   onChange={(e: ChangeEvent<HTMLSelectElement>) => {
@@ -450,19 +451,19 @@ export default function RegisterPage() {
                     fieldErrors.departementId ? 'border-red-500 focus:ring-2 focus:ring-red-500/30' : 'border-[#172033]/15 focus:border-[#3B6FF5] focus:ring-2 focus:ring-[#3B6FF5]/30'
                   }`}
                 >
-                  <option value="">Select Department</option>
-                  <option value="6e116b24-22fe-4b8f-be7e-2159b99022bd">Human Capital & Culture</option>
-                  <option value="8113ab6f-d5cc-4c94-bbf6-e08047931fab">Information Technology</option>
-                  <option value="1653db5f-2b64-418f-b28b-68cb7b9dae8e">Finance, Accounting & Tax</option>
-                  <option value="97ac5d35-5da2-4f5d-9d36-78500f403cc7">Commercial & Customer Success</option>
+                  <option value=""><Text>Select Department</Text></option>
+                  <option value="6e116b24-22fe-4b8f-be7e-2159b99022bd"><Text>Human Capital & Culture</Text></option>
+                  <option value="8113ab6f-d5cc-4c94-bbf6-e08047931fab"><Text>Information Technology</Text></option>
+                  <option value="1653db5f-2b64-418f-b28b-68cb7b9dae8e"><Text>Finance, Accounting & Tax</Text></option>
+                  <option value="97ac5d35-5da2-4f5d-9d36-78500f403cc7"><Text>Commercial & Customer Success</Text></option>
                 </select>
-                {fieldErrors.departementId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.departementId}</p>}
+                {fieldErrors.departementId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1"><Text dynamic>{fieldErrors.departementId}</Text></p>}
               </div>
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#172033] mb-1">
-                  Position
-                </label>
+                  <Text>Position
+                </Text></label>
                 <select
                   value={positionId}
                   onChange={(e: ChangeEvent<HTMLSelectElement>) => {
@@ -473,60 +474,60 @@ export default function RegisterPage() {
                     fieldErrors.positionId ? 'border-red-500 focus:ring-2 focus:ring-red-500/30' : 'border-[#172033]/15 focus:border-[#3B6FF5] focus:ring-2 focus:ring-[#3B6FF5]/30'
                   }`}
                 >
-                  <option value="">Select Position</option>
-                  
+                  <option value=""><Text>Select Position</Text></option>
+
                   {(!departementId ||
                     departementId === '6e116b24-22fe-4b8f-be7e-2159b99022bd' || // Human Capital & Culture
                     departementId === '1653db5f-2b64-418f-b28b-68cb7b9dae8e' || // Finance, Accounting & Tax
                     departementId === '97ac5d35-5da2-4f5d-9d36-78500f403cc7') && ( // Commercial & Customer Success
-                    <option value={DIRECTOR_POSITION_ID}>Director</option>
+                    <option value={DIRECTOR_POSITION_ID}><Text>Director</Text></option>
                   )}
 
                   {(!departementId || departementId === '6e116b24-22fe-4b8f-be7e-2159b99022bd') && (
                     <>
-                    <option value="446c8f5a-e923-4668-924d-75e28002fa03">HR Manager</option>
-                    <option value="7f6c629b-2300-4229-8c24-9df137c3cff2">Associate Officer</option> 
+                    <option value="446c8f5a-e923-4668-924d-75e28002fa03"><Text>HR Manager</Text></option>
+                    <option value="7f6c629b-2300-4229-8c24-9df137c3cff2"><Text>Associate Officer</Text></option>
                     </>
                   )}
 
                   {(!departementId || departementId === '8113ab6f-d5cc-4c94-bbf6-e08047931fab') && (
-                    <option value="265c9357-105c-437c-a244-6897122f17c1">Information Technology</option>
+                    <option value="265c9357-105c-437c-a244-6897122f17c1"><Text>Information Technology</Text></option>
                   )}
 
                   {(!departementId || departementId === '1653db5f-2b64-418f-b28b-68cb7b9dae8e') && (
                     <>
-                      <option value="8669bd7b-bad6-497e-8bbd-39039949224a">Accounting Associate</option>
-                      <option value="8b14d133-0c6c-4867-a807-373cf462e5fe">Manager of Accounting</option>
-                      <option value="4b7c8e36-f133-4e2b-9b98-c1a1554d1545">Cash Manager</option>
-                      <option value="67a8e1ba-daa7-4230-9c82-8dfef7e8fd15">Tax Manager</option>
-                      <option value="44f4f4b2-edb9-46c8-933d-9c0dc0fd3646">Tax Associate</option>
-                      <option value="a8be934a-5d25-46cc-94c7-3be79e3ba035">Cash Associate</option>
-                      <option value="7539f5e1-5729-423e-bd87-e15a51fae54c">Billing</option>
-                      <option value="ba43f1eb-7e99-4a85-8471-9d3e54e526b9">Sales Administration Associate</option>
+                      <option value="8669bd7b-bad6-497e-8bbd-39039949224a"><Text>Accounting Associate</Text></option>
+                      <option value="8b14d133-0c6c-4867-a807-373cf462e5fe"><Text>Manager of Accounting</Text></option>
+                      <option value="4b7c8e36-f133-4e2b-9b98-c1a1554d1545"><Text>Cash Manager</Text></option>
+                      <option value="67a8e1ba-daa7-4230-9c82-8dfef7e8fd15"><Text>Tax Manager</Text></option>
+                      <option value="44f4f4b2-edb9-46c8-933d-9c0dc0fd3646"><Text>Tax Associate</Text></option>
+                      <option value="a8be934a-5d25-46cc-94c7-3be79e3ba035"><Text>Cash Associate</Text></option>
+                      <option value="7539f5e1-5729-423e-bd87-e15a51fae54c"><Text>Billing</Text></option>
+                      <option value="ba43f1eb-7e99-4a85-8471-9d3e54e526b9"><Text>Sales Administration Associate</Text></option>
                     </>
                   )}
 
                   {(!departementId || departementId === '97ac5d35-5da2-4f5d-9d36-78500f403cc7') && (
                     <>
-                      <option value="bc015ef6-0515-4875-a15d-0f38dbf3d2c3">Sales Executive</option>
-                      <option value="48e90a83-86bd-4bd9-8b34-0fe7da11cc18">Manager of Customer Success</option>
-                      <option value="2f1901c6-0617-45ba-852f-9556ed957f21">Field Agent</option>
+                      <option value="bc015ef6-0515-4875-a15d-0f38dbf3d2c3"><Text>Sales Executive</Text></option>
+                      <option value="48e90a83-86bd-4bd9-8b34-0fe7da11cc18"><Text>Manager of Customer Success</Text></option>
+                      <option value="2f1901c6-0617-45ba-852f-9556ed957f21"><Text>Field Agent</Text></option>
                     </>
                   )}
                 </select>
-                {fieldErrors.positionId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.positionId}</p>}
+                {fieldErrors.positionId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1"><Text dynamic>{fieldErrors.positionId}</Text></p>}
               </div>
             </div>
 
             {generalError && (
               <div role="alert" className="p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 text-xs sm:text-sm font-semibold">
-                {generalError}
+                <Text dynamic>{generalError}</Text>
               </div>
             )}
 
             {successMessage && (
               <div role="status" className="p-3 rounded-2xl bg-[#16A37A]/15 border border-[#16A37A]/30 text-[#16A37A] text-xs sm:text-sm font-semibold">
-                {successMessage}
+                <Text dynamic>{successMessage}</Text>
               </div>
             )}
 
@@ -539,18 +540,18 @@ export default function RegisterPage() {
                   : 'bg-[#3B6FF5] hover:bg-[#2B5CE5] active:scale-[0.99] cursor-pointer'
               }`}
             >
-              {successMessage ? 'Tersimpan' : isLoading ? 'Processing...' : 'Register'}
+              <Text dynamic>{successMessage ? 'Tersimpan' : isLoading ? 'Processing...' : 'Register'}</Text>
             </button>
           </form>
 
           <div className="text-center text-xs sm:text-sm text-[#172033] pt-4 relative z-15 font-medium">
-            Already have an account?{' '}
+            <Text>Already have an account?</Text>{' '}
             <Link
               href="/login"
               className="font-bold text-[#172033] hover:opacity-80 underline transition-opacity"
             >
-              Login
-            </Link>
+              <Text>Login
+            </Text></Link>
           </div>
         </div>
       </div>
@@ -566,10 +567,10 @@ export default function RegisterPage() {
           />
         </div>
         <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
-          PT. ANDIMA<br />
+          <Text>PT. ANDIMA</Text><br />
           <span className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
-            TRANSPORTINDO
-          </span>
+            <Text>TRANSPORTINDO
+          </Text></span>
         </h1>
       </div>
 

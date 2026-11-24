@@ -1,5 +1,6 @@
 'use client';
 
+import { Text, LanguageInput } from '@/components/language';
 import React, { useState, useEffect, FormEvent, ChangeEvent, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -228,8 +229,8 @@ function LoginContent() {
             </svg>
           </div>
           <div className="flex-1">
-            <h4 className="font-bold text-xs tracking-wide uppercase font-[family-name:var(--font-poppins)]">Akses Ditolak</h4>
-            <p className="text-xs text-rose-100 font-medium mt-0.5">Silakan login terlebih dahulu untuk mengakses Dashboard.</p>
+            <h4 className="font-bold text-xs tracking-wide uppercase font-[family-name:var(--font-poppins)]"><Text>Akses Ditolak</Text></h4>
+            <p className="text-xs text-rose-100 font-medium mt-0.5"><Text>Silakan login terlebih dahulu untuk mengakses Dashboard.</Text></p>
           </div>
           <button
             type="button"
@@ -271,10 +272,10 @@ function LoginContent() {
         </div>
         {/* Frame Transparan dengan Warna #0F2342 */}
         <h1 className="font-[family-name:var(--font-poppins)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
-          PT. ANDIMA<br />
+          <Text>PT. ANDIMA</Text><br />
           <span className="font-[family-name:var(--font-poppins)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
-            TRANSPORTINDO
-          </span>
+            <Text>TRANSPORTINDO
+          </Text></span>
         </h1>
       </div>
 
@@ -291,20 +292,20 @@ function LoginContent() {
             {/* Greeting */}
             <div className="mb-7 text-left relative z-10">
               <h2 className="font-[family-name:var(--font-poppins)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
-                {greeting},
+                <Text dynamic>{greeting}</Text>,
               </h2>
               <p className="font-[family-name:var(--font-poppins)] text-sm text-[#334155] mt-1.5 font-medium">
-                Please sign in with your registered account to access the dashboard.
-              </p>
+                <Text>Please sign in with your registered account to access the dashboard.
+              </Text></p>
             </div>
 
             {/* Form Fields */}
             <form onSubmit={handleSubmit} className="space-y-6 font-[family-name:var(--font-inter)] relative z-10" noValidate>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#0F172A] mb-2.5">
-                  Email
-                </label>
-                <input
+                  <Text>Email
+                </Text></label>
+                <LanguageInput
                   type="email"
                   placeholder="name@andima.co.id"
                   value={email}
@@ -316,10 +317,10 @@ function LoginContent() {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#0F172A] mb-2.5">
-                  Password
-                </label>
+                  <Text>Password
+                </Text></label>
                 <div className="relative">
-                  <input
+                  <LanguageInput
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••••••"
                     value={password}
@@ -358,7 +359,7 @@ function LoginContent() {
                   <svg className="w-5 h-5 shrink-0 fill-current" viewBox="0 0 20 20">
                     <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" />
                   </svg>
-                  <span>{errorMessage}</span>
+                  <span><Text dynamic>{errorMessage}</Text></span>
                 </div>
               )}
 
@@ -367,7 +368,7 @@ function LoginContent() {
                   <svg className="w-5 h-5 shrink-0 fill-current" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
-                  <span>{successMessage}</span>
+                  <span><Text dynamic>{successMessage}</Text></span>
                 </div>
               )}
 
@@ -377,19 +378,19 @@ function LoginContent() {
                 disabled={isLocked || isPermanentlyBlocked || isSigningIn}
                 className="w-full py-4 px-5 text-white font-extrabold rounded-xl text-sm tracking-wider uppercase transition-all mt-2 disabled:opacity-50 bg-[#3B6FF5] hover:bg-[#2B5CE5] shadow-[0_8px_25px_rgba(59,111,245,0.4)] active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed font-[family-name:var(--font-poppins)]"
               >
-                {isPermanentlyBlocked
+                <Text dynamic>{isPermanentlyBlocked
                   ? 'ACCOUNT BLOCKED'
                   : isLocked
                     ? `Please wait ${countdown}s`
-                    : isSigningIn ? 'SIGNING IN…' : 'LOGIN'}
+                    : isSigningIn ? 'SIGNING IN…' : 'LOGIN'}</Text>
               </button>
 
               <Link
                 href="/forgot-password"
                 className="block text-sm font-medium text-[#008CFF] hover:underline"
               >
-                Forgot password?
-              </Link>
+                <Text>Forgot password?
+              </Text></Link>
             </form>
           </div>
         </div>
