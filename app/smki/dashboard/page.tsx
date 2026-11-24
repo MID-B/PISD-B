@@ -239,7 +239,7 @@ function SmkiDashboard() {
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [requestedPageNum, setCurrentPageNum] = useState<number>(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number | "all">(10);
+  const itemsPerPage = 8;
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
 
@@ -458,24 +458,11 @@ function SmkiDashboard() {
     return (b.isActive === a.isActive) ? 0 : b.isActive ? 1 : -1;
   });
 
-  const isShowAll = itemsPerPage === "all";
-  const effectiveItemsPerPage = isShowAll
-    ? Math.max(1, filteredEmployees.length)
-    : itemsPerPage;
-
-  const totalPages = isShowAll
-    ? 1
-    : Math.ceil(filteredEmployees.length / effectiveItemsPerPage) || 1;
+  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage) || 1;
   const currentPageNum = Math.max(1, Math.min(requestedPageNum, totalPages));
-  const indexOfLastItem = isShowAll
-    ? filteredEmployees.length
-    : currentPageNum * effectiveItemsPerPage;
-  const indexOfFirstItem = isShowAll
-    ? 0
-    : indexOfLastItem - effectiveItemsPerPage;
-  const currentEmployees = isShowAll
-    ? filteredEmployees
-    : filteredEmployees.slice(indexOfFirstItem, indexOfLastItem);
+  const indexOfLastItem = currentPageNum * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentEmployees = filteredEmployees.slice(indexOfFirstItem, indexOfLastItem);
 
 
   const handleOpenStatusConfirm = (emp: Employee) => {
@@ -700,7 +687,7 @@ function SmkiDashboard() {
   }
 
   return (
-    <main style={{ width: "100vw", height: "100vh", display: "flex", background: "#000", overflow: "hidden", margin: 0, padding: 0, boxSizing: "border-box" }}>
+    <main style={{ width: "100vw", height: "100vh", display: "flex", background: "#000", overflow: "hidden", fontFamily: "Arial, Helvetica, sans-serif", margin: 0, padding: 0, boxSizing: "border-box" }}>
 
       {/* SIDEBAR */}
       <aside style={{
@@ -863,7 +850,7 @@ function SmkiDashboard() {
             >
               <HamburgerIcon />
             </button>
-            
+
             <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a", whiteSpace: "nowrap" }}>
               ANDIMA SMKI
             </span>
@@ -902,23 +889,23 @@ function SmkiDashboard() {
 
         <LogActivity active={activeTab === 'log-activity'} />
         {activeTab === "account-maintains" && (
-          <div style={{ flex: 1, padding: "20px 24px", overflowY: "auto", boxSizing: "border-box" }}>
+          <div className="flex-1 overflow-y-auto box-border p-3 sm:p-4 lg:px-6 lg:py-5">
 
             {/* Banner Sukses Global */}
             {successMessage && (
-              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", padding: "12px 16px", borderRadius: "12px", fontSize: "13px", fontWeight: 600, marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", padding: "12px 16px", borderRadius: "12px", fontSize: "13px", fontWeight: 600, marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
                 <span><Text dynamic>{successMessage}</Text></span>
-                <button onClick={() => setSuccessMessage("")} style={{ background: "transparent", border: 0, color: "#16a34a", fontWeight: "bold", cursor: "pointer" }}>✕</button>
+                <button onClick={() => setSuccessMessage("")} style={{ background: "transparent", border: 0, color: "#16a34a", fontWeight: "bold", cursor: "pointer", flexShrink: 0 }}>✕</button>
               </div>
             )}
 
             {/* CONTAINER FILTER */}
-            <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs mb-5 flex items-center justify-between gap-1.5 w-full min-w-0">
+            <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs mb-5 flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between xl:gap-1.5 w-full min-w-0">
               {/* Search + Dropdown Filters + Button Reset */}
-              <div className="flex items-center gap-1.5 flex-1 shrink min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 xl:flex-nowrap flex-1 shrink min-w-0">
                 
                 {/* 1. Input Search */}
-                <div className="relative flex-1 min-w-0">
+                <div className="relative w-full xl:w-auto xl:flex-1 min-w-0">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round">
                       <circle cx="11" cy="11" r="8" />
@@ -965,7 +952,7 @@ function SmkiDashboard() {
                       setSelectedPosition("All");
                     }
                   }}
-                  className="h-9 px-2 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 min-w-0 truncate"
+                  className="h-9 px-2 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 basis-[calc(50%-0.375rem)] sm:basis-0 min-w-0 truncate"
                 >
                   <option value="All"><Text>All Departement</Text></option>
                   {DEPARTMENT_OPTIONS.map((dept) => (
@@ -977,7 +964,7 @@ function SmkiDashboard() {
                 <select
                   value={selectedPosition}
                   onChange={(e) => { setSelectedPosition(e.target.value); setCurrentPageNum(1); }}
-                  className="h-9 px-2 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 min-w-0 truncate"
+                  className="h-9 px-2 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 basis-[calc(50%-0.375rem)] sm:basis-0 min-w-0 truncate"
                 >
                   <option value="All"><Text>All Position</Text></option>
                   {POSITION_OPTIONS
@@ -1001,7 +988,7 @@ function SmkiDashboard() {
                 <select
                   value={selectedStatus}
                   onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPageNum(1); }}
-                  className="h-9 px-1.5 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 min-w-0 truncate"
+                  className="h-9 px-1.5 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 basis-[calc(50%-0.375rem)] sm:basis-0 min-w-0 truncate"
                 >
                   <option value="All"><Text>All Status</Text></option>
                   <option value="Active"><Text>Active</Text></option>
@@ -1012,7 +999,7 @@ function SmkiDashboard() {
                 <button
                   type="button"
                   onClick={handleResetFilters}
-                  className="h-9 px-2.5 flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-purple-600 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer border border-slate-200 shrink-0"
+                  className="h-9 px-2.5 flex items-center justify-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-purple-600 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer border border-slate-200 flex-1 basis-[calc(50%-0.375rem)] sm:flex-none sm:basis-auto shrink-0"
                 >
                   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round">
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -1026,7 +1013,7 @@ function SmkiDashboard() {
               <button
                 type="button"
                 onClick={() => router.push('/register')}
-                className="h-9 px-3 flex items-center gap-1.5 text-[11px] font-bold text-white bg-[#055be5] hover:bg-[#0344b0] active:scale-95 rounded-xl transition-all shadow-md shrink-0 cursor-pointer whitespace-nowrap ml-1"
+                className="h-9 px-3 flex items-center justify-center gap-1.5 text-[11px] font-bold text-white bg-[#055be5] hover:bg-[#0344b0] active:scale-95 rounded-xl transition-all shadow-md shrink-0 cursor-pointer whitespace-nowrap w-full xl:w-auto xl:ml-1"
               >
                 <svg viewBox="0 0 24 24" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }}>
                   <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -1037,148 +1024,62 @@ function SmkiDashboard() {
             </div>
 
             {/* TABEL DATA KARYAWAN */}
-            <div style={{ background: "#ffffff", borderRadius: "6px", border: "1px solid #e2e8f0", overflow: "hidden", width: "100%" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.1fr 1.1fr 0.8fr", alignItems: "center", padding: "10px 16px", background: "#f8fafc", color: "#64748b", fontSize: "11px", fontWeight: 800, letterSpacing: "0.5px", borderBottom: "1px solid #e2e8f0" }}>
-                <div><Text>EMPLOYEE'S NAME</Text></div>
-                <div><Text>E-MAIL</Text></div>
-                <div><Text>DEPARTMENT</Text></div>
-                <div><Text>POSITION</Text></div>
-                <div style={{ textAlign: "center" }}><Text>ACTION</Text></div>
+            <div style={{ background: "#ffffff", borderRadius: "6px", border: "1px solid #e2e8f0", overflowX: "auto", overflowY: "hidden", width: "100%" }}>
+              <div style={{ minWidth: "760px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.1fr 1.1fr 0.8fr", alignItems: "center", padding: "10px 16px", background: "#f8fafc", color: "#64748b", fontSize: "11px", fontWeight: 800, letterSpacing: "0.5px", borderBottom: "1px solid #e2e8f0" }}>
+                  <div><Text>EMPLOYEE'S NAME</Text></div>
+                  <div><Text>E-MAIL</Text></div>
+                  <div><Text>DEPARTMENT</Text></div>
+                  <div><Text>POSITION</Text></div>
+                  <div style={{ textAlign: "center" }}><Text>ACTION</Text></div>
+                </div>
+
+                {currentEmployees.length > 0 ? (
+                  currentEmployees.map((employee) => (
+                    <div key={employee.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.1fr 1.1fr 0.8fr", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #f1f5f9", fontSize: "12px", color: !employee.isActive ? "#94a3b8" : "#1e293b", background: "#ffffff" }}>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 700 }}>
+                        <span style={{ width: "26px", height: "26px", borderRadius: "50%", background: "#cbd5e1", color: "#334155", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, flexShrink: 0 }}>
+                          {employee.initial}
+                        </span>
+                        <span>{employee.name}</span>
+                      </div>
+
+                      <div style={{ color: "#64748b", wordBreak: "break-all", paddingRight: "8px" }}>{employee.email}</div>
+
+                      <div style={{ fontWeight: 600, color: "#334155" }}>
+                        <Text dynamic>{employee.department}</Text>
+                      </div>
+
+                      <div style={{ fontWeight: 600, color: "#334155" }}>
+                        <Text dynamic>{employee.position}</Text>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+                        <button onClick={() => handleOpenEdit(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }} title="Edit">
+                          <EditIcon />
+                        </button>
+                        <button onClick={() => handleOpenStatusConfirm(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }} title={employee.isActive ? "Deactivate" : "Activate"}>
+                          <DisableIcon active={employee.isActive} />
+                        </button>
+                        <button onClick={() => handleOpenDeleteConfirm(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }} title="Delete Employee">
+                          <DeleteIcon />
+                        </button>
+                      </div>
+
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ padding: "24px", textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
+                    <Text>No employees found.
+                    </Text></div>
+                )}
               </div>
-
-              {currentEmployees.length > 0 ? (
-                currentEmployees.map((employee) => (
-                  <div key={employee.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.1fr 1.1fr 0.8fr", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #f1f5f9", fontSize: "12px", color: !employee.isActive ? "#94a3b8" : "#1e293b", background: "#ffffff" }}>
-
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 700 }}>
-                      <span style={{ width: "26px", height: "26px", borderRadius: "50%", background: "#cbd5e1", color: "#334155", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, flexShrink: 0 }}>
-                        {employee.initial}
-                      </span>
-                      <span>{employee.name}</span>
-                    </div>
-
-                    <div style={{ color: "#64748b" }}>{employee.email}</div>
-
-                    <div style={{ fontWeight: 600, color: "#334155" }}>
-                      <Text dynamic>{employee.department}</Text>
-                    </div>
-
-                    <div style={{ fontWeight: 600, color: "#334155" }}>
-                      <Text dynamic>{employee.position}</Text>
-                    </div>
-
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
-                      <button onClick={() => handleOpenEdit(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }} title="Edit">
-                        <EditIcon />
-                      </button>
-                      <button onClick={() => handleOpenStatusConfirm(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }} title={employee.isActive ? "Deactivate" : "Activate"}>
-                        <DisableIcon active={employee.isActive} />
-                      </button>
-                      <button onClick={() => handleOpenDeleteConfirm(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }} title="Delete Employee">
-                        <DeleteIcon />
-                      </button>
-                    </div>
-
-                  </div>
-                ))
-              ) : (
-                <div style={{ padding: "24px", textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
-                  <Text>No employees found.
-                </Text></div>
-              )}
             </div>
 
-            <footer className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-              {/* KIRI: Page X of Y | per halaman [Dropdown Kapsul] */}
-              <div className="flex flex-wrap items-center gap-2.5 text-[12px] text-slate-500">
-                <p role="status" className="m-0">
-                  Page{" "}
-                  <span className="font-bold text-slate-800">{currentPageNum}</span> of{" "}
-                  <span className="font-bold text-slate-800">{totalPages}</span>
-                </p>
-
-                <span aria-hidden="true" className="h-3.5 w-[1px] bg-slate-200" />
-
-                <span className="font-medium text-slate-500">per halaman</span>
-
-                <div className="relative">
-                  <select
-                    aria-label="Jumlah baris per halaman"
-                    value={itemsPerPage}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setItemsPerPage(val === "all" ? "all" : Number(val));
-                      setCurrentPageNum(1);
-                    }}
-                    className="h-9 appearance-none rounded-lg border border-slate-200 bg-white pl-4 pr-8 text-[12px] font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-[#3B6FF5] cursor-pointer"
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                    <option value={150}>150</option>
-                  </select>
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-600">
-                    <ChevronDownIcon />
-                  </span>
-                </div>
-              </div>
-
-              {/* KANAN: Kapsul Navigasi Halaman */}
-              <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1">
-                <button
-                  type="button"
-                  aria-label="Halaman sebelumnya"
-                  disabled={currentPageNum <= 1}
-                  onClick={() => setCurrentPageNum((prev) => Math.max(1, prev - 1))}
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-3.5 w-3.5 fill-none stroke-current stroke-[2.2]"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="m15 18-6-6 6-6" />
-                  </svg>
-                </button>
-
-                {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pageNum) => {
-                  const isActive = pageNum === currentPageNum;
-                  return (
-                    <button
-                      key={pageNum}
-                      type="button"
-                      aria-current={isActive ? "page" : undefined}
-                      onClick={() => setCurrentPageNum(pageNum)}
-                      className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] transition-colors cursor-pointer ${
-                        isActive
-                          ? "bg-[#3B6FF5] font-bold text-white"
-                          : "font-medium text-slate-600 hover:bg-slate-100"
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-
-                <button
-                  type="button"
-                  aria-label="Halaman berikutnya"
-                  disabled={currentPageNum >= totalPages}
-                  onClick={() => setCurrentPageNum((prev) => Math.min(totalPages, prev + 1))}
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-3.5 w-3.5 fill-none stroke-current stroke-[2.2]"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="m9 18 6-6-6-6" />
-                  </svg>
-                </button>
-              </div>
+            <footer className="mt-3 flex shrink-0 flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 sm:flex-row sm:flex-wrap sm:justify-between sm:px-4">
+              <p role="status" className="text-[11px] text-slate-500 text-center sm:text-left"><Text>Menampilkan </Text><Text dynamic>{filteredEmployees.length ? indexOfFirstItem + 1 : 0}</Text><Text>&ndash;</Text>{Math.min(indexOfLastItem, filteredEmployees.length)} <Text>dari </Text>{filteredEmployees.length} <Text>akun</Text></p>
+              <HistoryPagination page={currentPageNum} totalPages={totalPages} onChange={setCurrentPageNum} label="Pagination Account Maintains" />
             </footer>
           </div>
         )}

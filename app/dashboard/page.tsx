@@ -179,6 +179,23 @@ function useTopPurchasingClients() {
   };
 }
 
+// ukuran layar: compact (<1024px / HP & tablet), normal (laptop), wide (>=1536px / monitor besar)
+function useScreenTier(): 'compact' | 'normal' | 'wide' {
+  const [tier, setTier] = useState<'compact' | 'normal' | 'wide'>('normal');
+
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth;
+      setTier(w < 1024 ? 'compact' : w >= 1536 ? 'wide' : 'normal');
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  return tier;
+}
+
 export default function SalesPerformance() {
   const router = useRouter();
   const trend = useSalesPerformanceTrend();
@@ -193,6 +210,10 @@ export default function SalesPerformance() {
   const [totalProfitVal, setTotalProfitVal] = useState<number>(0);
   const [totalOutstandingVal, setTotalOutstandingVal] = useState<number>(0);
   const issueBoard = useDashboardIssues();
+  const tier = useScreenTier();
+  const isCompact = tier === 'compact';
+  const isWide = tier === 'wide';
+
   const urgentCount = issueBoard.issues.filter((item: any) => {
     const priority = String(item.priority || '').trim().toLowerCase();
     const status = String(item.status || '').trim().toLowerCase();
@@ -300,63 +321,59 @@ export default function SalesPerformance() {
 
   return (
     <DashboardShell activePage="dashboard">
-      {/* Container helikopter mode CEO: Anti-scroll mutlak & background eksekutif */}
-      <div className="flex flex-col gap-1.5 h-full min-h-0 max-h-full p-1 bg-slate-100/80 rounded-xl text-xs overflow-hidden select-none">
-        
-        {/* ========================================================================= */}
-        {/* 1. BARIS ATAS: 5 KARTU METRIK UTAMA (Warna Gradasi Awal & Frame Ditinggikan) */}
-        {/* ========================================================================= */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 shrink-0">
-          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/60 p-2.5 rounded-xl border border-emerald-200/60 shadow-2xs flex flex-col justify-between">
-            <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-wide"><Text>Total Profit</Text></span>
-            <span className="text-xs sm:text-sm font-extrabold text-emerald-900 mt-1 truncate">{formatRupiah(totalProfitVal)}</span>
+      <div className="flex flex-col gap-1.5 h-full min-h-0 max-h-full p-1 bg-slate-100/80 rounded-xl text-xs overflow-y-auto overflow-x-hidden lg:overflow-hidden select-none">
+        <div className="grid grid-cols-2 sm:grid-cols-6 lg:grid-cols-5 gap-2 shrink-0">
+          <div className="col-span-1 sm:col-span-2 lg:col-span-1 bg-gradient-to-br from-emerald-50 to-emerald-100/60 p-2.5 2xl:p-3.5 rounded-xl border border-emerald-200/60 shadow-2xs flex flex-col justify-between">
+            <span className="text-[10px] lg:text-[9px] 2xl:text-xs font-bold text-emerald-700 uppercase tracking-wide"><Text>Total Profit</Text></span>
+            <span className="text-xs sm:text-sm 2xl:text-xl font-extrabold text-emerald-900 mt-1 truncate">{formatRupiah(totalProfitVal)}</span>
           </div>
 
-          <div className="bg-gradient-to-br from-amber-50 to-amber-100/60 p-2.5 rounded-xl border border-amber-200/60 shadow-2xs flex flex-col justify-between">
-            <span className="text-[9px] font-bold text-amber-700 uppercase tracking-wide"><Text>Outstanding Pay</Text></span>
-            <span className="text-xs sm:text-sm font-extrabold text-amber-900 mt-1 truncate">{formatRupiah(totalOutstandingVal)}</span>
+          <div className="col-span-1 sm:col-span-2 lg:col-span-1 bg-gradient-to-br from-amber-50 to-amber-100/60 p-2.5 2xl:p-3.5 rounded-xl border border-amber-200/60 shadow-2xs flex flex-col justify-between">
+            <span className="text-[10px] lg:text-[9px] 2xl:text-xs font-bold text-amber-700 uppercase tracking-wide"><Text>Outstanding Pay</Text></span>
+            <span className="text-xs sm:text-sm 2xl:text-xl font-extrabold text-amber-900 mt-1 truncate">{formatRupiah(totalOutstandingVal)}</span>
           </div>
 
-          <div className="bg-gradient-to-br from-rose-50 to-rose-100/60 p-2.5 rounded-xl border border-rose-200/60 shadow-2xs flex flex-col justify-between">
-            <span className="text-[9px] font-bold text-rose-700 uppercase tracking-wide"><Text>Urgent Issues</Text></span>
-            <span className="text-xs sm:text-sm font-extrabold text-rose-900 mt-1 truncate">{urgentCount} <Text>Issue</Text></span>
+          <div className="col-span-1 sm:col-span-2 lg:col-span-1 bg-gradient-to-br from-rose-50 to-rose-100/60 p-2.5 2xl:p-3.5 rounded-xl border border-rose-200/60 shadow-2xs flex flex-col justify-between">
+            <span className="text-[10px] lg:text-[9px] 2xl:text-xs font-bold text-rose-700 uppercase tracking-wide"><Text>Urgent Issues</Text></span>
+            <span className="text-xs sm:text-sm 2xl:text-xl font-extrabold text-rose-900 mt-1 truncate">{urgentCount} <Text>Issue</Text></span>
           </div>
 
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100/60 p-2.5 rounded-xl border border-blue-200/60 shadow-2xs flex flex-col justify-between">
-            <span className="text-[9px] font-bold text-blue-700 uppercase tracking-wide"><Text>Active Customers</Text></span>
-            <span className="text-xs sm:text-sm font-extrabold text-blue-900 mt-1 truncate">{activeCustomers} <Text>Klien</Text></span>
+          <div className="col-span-1 sm:col-span-3 lg:col-span-1 bg-gradient-to-br from-blue-50 to-blue-100/60 p-2.5 2xl:p-3.5 rounded-xl border border-blue-200/60 shadow-2xs flex flex-col justify-between">
+            <span className="text-[10px] lg:text-[9px] 2xl:text-xs font-bold text-blue-700 uppercase tracking-wide"><Text>Active Customers</Text></span>
+            <span className="text-xs sm:text-sm 2xl:text-xl font-extrabold text-blue-900 mt-1 truncate">{activeCustomers} <Text>Klien</Text></span>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100/60 p-2.5 rounded-xl border border-purple-200/60 shadow-2xs flex flex-col justify-between col-span-2 sm:col-span-1">
-            <span className="text-[9px] font-bold text-purple-700 uppercase tracking-wide"><Text>Total Employees</Text></span>
-            <span className="text-xs sm:text-sm font-extrabold text-purple-900 mt-1 truncate">{totalEmployees} <Text>Orang</Text></span>
+          <div className="col-span-2 sm:col-span-3 lg:col-span-1 bg-gradient-to-br from-purple-50 to-purple-100/60 p-2.5 2xl:p-3.5 rounded-xl border border-purple-200/60 shadow-2xs flex flex-col justify-between">
+            <span className="text-[10px] lg:text-[9px] 2xl:text-xs font-bold text-purple-700 uppercase tracking-wide"><Text>Total Employees</Text></span>
+            <span className="text-xs sm:text-sm 2xl:text-xl font-extrabold text-purple-900 mt-1 truncate">{totalEmployees} <Text>Orang</Text></span>
           </div>
         </div>
 
-        {/* 2. LAYOUT UTAMA 2 KOLOM (PROPORTIONAL & SINGLE-SCREEN FIT) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-1 flex-1 min-h-0 items-stretch overflow-hidden">
-          {/* KOLOM KIRI (LEBAR 6/12): GRAFIK DASHBOARD UTAMA */}
-          <div className="lg:col-span-6 flex flex-col gap-1 min-h-0 overflow-hidden">
-            
-            {/* Sales Performance Trend (Presisi Margin agar Garis & Bulan Mei-Jul Tidak Terpotong) */}
-            <div className="bg-white p-2 rounded-xl shadow-2xs border border-slate-200/80 flex flex-col flex-1 min-h-0 justify-between overflow-hidden [&_.p-6]:!p-0 [&_.mb-4]:!mb-0 [&_.h-72]:!h-[120px] [&_h3]:!text-[10px] [&_p]:!text-[8px]">
+        {/* 2. LAYOUT UTAMA 2 KOLOM (laptop ke atas) / 1 KOLOM MENUMPUK (HP & tablet) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 lg:gap-1 flex-none lg:flex-1 lg:min-h-0 items-stretch lg:overflow-hidden">
+
+          {/* KOLOM KIRI: GRAFIK DASHBOARD UTAMA */}
+          <div className="lg:col-span-6 flex flex-col gap-2 lg:gap-1 min-h-0 lg:overflow-hidden">
+
+            {/* Sales Performance Trend */}
+            <div className="bg-white p-2.5 lg:p-2 rounded-xl shadow-2xs border border-slate-200/80 flex flex-col flex-none lg:flex-1 min-h-0 justify-between overflow-hidden [&_.p-6]:!p-0 [&_.mb-4]:!mb-0 [&_.h-72]:!h-[200px] lg:[&_.h-72]:!h-[120px] 2xl:[&_.h-72]:!h-[160px] [&_h3]:!text-xs lg:[&_h3]:!text-[10px] 2xl:[&_h3]:!text-xs [&_p]:!text-[10px] lg:[&_p]:!text-[8px] 2xl:[&_p]:!text-[10px]">
               <div className="w-full h-full flex flex-col justify-between overflow-hidden">
                 <SalesPerformanceTrend model={trend} />
               </div>
             </div>
 
-            {/* Top Purchasing Clients (Grafik Batang Kompak) */}
-            <div className="bg-white p-2.5 rounded-xl shadow-2xs border border-slate-200/80 flex flex-col flex-1 min-h-0 justify-between">
+            {/* Top Purchasing Clients (Grafik Batang) */}
+            <div className="bg-white p-2.5 2xl:p-3.5 rounded-xl shadow-2xs border border-slate-200/80 flex flex-col flex-none lg:flex-1 min-h-0 justify-between">
               <div className="flex flex-wrap items-center justify-between gap-1 mb-0.5 shrink-0">
-                <h2 className="text-[10px] font-bold text-slate-800 uppercase tracking-wide"><Text>Top Purchasing Clients</Text></h2>
-                
-                {/* KUMPULAN KONTROL FILTER (Kecil, Kustom Dropdown, & Hover #C3C6D7) */}
-                <div className="flex flex-wrap items-center gap-1">            
+                <h2 className="text-[10px] 2xl:text-xs font-bold text-slate-800 uppercase tracking-wide"><Text>Top Purchasing Clients</Text></h2>
+
+                {/* KUMPULAN KONTROL FILTER */}
+                <div className="flex flex-wrap items-center gap-1">
                   <div className="relative">
                     <button
                       type="button"
                       onClick={() => setIsTopClientsPeriodOpen(!isTopClientsPeriodOpen)}
-                      className="bg-white text-[9px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-3 py-1 cursor-pointer hover:bg-[#C3C6D7] transition-colors flex items-center gap-1 shadow-2xs"
+                      className="bg-white text-[10px] lg:text-[9px] 2xl:text-[11px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-3 py-1.5 lg:py-1 cursor-pointer hover:bg-[#C3C6D7] transition-colors flex items-center gap-1 shadow-2xs"
                     >
                       <span>
                         <Text>{{
@@ -386,7 +403,7 @@ export default function SalesPerformance() {
                               topClients.setPeriod(value);
                               setIsTopClientsPeriodOpen(false);
                             }}
-                            className="block w-full text-left px-3 py-2 text-[9px] font-bold text-slate-700 hover:bg-[#C3C6D7] transition-colors cursor-pointer"
+                            className="block w-full text-left px-3 py-2 text-[10px] lg:text-[9px] 2xl:text-[11px] font-bold text-slate-700 hover:bg-[#C3C6D7] transition-colors cursor-pointer whitespace-nowrap"
                           >
                             <Text dynamic>{label}</Text>
                           </button>
@@ -400,7 +417,7 @@ export default function SalesPerformance() {
                     <select
                       value={topClients.selectedYear}
                       onChange={(e) => topClients.setSelectedYear(e.target.value)}
-                      className="bg-white text-[9px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-3 py-1 focus:outline-none shadow-2xs cursor-pointer hover:bg-[#C3C6D7] transition-colors"
+                      className="bg-white text-[10px] lg:text-[9px] 2xl:text-[11px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-3 py-1.5 lg:py-1 focus:outline-none shadow-2xs cursor-pointer hover:bg-[#C3C6D7] transition-colors"
                     >
                       {topClients.availableYears.map((y) => (
                         <option key={y} value={y}>{y}</option>
@@ -414,25 +431,25 @@ export default function SalesPerformance() {
                       type="month"
                       value={topClients.selectedMonth}
                       onChange={(e) => topClients.setSelectedMonth(e.target.value)}
-                      className="bg-white text-[9px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-3 py-1 focus:outline-none shadow-2xs cursor-pointer"
+                      className="bg-white text-[10px] lg:text-[9px] 2xl:text-[11px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-3 py-1.5 lg:py-1 focus:outline-none shadow-2xs cursor-pointer"
                     />
                   )}
 
                   {/* Filter Rentang Tanggal */}
                   {topClients.period === 'range' && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1">
                       <LanguageInput
                         type="date"
                         value={topClients.startDate}
                         onChange={(e) => topClients.setStartDate(e.target.value)}
-                        className="bg-white text-[8px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-2.5 py-1 focus:outline-none shadow-2xs cursor-pointer"
+                        className="bg-white text-[10px] lg:text-[8px] 2xl:text-[10px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-2.5 py-1 focus:outline-none shadow-2xs cursor-pointer"
                       />
-                      <span className="text-[8px] text-slate-500"><Text>s/d</Text></span>
+                      <span className="text-[9px] lg:text-[8px] 2xl:text-[10px] text-slate-500"><Text>s/d</Text></span>
                       <LanguageInput
                         type="date"
                         value={topClients.endDate}
                         onChange={(e) => topClients.setEndDate(e.target.value)}
-                        className="bg-white text-[8px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-2.5 py-1 focus:outline-none shadow-2xs cursor-pointer"
+                        className="bg-white text-[10px] lg:text-[8px] 2xl:text-[10px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-2.5 py-1 focus:outline-none shadow-2xs cursor-pointer"
                       />
                     </div>
                   )}
@@ -446,12 +463,19 @@ export default function SalesPerformance() {
               ) : topClients.chartData.length === 0 ? (
                 <p className="text-[9px] text-slate-400 py-2 text-center"><Text>Tidak ada data.</Text></p>
               ) : (
-                <div className="min-w-0 w-full flex-1 min-h-[90px]">
+                <div className="min-w-0 w-full h-60 flex-none lg:h-auto lg:flex-1 lg:min-h-[90px]">
                   <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                    <BarChart data={topClients.chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }} barGap={3}>
+                    <BarChart data={topClients.chartData} margin={{ top: 5, right: 5, left: isWide ? -15 : -25, bottom: 0 }} barGap={3}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                      <XAxis dataKey="client" tick={{ fontSize: 8, fill: '#64748B' }} interval={0} />
-                      <YAxis tick={{ fontSize: 9, fill: '#64748B' }} />
+                      <XAxis
+                        dataKey="client"
+                        tick={{ fontSize: isWide ? 11 : isCompact ? 9 : 8, fill: '#64748B' }}
+                        interval={0}
+                        tickFormatter={(value: string) =>
+                          isCompact && String(value).length > 10 ? `${String(value).substring(0, 10)}…` : value
+                        }
+                      />
+                      <YAxis tick={{ fontSize: isWide ? 12 : isCompact ? 10 : 9, fill: '#64748B' }} />
                       <Tooltip
                         formatter={(val: unknown, name: unknown) => [
                           name === 'revenue' ? `Rp ${String(val)}M` : `${String(val)} Pesanan`,
@@ -468,58 +492,60 @@ export default function SalesPerformance() {
             </div>
           </div>
 
-          {/* KOLOM KANAN (LEBAR 6/12): TABEL-TABEL DATA OPERASIONAL (LEBIH RAPI & RENGGANG) */}
-          <div className="lg:col-span-6 flex flex-col gap-1 flex-1 min-h-0 overflow-hidden">
-            
+          {/* KOLOM KANAN: TABEL-TABEL DATA OPERASIONAL */}
+          <div className="lg:col-span-6 flex flex-col gap-2 lg:gap-1 min-h-0 lg:overflow-hidden">
+
             {/* 1. Outstanding Payments */}
-            <div className="bg-white p-2 rounded-xl shadow-2xs border border-[#D9E2EC] flex-1 min-h-0 overflow-hidden [&_.p-6]:!p-0 [&_.mb-4]:!mb-0.5 [&_table]:!text-[9px] [&_th]:!py-1 [&_td]:!py-0.5">
+            <div className="bg-white p-2.5 lg:p-2 2xl:p-3 rounded-xl shadow-2xs border border-[#D9E2EC] flex-none lg:flex-1 min-h-0 overflow-hidden [&_.p-6]:!p-0 [&_.mb-4]:!mb-0.5 [&_table]:!text-[11px] lg:[&_table]:!text-[9px] 2xl:[&_table]:!text-[11px] [&_th]:!py-1 [&_td]:!py-1.5 lg:[&_td]:!py-0.5 2xl:[&_td]:!py-1">
               {/* Header dengan tombol pill biru */}
-              <div className="mb-1 flex items-center justify-between shrink-0 pr-1">
-                <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wide"><Text>Outstanding Payments</Text></h3>
-                <Link 
-                  href="/dashboard/sales-performance" 
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#3B6FF5] hover:bg-[#315be0] text-white rounded-full text-[9px] font-bold shadow-2xs transition-colors"
+              <div className="mb-1 flex items-center justify-between gap-2 shrink-0 pr-1">
+                <h3 className="text-[11px] 2xl:text-sm font-bold text-slate-800 uppercase tracking-wide"><Text>Outstanding Payments</Text></h3>
+                <Link
+                  href="/dashboard/sales-performance"
+                  className="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1 bg-[#3B6FF5] hover:bg-[#315be0] text-white rounded-full text-[9px] 2xl:text-[11px] font-bold shadow-2xs transition-colors"
                 >
-                  <svg className="w-3 h-3 fill-none stroke-current stroke-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <rect x="3" y="3" width="18" height="18" rx="2" />
                     <path d="M3 9h18M9 3v18" />
                   </svg>
-                  <Text>Lihat Semua
-                </Text></Link>
+                  <Text>Lihat Semua</Text>
+                </Link>
               </div>
-              <div className="w-full overflow-hidden">
+              <div className="w-full overflow-x-auto lg:overflow-hidden [&_table]:min-w-[36rem] lg:[&_table]:min-w-0">
                 <DashboardOutstandingTable rows={outstanding.rows} tableLoading={outstanding.tableLoading} tableError={outstanding.tableError} />
               </div>
             </div>
 
             {/* 2. Issue Board */}
-            <div className="bg-white p-2 rounded-xl shadow-2xs border border-[#D9E2EC] flex-1 min-h-0 overflow-hidden">
-              <DashboardIssueTable
-                issues={issueBoard.issues}
-                loading={issueBoard.loading}
-                error={issueBoard.error}
-              />
+            <div className="bg-white p-2.5 lg:p-2 2xl:p-3 rounded-xl shadow-2xs border border-[#D9E2EC] flex-none lg:flex-1 min-h-0 overflow-hidden">
+              {/* Wrapper ini hanya aktif di HP/tablet (scroll samping). Di laptop ke atas dia "menghilang" (contents) sehingga tampilan sama seperti awal */}
+              <div className="w-full overflow-x-auto lg:contents [&_table]:min-w-[34rem] lg:[&_table]:min-w-0 2xl:[&_table]:!text-[11px]">
+                <DashboardIssueTable
+                  issues={issueBoard.issues}
+                  loading={issueBoard.loading}
+                  error={issueBoard.error}
+                />
+              </div>
             </div>
 
-          
-            {/* 3. Require Employee & Open Positions (Disamakan persis dengan Issue Board) */}
-              <div className="bg-white p-2 rounded-xl shadow-2xs border border-[#D9E2EC] flex-1 min-h-0 overflow-hidden">
-                <div className="mb-1.5 flex items-center justify-between pr-1.5">
-                  <h2 className="text-[11px] font-bold text-slate-800 uppercase tracking-wide"><Text>Require Employee & Open Positions</Text></h2>
-                  <Link 
-                    href="/dashboard/job-vacancies" 
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#3B6FF5] hover:bg-[#315be0] text-white rounded-full text-[9px] font-bold shadow-2xs transition-colors"
-                  >
-                    <svg className="w-3 h-3 fill-none stroke-current stroke-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <path d="M3 9h18M9 3v18" />
-                    </svg>
-                    <Text>Lihat Semua
-                  </Text></Link>
-                </div>
+            {/* 3. Require Employee & Open Positions */}
+            <div className="bg-white p-2.5 lg:p-2 2xl:p-3 rounded-xl shadow-2xs border border-[#D9E2EC] flex-none lg:flex-1 min-h-0 overflow-hidden">
+              <div className="mb-1.5 flex items-center justify-between gap-2 pr-1.5">
+                <h2 className="text-[11px] 2xl:text-sm font-bold text-slate-800 uppercase tracking-wide"><Text>Require Employee & Open Positions</Text></h2>
+                <Link
+                  href="/dashboard/job-vacancies"
+                  className="inline-flex shrink-0 items-center gap-1.5 px-2.5 py-1 bg-[#3B6FF5] hover:bg-[#315be0] text-white rounded-full text-[9px] 2xl:text-[11px] font-bold shadow-2xs transition-colors"
+                >
+                  <svg className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 fill-none stroke-current stroke-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M3 9h18M9 3v18" />
+                  </svg>
+                  <Text>Lihat Semua</Text>
+                </Link>
+              </div>
 
-              <div className="w-full overflow-hidden">
-                <table className="w-full text-left border-collapse table-fixed">
+              <div className="w-full overflow-x-auto lg:overflow-hidden">
+                <table className="w-full min-w-[28rem] lg:min-w-0 text-left border-collapse table-fixed">
                   <colgroup>
                     <col className="w-[40%]" />
                     <col className="w-[22%]" />
@@ -527,31 +553,31 @@ export default function SalesPerformance() {
                     <col className="w-[20%]" />
                   </colgroup>
                   <thead>
-                    <tr className="bg-violet-50/80 border-b border-slate-100 text-[9px] uppercase tracking-wider text-slate-500 font-semibold">
+                    <tr className="bg-violet-50/80 border-b border-slate-100 text-[10px] lg:text-[9px] 2xl:text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
                       <th className="py-1.5 px-1.5 truncate"><Text>Position</Text></th>
                       <th className="py-1.5 px-1.5 truncate"><Text>Department</Text></th>
                       <th className="py-1.5 px-1.5 truncate"><Text>Quota</Text></th>
                       <th className="py-1.5 px-1.5 truncate"><Text>Status</Text></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-[9px] text-slate-700 bg-white">
+                  <tbody className="divide-y divide-slate-100 text-[10px] lg:text-[9px] 2xl:text-[11px] text-slate-700 bg-white">
                     {jobVacancies.slice(0, 5).map((job) => {
                       const isUrgent = job.status === 'Urgent';
-                      // Menggunakan titik indikator warna (merah untuk Urgent, biru/hijau untuk Open)
+                      // Titik indikator warna (merah untuk Urgent, biru untuk Open)
                       const statusDotColor = isUrgent ? '#E11D48' : '#0284C7';
 
                       return (
                         <tr key={job.id} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="py-1 px-1.5 font-semibold text-slate-800 truncate" title={job.position}>
+                          <td className="py-1.5 lg:py-1 px-1.5 font-semibold text-slate-800 truncate" title={job.position}>
                             {job.position}
                           </td>
-                          <td className="py-1 px-1.5 text-slate-600 truncate">
+                          <td className="py-1.5 lg:py-1 px-1.5 text-slate-600 truncate">
                             {job.department}
                           </td>
-                          <td className="py-1 px-1.5 font-bold text-purple-700 truncate">
-                            {job.quota} <Text>Orang
-                          </Text></td>
-                          <td className="py-1 px-1.5 truncate">
+                          <td className="py-1.5 lg:py-1 px-1.5 font-bold text-purple-700 truncate">
+                            {job.quota} <Text>Orang</Text>
+                          </td>
+                          <td className="py-1.5 lg:py-1 px-1.5 truncate">
                             <span className="inline-flex items-center gap-1">
                               <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: statusDotColor }} />
                               <span className="truncate font-medium text-slate-700" title={job.status}>
@@ -570,5 +596,5 @@ export default function SalesPerformance() {
         </div>
       </div>
     </DashboardShell>
-  ); 
+  );
 }
