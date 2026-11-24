@@ -31,6 +31,14 @@ export function useDashboardIssues() {
   return { issues, loading, error };
 }
 
+function getPriorityRank(priority: unknown): number {
+  const normalized = String(priority || '').trim().toLowerCase();
+  if (normalized.includes('urgent') || normalized.includes('high')) return 1;
+  if (normalized.includes('medium')) return 2;
+  if (normalized.includes('low')) return 3;
+  return 4;
+}
+
 export function DashboardIssueTable({
   issues,
   loading,
@@ -42,6 +50,9 @@ export function DashboardIssueTable({
 }) {
   const sortedIssues = [...issues]
     .sort((a: any, b: any) => {
+      const rankDiff = getPriorityRank(a.priority) - getPriorityRank(b.priority);
+      if (rankDiff !== 0) return rankDiff;
+
       const dateA = new Date(a.date || a.created_at || 0).getTime();
       const dateB = new Date(b.date || b.created_at || 0).getTime();
       return dateB - dateA;

@@ -239,7 +239,7 @@ function SmkiDashboard() {
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [requestedPageNum, setCurrentPageNum] = useState<number>(1);
-  const itemsPerPage = 8;
+  const [itemsPerPage, setItemsPerPage] = useState<number | "all">(10);
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
 
@@ -458,11 +458,24 @@ function SmkiDashboard() {
     return (b.isActive === a.isActive) ? 0 : b.isActive ? 1 : -1;
   });
 
-  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage) || 1;
+  const isShowAll = itemsPerPage === "all";
+  const effectiveItemsPerPage = isShowAll
+    ? Math.max(1, filteredEmployees.length)
+    : itemsPerPage;
+
+  const totalPages = isShowAll
+    ? 1
+    : Math.ceil(filteredEmployees.length / effectiveItemsPerPage) || 1;
   const currentPageNum = Math.max(1, Math.min(requestedPageNum, totalPages));
-  const indexOfLastItem = currentPageNum * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentEmployees = filteredEmployees.slice(indexOfFirstItem, indexOfLastItem);
+  const indexOfLastItem = isShowAll
+    ? filteredEmployees.length
+    : currentPageNum * effectiveItemsPerPage;
+  const indexOfFirstItem = isShowAll
+    ? 0
+    : indexOfLastItem - effectiveItemsPerPage;
+  const currentEmployees = isShowAll
+    ? filteredEmployees
+    : filteredEmployees.slice(indexOfFirstItem, indexOfLastItem);
 
 
   const handleOpenStatusConfirm = (emp: Employee) => {
@@ -850,12 +863,25 @@ function SmkiDashboard() {
             >
               <HamburgerIcon />
             </button>
-
-            <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>ANDIMA SMKI</span>
-            <span style={{ color: "#cbd5e1" }}>|</span>
-            <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
-              <Text dynamic>{activeTab === "log-activity" ? "Log Activity" : "Account Maintains"}</Text>
+            
+            <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a", whiteSpace: "nowrap" }}>
+              ANDIMA SMKI
             </span>
+            <span style={{ color: "#e2e8f0", fontSize: "16px", fontWeight: 300 }}>|</span>
+            <nav aria-label="Breadcrumb" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", whiteSpace: "nowrap" }}>
+              <button
+                type="button"
+                onClick={() => router.push('/smki/dashboard')}
+                style={{border: 0, background: "transparent", padding: 0, fontSize: "12px", fontWeight: 600, color: "#334155", cursor: "pointer",}}
+                className="hover:text-[#0f172a] transition-colors"
+              >
+                SMKI
+              </button>
+              <span style={{ color: "#94a3b8", fontWeight: 600 }}>/</span>
+              <span style={{ fontWeight: 600, color: "#334155" }}>
+                <Text dynamic>{activeTab === "log-activity" ? "Log Activity" : "Account Maintains"}</Text>
+              </span>
+            </nav>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
@@ -1063,8 +1089,96 @@ function SmkiDashboard() {
             </div>
 
             <footer className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <p role="status" className="text-[11px] text-slate-500"><Text>Menampilkan </Text><Text dynamic>{filteredEmployees.length ? indexOfFirstItem + 1 : 0}</Text><Text>&ndash;</Text>{Math.min(indexOfLastItem, filteredEmployees.length)} <Text>dari </Text>{filteredEmployees.length} <Text>akun</Text></p>
-              <HistoryPagination page={currentPageNum} totalPages={totalPages} onChange={setCurrentPageNum} label="Pagination Account Maintains" />
+              {/* KIRI: Page X of Y | per halaman [Dropdown Kapsul] */}
+              <div className="flex flex-wrap items-center gap-2.5 text-[12px] text-slate-500">
+                <p role="status" className="m-0">
+                  Page{" "}
+                  <span className="font-bold text-slate-800">{currentPageNum}</span> of{" "}
+                  <span className="font-bold text-slate-800">{totalPages}</span>
+                </p>
+
+                <span aria-hidden="true" className="h-3.5 w-[1px] bg-slate-200" />
+
+                <span className="font-medium text-slate-500">per halaman</span>
+
+                <div className="relative">
+                  <select
+                    aria-label="Jumlah baris per halaman"
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setItemsPerPage(val === "all" ? "all" : Number(val));
+                      setCurrentPageNum(1);
+                    }}
+                    className="h-9 appearance-none rounded-lg border border-slate-200 bg-white pl-4 pr-8 text-[12px] font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-[#3B6FF5] cursor-pointer"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={150}>150</option>
+                  </select>
+                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-600">
+                    <ChevronDownIcon />
+                  </span>
+                </div>
+              </div>
+
+              {/* KANAN: Kapsul Navigasi Halaman */}
+              <div className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1">
+                <button
+                  type="button"
+                  aria-label="Halaman sebelumnya"
+                  disabled={currentPageNum <= 1}
+                  onClick={() => setCurrentPageNum((prev) => Math.max(1, prev - 1))}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5 fill-none stroke-current stroke-[2.2]"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="m15 18-6-6 6-6" />
+                  </svg>
+                </button>
+
+                {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pageNum) => {
+                  const isActive = pageNum === currentPageNum;
+                  return (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      aria-current={isActive ? "page" : undefined}
+                      onClick={() => setCurrentPageNum(pageNum)}
+                      className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] transition-colors cursor-pointer ${
+                        isActive
+                          ? "bg-[#3B6FF5] font-bold text-white"
+                          : "font-medium text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  aria-label="Halaman berikutnya"
+                  disabled={currentPageNum >= totalPages}
+                  onClick={() => setCurrentPageNum((prev) => Math.min(totalPages, prev + 1))}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5 fill-none stroke-current stroke-[2.2]"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
+                </button>
+              </div>
             </footer>
           </div>
         )}

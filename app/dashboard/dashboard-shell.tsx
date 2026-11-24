@@ -118,6 +118,12 @@ function getJakartaDateString(): string {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
+const breadcrumbLabels: Record<DashboardShellProps['activePage'], string> = {
+  dashboard: 'Dashboard',
+  'sales-performance': 'Sales Performance',
+  'issue-board': 'Issue Board',
+};
+
 export default function DashboardShell({ activePage, headerActions, children }: DashboardShellProps) {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
@@ -445,11 +451,23 @@ export default function DashboardShell({ activePage, headerActions, children }: 
               <HamburgerIcon />
             </button>
 
-            <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a" }}>ANDIMA MID</span>
-            <span style={{ color: "#cbd5e1" }}>|</span>
-            <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>
-              <Text dynamic>{activePage === 'dashboard' ? 'Main Dashboard' : activePage === 'issue-board' ? 'Issue Board' : 'Sales Performance'}</Text>
+            <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a", whiteSpace: "nowrap" }}>
+              ANDIMA MID
             </span>
+            <span style={{ color: "#e2e8f0", fontSize: "16px", fontWeight: 300 }}>|</span>
+            <nav aria-label="Breadcrumb" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", whiteSpace: "nowrap" }}>
+              <Link
+                href="/dashboard"
+                style={{ fontWeight: 600, color: "#334155", textDecoration: "none" }}
+                className="hover:text-[#0f172a] transition-colors"
+              >
+                MID
+              </Link>
+              <span style={{ color: "#94a3b8", fontWeight: 600 }}>/</span>
+              <span style={{ fontWeight: 600, color: "#334155" }}>
+                <Text dynamic>{breadcrumbLabels[activePage]}</Text>
+              </span>
+            </nav>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
