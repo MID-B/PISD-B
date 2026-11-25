@@ -3,7 +3,7 @@
 import { Text, LanguageInput } from '@/components/language';
 import { useEffect, useRef, useState } from 'react';
 import { Table2, Search, X } from 'lucide-react';
-import Pagination from '@/components/pagination';
+import HistoryPagination from '@/components/history-pagination';
 import DashboardShell from '../dashboard-shell';
 import { OutstandingPaymentsTable, useOutstandingPayments, type OutstandingSort, type OutstandingSortColumn } from '../outstanding-payments';
 import SalesPerformanceTrend, { useSalesPerformanceTrend } from '../sales-performance-trend';
@@ -143,7 +143,7 @@ export default function SalesPerformance() {
               <p role="status" className="text-xs text-slate-500">
                 <Text>Menampilkan </Text>{pageStart + 1}–{pageStart + visibleRows.length} <Text>dari </Text>{filteredRows.length} <Text>data
               </Text></p>
-              <Pagination compact label="Pagination Outstanding Payments" page={page} totalPages={totalPages} onPageChange={setCurrentPage} />
+              <HistoryPagination label="Pagination Outstanding Payments" page={page} totalPages={totalPages} onChange={setCurrentPage} />
             </div>
           )}
         {tableError && <button type="button" onClick={() => { setCurrentPage(1); retry(); }} className="mt-4 text-sm text-blue-600 cursor-pointer"><Text>Coba lagi</Text></button>}
