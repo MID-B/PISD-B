@@ -1,16 +1,23 @@
 'use client';
 
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
 const HEARTBEAT_INTERVAL_MS = 20_000;
 
 export default function SessionHeartbeat() {
+  const pathname = usePathname();
+  const shouldResumeSession = pathname !== '/landing-page'
+    && pathname !== '/login'
+    && pathname !== '/register'
+    && !pathname.startsWith('/forgot-password');
+
   useEffect(() => {
     let stopped = false;
     let sending = false;
 
-    const sendHeartbeat = async () => {
+    const sendHeartbeat = async (resumeSession = false) => {
       if (stopped || sending) return;
       sending = true;
 
@@ -20,7 +27,10 @@ export default function SessionHeartbeat() {
 
         const response = await fetch('/api/login-log/heartbeat', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'X-Resume-Login-Session': resumeSession ? 'true' : 'false',
+          },
           cache: 'no-store',
         });
 
@@ -34,16 +44,18 @@ export default function SessionHeartbeat() {
       }
     };
 
-    void sendHeartbeat();
+    // A fresh dashboard mount means the user has re-entered the application.
+    void sendHeartbeat(shouldResumeSession);
     const interval = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
-    window.addEventListener('focus', sendHeartbeat);
+    const resumeOnFocus = () => { void sendHeartbeat(shouldResumeSession); };
+    window.addEventListener('focus', resumeOnFocus);
 
     return () => {
       stopped = true;
       window.clearInterval(interval);
-      window.removeEventListener('focus', sendHeartbeat);
+      window.removeEventListener('focus', resumeOnFocus);
     };
-  }, []);
+  }, [shouldResumeSession, pathname]);
 
   return null;
 }

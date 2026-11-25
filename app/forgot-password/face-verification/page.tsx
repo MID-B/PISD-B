@@ -4,7 +4,7 @@ import { Text } from '@/components/language';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Ban, Camera, CameraOff, CheckCircle2, LoaderCircle } from 'lucide-react';
-import { RESET_CONFIRM_PASSWORD_KEY, RESET_EMAIL_KEY, RESET_NEW_PASSWORD_KEY } from '../../resetFlow';
+import { RESET_EMAIL_KEY, RESET_EMAIL_VERIFIED_KEY, RESET_FACE_VERIFICATION_TOKEN_KEY } from '../resetFlow';
 
 type ChallengeId = 'left' | 'right' | 'up' | 'down' | 'blink';
 type ScanState = 'idle' | 'loading' | 'scanning' | 'submitting' | 'success' | 'failed' | 'error';
@@ -63,6 +63,7 @@ export default function FaceVerificationPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const humanRef = useRef<HumanModel | null>(null);
+  const humanLoadPromiseRef = useRef<Promise<HumanModel> | null>(null);
   const frameRef = useRef<number | null>(null);
   const latestEmbeddingRef = useRef<number[] | null>(null);
   const verificationEmbeddingsRef = useRef<number[][]>([]);
@@ -74,6 +75,7 @@ export default function FaceVerificationPage() {
   const challengeFramesRef = useRef(0);
   const horizontalCalibrationRef = useRef<{ challenge: 'left' | 'right'; direction: 'positive' | 'negative' } | null>(null);
   const mountedRef = useRef(true);
+  const scanAttemptRef = useRef(0);
 
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [challengeOrder, setChallengeOrder] = useState<ChallengeId[]>([]);
@@ -83,6 +85,7 @@ export default function FaceVerificationPage() {
   const [faceStatus, setFaceStatus] = useState('Kamera belum aktif');
   const [modalState, setModalState] = useState<ModalState>(null);
   const [modalMessage, setModalMessage] = useState('');
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   const stopCamera = useCallback(() => {
     if (frameRef.current !== null) {
@@ -95,6 +98,53 @@ export default function FaceVerificationPage() {
     detectingRef.current = false;
   }, []);
 
+  const loadHumanModel = useCallback(() => {
+    const loadedModel = humanLoadPromiseRef.current;
+    if (loadedModel) return loadedModel;
+
+    const loadingModel = (async () => {
+        const humanModule = await import('../../../node_modules/@vladmandic/human/dist/human.esm.js');
+        const Human = (humanModule as unknown as {
+          default: new (userConfig: never) => HumanModel;
+        }).default;
+        const config = {
+          backend: 'webgl',
+          debug: false,
+          cacheModels: true,
+          modelBasePath: 'https://vladmandic.github.io/human-models/models',
+          filter: { enabled: true, equalization: true },
+          face: {
+            enabled: true,
+            detector: { enabled: true, rotation: true, maxDetected: 1, minConfidence: 0.6 },
+            mesh: { enabled: true },
+            iris: { enabled: true },
+            description: { enabled: false },
+            insightface: {
+              enabled: true,
+              modelPath: 'https://vladmandic.github.io/insightface/models/insightface-mobilenet-swish.json',
+              skipFrames: 1,
+              skipTime: 0,
+            },
+            antispoof: { enabled: false },
+            liveness: { enabled: true },
+          },
+          gesture: { enabled: true },
+          body: { enabled: false },
+          hand: { enabled: false },
+          object: { enabled: false },
+          segmentation: { enabled: false },
+        };
+        const human = new Human(config as never) as unknown as HumanModel;
+        await Promise.all([human.load(), Promise.resolve(human.warmup?.())]);
+        return human;
+      })().catch((error: unknown) => {
+        humanLoadPromiseRef.current = null;
+        throw error;
+      });
+    humanLoadPromiseRef.current = loadingModel;
+    return loadingModel;
+  }, []);
+
   const completePasswordReset = useCallback(async (embeddings: number[][]) => {
     stopCamera();
     setScanState('submitting');
@@ -102,10 +152,9 @@ export default function FaceVerificationPage() {
     setErrorMessage('');
     latestEmbeddingRef.current = null;
     const email = window.localStorage.getItem(RESET_EMAIL_KEY);
-    const password = window.sessionStorage.getItem(RESET_NEW_PASSWORD_KEY);
-    if (!email || !password) {
+    if (!email) {
       setScanState('failed');
-      setModalMessage('Reset session expired. Please enter your email and new password again.');
+      setModalMessage('Reset session expired. Please enter your email again.');
       setModalState('failed');
       return;
     }
@@ -114,24 +163,21 @@ export default function FaceVerificationPage() {
       const response = await fetch('/api/password-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'complete', email, password, embeddings }),
+        body: JSON.stringify({ action: 'verify-face', email, embeddings }),
       });
-      const result = await response.json() as { error?: string; code?: string };
+      const result = await response.json() as { error?: string; code?: string; verificationToken?: string };
       if (!response.ok) {
         setScanState('failed');
         setModalMessage(result.error ?? 'Your face could not be verified. Please scan again.');
         setModalState('failed');
         return;
       }
+      if (!result.verificationToken) throw new Error('Face verification could not be confirmed.');
 
-      // The server has already updated b2_register and its password trigger
-      // before the success dialog is shown.
-      window.localStorage.removeItem(RESET_EMAIL_KEY);
-      window.sessionStorage.removeItem(RESET_NEW_PASSWORD_KEY);
-      window.sessionStorage.removeItem(RESET_CONFIRM_PASSWORD_KEY);
+      window.sessionStorage.setItem(RESET_FACE_VERIFICATION_TOKEN_KEY, result.verificationToken);
       setScanState('success');
-      setFaceStatus('Password berhasil diperbarui.');
-      setModalMessage('Your password has been successfully updated, please return to the login menu.');
+      setFaceStatus('Wajah berhasil diverifikasi.');
+      setModalMessage('Please click the OKE button to proceed with the password reset.');
       setModalState('success');
     } catch {
       setScanState('failed');
@@ -263,6 +309,7 @@ export default function FaceVerificationPage() {
   }, [checkFrame]);
 
   const startScan = useCallback(async () => {
+    const scanAttempt = ++scanAttemptRef.current;
     stopCamera();
     setModalState(null);
     setModalMessage('');
@@ -289,73 +336,40 @@ export default function FaceVerificationPage() {
     try {
       setScanState('loading');
       setFaceStatus('Menyiapkan kamera dan model wajah…');
-      const [humanModule, stream] = await Promise.all([
-        // Load the browser ESM file directly. The package root resolves to its
-        // Node build in Turbopack SSR, while this package has a broken subpath
-        // export map for importing the browser file by its package name.
-        import('../../../../node_modules/@vladmandic/human/dist/human.esm.js'),
-        navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: 'user',
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            frameRate: { ideal: 30 },
-          },
-          audio: false,
-        }),
-      ]);
-      // The browser bundle exports Human as default, but its declaration file
-      // only re-exports named types, so give the runtime default export its
-      // constructor type here.
-      const Human = (humanModule as unknown as {
-        default: new (userConfig: never) => HumanModel;
-      }).default;
-      if (!mountedRef.current) {
+      const streamPromise = navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 },
+        },
+        audio: false,
+      }).then((stream) => {
+        if (scanAttempt !== scanAttemptRef.current || !mountedRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          return null;
+        }
+        streamRef.current = stream;
+        return stream;
+      });
+      const [human, stream] = await Promise.all([loadHumanModel(), streamPromise]);
+      if (!stream) return;
+      if (scanAttempt !== scanAttemptRef.current) {
         stream.getTracks().forEach((track) => track.stop());
         return;
       }
-
-      const config = {
-        backend: 'webgl',
-        debug: false,
-        cacheModels: true,
-        modelBasePath: 'https://vladmandic.github.io/human-models/models',
-        filter: { enabled: true, equalization: true },
-        face: {
-          enabled: true,
-          detector: { enabled: true, rotation: true, maxDetected: 1, minConfidence: 0.6 },
-          mesh: { enabled: true },
-          iris: { enabled: true },
-          description: { enabled: false },
-          insightface: {
-            enabled: true,
-            modelPath: 'https://vladmandic.github.io/insightface/models/insightface-mobilenet-swish.json',
-            skipFrames: 1,
-            skipTime: 0,
-          },
-          antispoof: { enabled: false },
-          liveness: { enabled: true },
-        },
-        gesture: { enabled: true },
-        body: { enabled: false },
-        hand: { enabled: false },
-        object: { enabled: false },
-        segmentation: { enabled: false },
-      };
-
-      const human = new Human(config as never);
       humanRef.current = human;
-      streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
-      await Promise.all([human.load(), Promise.resolve(human.warmup?.())]);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || scanAttempt !== scanAttemptRef.current) return;
       setScanState('scanning');
       setFaceStatus('Kamera aktif. Ikuti instruksi yang muncul.');
       startDetection();
     } catch (error) {
+      if (scanAttempt !== scanAttemptRef.current) return;
+      scanAttemptRef.current += 1;
       stopCamera();
       setScanState('error');
       const message = error instanceof Error ? error.message : String(error);
@@ -368,16 +382,19 @@ export default function FaceVerificationPage() {
       } else if (errorName === 'NotReadableError' || /could not start video source/i.test(message)) {
         setErrorMessage('Kamera sedang dipakai aplikasi lain. Tutup aplikasi tersebut lalu coba lagi.');
       } else {
-        setErrorMessage(`Model wajah gagal dimuat: ${message || 'Periksa koneksi internet dan dukungan WebGL browser.'}`);
+        setErrorMessage('Model wajah gagal dimuat. Periksa koneksi internet dan dukungan WebGL browser.');
       }
     }
-  }, [startDetection, stopCamera]);
+  }, [loadHumanModel, startDetection, stopCamera]);
 
   useEffect(() => {
     mountedRef.current = true;
-    if (!window.localStorage.getItem(RESET_EMAIL_KEY)
-      || !window.sessionStorage.getItem(RESET_NEW_PASSWORD_KEY)) {
-      router.replace('/forgot-password/update-password');
+    const email = window.localStorage.getItem(RESET_EMAIL_KEY)?.trim().toLowerCase();
+    const verifiedEmail = window.sessionStorage.getItem(RESET_EMAIL_VERIFIED_KEY)?.trim().toLowerCase();
+    if (!email || verifiedEmail !== email) {
+      router.replace('/forgot-password');
+    } else {
+      setIsAuthorized(true);
     }
     return () => {
       mountedRef.current = false;
@@ -385,7 +402,16 @@ export default function FaceVerificationPage() {
     };
   }, [router, stopCamera]);
 
+  useEffect(() => {
+    if (!isAuthorized) return;
+    // Prepare the browser model while the user reads the scan instructions.
+    // The actual camera permission is still requested only after Scan is clicked.
+    void loadHumanModel().catch(() => {});
+  }, [isAuthorized, loadHumanModel]);
+
   const activeChallenge = challengeOrder.find((challenge) => !completedChallenges.includes(challenge));
+
+  if (!isAuthorized) return <main className="fixed inset-0 bg-[#f5f7fb]" aria-busy="true" />;
 
   return (
     <main className="min-h-screen bg-[#f5f7fb] px-4 py-8 text-[#172033] sm:px-6 lg:px-8">
@@ -418,8 +444,8 @@ export default function FaceVerificationPage() {
               {scanState !== 'scanning' && (
                 <div className="relative z-10 max-w-[245px] px-5 text-center text-white">
                   {scanState === 'success' ? <CheckCircle2 className="mx-auto" size={28} /> : scanState === 'failed' ? <Ban className="mx-auto" size={28} /> : scanState === 'loading' || scanState === 'submitting' ? <LoaderCircle className="mx-auto animate-spin" size={28} /> : <Camera className="mx-auto" size={28} />}
-                  <p className="mt-3 text-sm font-bold"><Text dynamic>{scanState === 'success' ? 'Password updated' : scanState === 'failed' ? 'Face verification failed' : scanState === 'loading' ? 'Menyiapkan kamera' : scanState === 'submitting' ? 'Memeriksa kecocokan wajah' : 'Camera not yet active'}</Text></p>
-                  <p className="mt-1 text-xs font-semibold text-[#c5cede]"><Text dynamic>{scanState === 'success' ? 'Password berhasil diperbarui.' : scanState === 'failed' ? 'Silakan periksa email atau pindai wajah kembali.' : scanState === 'loading' ? 'Memuat kamera dan model wajah…' : scanState === 'submitting' ? 'Tunggu sebentar…' : 'Click Scanning to grant camera access and load the model'}</Text></p>
+                  <p className="mt-3 text-sm font-bold"><Text dynamic>{scanState === 'success' ? 'Face verified' : scanState === 'failed' ? 'Face verification failed' : scanState === 'loading' ? 'Menyiapkan kamera' : scanState === 'submitting' ? 'Memeriksa kecocokan wajah' : 'Camera not yet active'}</Text></p>
+                  <p className="mt-1 text-xs font-semibold text-[#c5cede]"><Text dynamic>{scanState === 'success' ? 'Wajah berhasil diverifikasi.' : scanState === 'failed' ? 'Silakan periksa email atau pindai wajah kembali.' : scanState === 'loading' ? 'Memuat kamera dan model wajah…' : scanState === 'submitting' ? 'Tunggu sebentar…' : 'Click Scanning to grant camera access and load the model'}</Text></p>
                 </div>
               )}
               {scanState === 'scanning' && (
@@ -432,7 +458,7 @@ export default function FaceVerificationPage() {
                       <p className="mt-0.5 text-[11px] text-[#dcefff]">{challengeDetails[activeChallenge].helper}</p>
                     </div>
                   )}
-                  <p className="pointer-events-none absolute inset-x-5 bottom-7 rounded-xl bg-[#061326]/85 px-3 py-2 text-center text-[11px] font-semibold text-white">{faceStatus}</p>
+                  <p className="pointer-events-none absolute inset-x-5 bottom-7 rounded-xl bg-[#061326]/85 px-3 py-2 text-center text-[11px] font-semibold text-white"><Text dynamic>{faceStatus}</Text></p>
                 </>
               )}
             </div>
@@ -443,31 +469,56 @@ export default function FaceVerificationPage() {
             {errorMessage && <p className="mt-1 text-center text-xs font-semibold text-red-600"><Text dynamic>{errorMessage}</Text></p>}
 
             <div className="mt-5 flex w-full flex-wrap justify-center gap-4">
-              <button
-                type="button"
-                onClick={() => { stopCamera(); router.push('/forgot-password/update-password'); }}
-                className="inline-flex min-w-[190px] items-center justify-center gap-3 rounded-lg bg-[#dc3048] px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#c3263d]"
-              >
-                <Ban size={24} /> <Text>Cancel
-              </Text></button>
-              {scanState === 'success' ? (
+              {scanState === 'loading' || scanState === 'scanning' ? (
                 <button
                   type="button"
-                  disabled
-                  className="inline-flex min-w-[190px] items-center justify-center gap-3 rounded-lg bg-[#1762f5] px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0e53dc]"
+                  onClick={() => {
+                    scanAttemptRef.current += 1;
+                    stopCamera();
+                    verificationStartedRef.current = false;
+                    verificationEmbeddingsRef.current = [];
+                    completedRef.current = [];
+                    challengeStartedAtRef.current = null;
+                    challengeFramesRef.current = 0;
+                    setCompletedChallenges([]);
+                    setErrorMessage('');
+                    setPrompt('Tekan Scanning untuk mengaktifkan kamera.');
+                    setFaceStatus('Kamera belum aktif');
+                    setScanState('idle');
+                  }}
+                  className="inline-flex min-w-[190px] items-center justify-center gap-3 rounded-lg bg-[#dc3048] px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#c3263d]"
                 >
-                  <CheckCircle2 size={24} /> <Text>Verified
-                </Text></button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => void startScan()}
-                  disabled={scanState === 'loading' || scanState === 'scanning' || scanState === 'submitting'}
-                  className="inline-flex min-w-[190px] items-center justify-center gap-3 rounded-lg bg-[#1762f5] px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0e53dc] disabled:cursor-wait disabled:opacity-75"
-                >
-                  {scanState === 'loading' || scanState === 'submitting' ? <LoaderCircle className="animate-spin" size={24} /> : scanState === 'scanning' ? <CameraOff size={24} /> : <Camera size={24} />}
-                  <Text dynamic>{scanState === 'loading' ? 'Preparing' : scanState === 'submitting' ? 'Checking…' : scanState === 'scanning' ? 'Scanning…' : scanState === 'error' || scanState === 'failed' ? 'Try again' : 'Scanning'}</Text>
+                  <CameraOff size={24} /> <Text dynamic>Cancel Scanning</Text>
                 </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => { stopCamera(); router.push('/forgot-password'); }}
+                    className="inline-flex min-w-[190px] items-center justify-center gap-3 rounded-lg bg-[#dc3048] px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#c3263d]"
+                  >
+                    <Ban size={24} /> <Text>BACK</Text>
+                  </button>
+                  {scanState === 'success' ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="inline-flex min-w-[190px] items-center justify-center gap-3 rounded-lg bg-[#1762f5] px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0e53dc]"
+                    >
+                      <CheckCircle2 size={24} /> <Text>Verified</Text>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void startScan()}
+                      disabled={scanState === 'submitting'}
+                      className="inline-flex min-w-[190px] items-center justify-center gap-3 rounded-lg bg-[#1762f5] px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0e53dc] disabled:cursor-wait disabled:opacity-75"
+                    >
+                      {scanState === 'submitting' ? <LoaderCircle className="animate-spin" size={24} /> : <Camera size={24} />}
+                      <Text dynamic>{scanState === 'submitting' ? 'Checking…' : scanState === 'error' || scanState === 'failed' ? 'Try again' : 'Scanning'}</Text>
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -490,16 +541,13 @@ export default function FaceVerificationPage() {
               <Text dynamic>{modalState === 'success' ? 'Face Verification Success' : 'Face Verification Failed'}</Text>
             </h2>
             <p id="face-result-description" className="mt-4 max-w-2xl text-sm leading-6 text-[#202124]">
-              {modalMessage}
+              <Text dynamic>{modalMessage}</Text>
             </p>
             <button
               type="button"
               onClick={() => {
                 if (modalState === 'success') {
-                  window.localStorage.removeItem(RESET_EMAIL_KEY);
-                  window.sessionStorage.removeItem(RESET_NEW_PASSWORD_KEY);
-                  window.sessionStorage.removeItem(RESET_CONFIRM_PASSWORD_KEY);
-                  router.replace('/login');
+                  router.replace('/forgot-password/face-verification/update-password');
                 } else {
                   setModalState(null);
                   setScanState('idle');

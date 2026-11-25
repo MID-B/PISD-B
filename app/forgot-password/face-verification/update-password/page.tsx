@@ -1,10 +1,9 @@
 'use client';
 
 import { Text, LanguageInput } from '@/components/language';
-import { useEffect, useState, type FormEvent } from 'react';
-import Link from 'next/link';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { RESET_CONFIRM_PASSWORD_KEY, RESET_EMAIL_KEY, RESET_NEW_PASSWORD_KEY, RESET_PASSWORD_MAX_LENGTH, RESET_PASSWORD_MIN_LENGTH, RESET_PASSWORD_STRONG_REGEX } from '../resetFlow';
+import { RESET_EMAIL_KEY, RESET_EMAIL_VERIFIED_KEY, RESET_FACE_VERIFICATION_TOKEN_KEY, RESET_PASSWORD_MAX_LENGTH, RESET_PASSWORD_MIN_LENGTH, RESET_PASSWORD_STRONG_REGEX } from '../../resetFlow';
 
 export default function UpdatePasswordPage() {
   const router = useRouter();
@@ -14,35 +13,40 @@ export default function UpdatePasswordPage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [isContinuing, setIsContinuing] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const successRedirectRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!window.localStorage.getItem(RESET_EMAIL_KEY)) {
+    const email = window.localStorage.getItem(RESET_EMAIL_KEY)?.trim().toLowerCase();
+    const verifiedEmail = window.sessionStorage.getItem(RESET_EMAIL_VERIFIED_KEY)?.trim().toLowerCase();
+    if (!email || verifiedEmail !== email) {
       router.replace('/forgot-password');
       return;
     }
-    setNewPassword(window.sessionStorage.getItem(RESET_NEW_PASSWORD_KEY) ?? '');
-    setConfirmPassword(window.sessionStorage.getItem(RESET_CONFIRM_PASSWORD_KEY) ?? '');
+    if (!window.sessionStorage.getItem(RESET_FACE_VERIFICATION_TOKEN_KEY)) {
+      router.replace('/forgot-password/face-verification');
+      return;
+    }
+    setIsAuthorized(true);
     const hour = new Date().getHours();
     if (hour >= 3 && hour < 12) setGreeting('Good Morning');
     else if (hour >= 12 && hour < 17) setGreeting('Good Afternoon');
     else setGreeting('Good Evening');
   }, []);
 
+  useEffect(() => () => {
+    if (successRedirectRef.current !== null) window.clearTimeout(successRedirectRef.current);
+  }, []);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage('');
+    setSuccessMessage('');
     const passwordForPolicy = newPassword.trim();
     if (!newPassword) {
       setErrorMessage('New password are required.');
-      return;
-    }
-    if (!confirmPassword) {
-      setErrorMessage('Confirm password are required.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setErrorMessage('The confirmed password does not match the new password.');
       return;
     }
     if (passwordForPolicy.length < RESET_PASSWORD_MIN_LENGTH) {
@@ -58,34 +62,68 @@ export default function UpdatePasswordPage() {
       return;
     }
 
-    setIsContinuing(true);
+    setIsSubmitting(true);
     try {
       const email = window.localStorage.getItem(RESET_EMAIL_KEY)?.trim();
+      const verificationToken = window.sessionStorage.getItem(RESET_FACE_VERIFICATION_TOKEN_KEY);
       if (!email) {
         router.replace('/forgot-password');
+        return;
+      }
+      if (!verificationToken) {
+        router.replace('/forgot-password/face-verification');
+        return;
+      }
+
+      const passwordCheckResponse = await fetch('/api/password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'check-password', email, password: newPassword }),
+      });
+      const passwordCheckResult = await passwordCheckResponse.json() as { error?: string };
+      if (!passwordCheckResponse.ok) {
+        setErrorMessage(passwordCheckResult.error || 'Password could not be checked. Please try again.');
+        return;
+      }
+
+      if (!confirmPassword) {
+        setErrorMessage('Confirm password are required.');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setErrorMessage('The confirmed password does not match the new password.');
         return;
       }
 
       const response = await fetch('/api/password-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'check-password', email, password: newPassword }),
+        body: JSON.stringify({ action: 'complete', email, password: newPassword, verificationToken }),
       });
-      const result = await response.json() as { error?: string };
+      const result = await response.json() as { error?: string; code?: string };
       if (!response.ok) {
-        setErrorMessage(result.error || 'Password could not be checked. Please try again.');
+        if (result.code === 'FACE_VERIFICATION_EXPIRED' || result.code === 'FACE_VERIFICATION_REQUIRED') {
+          window.sessionStorage.removeItem(RESET_FACE_VERIFICATION_TOKEN_KEY);
+          router.replace('/forgot-password/face-verification');
+          return;
+        }
+        setErrorMessage(result.error || 'Password could not be updated. Please try again.');
         return;
       }
 
-      window.sessionStorage.setItem(RESET_NEW_PASSWORD_KEY, newPassword);
-      window.sessionStorage.setItem(RESET_CONFIRM_PASSWORD_KEY, confirmPassword);
-      router.push('/forgot-password/update-password/face-verification');
+      window.localStorage.removeItem(RESET_EMAIL_KEY);
+      window.sessionStorage.removeItem(RESET_EMAIL_VERIFIED_KEY);
+      window.sessionStorage.removeItem(RESET_FACE_VERIFICATION_TOKEN_KEY);
+      setSuccessMessage('Your password has been successfully changed; please use the new password to log in');
+      successRedirectRef.current = window.setTimeout(() => router.replace('/login'), 3000);
     } catch {
-      setErrorMessage('Password could not be checked. Please try again.');
+      setErrorMessage('Password could not be updated. Please try again.');
     } finally {
-      setIsContinuing(false);
+      setIsSubmitting(false);
     }
   }
+
+  if (!isAuthorized) return <main className="fixed inset-0 bg-[#07111F]" aria-busy="true" />;
 
   return (
     <main className="fixed inset-0 h-screen w-screen overflow-hidden bg-[#07111F] text-[#0D1B2A] selection:bg-[#3B6FF5] selection:text-white font-[family-name:var(--font-inter)]">
@@ -151,8 +189,8 @@ export default function UpdatePasswordPage() {
                     value={newPassword}
                     onChange={(event) => {
                       setNewPassword(event.target.value);
-                      window.sessionStorage.setItem(RESET_NEW_PASSWORD_KEY, event.target.value);
                       setErrorMessage('');
+                      setSuccessMessage('');
                     }}
                     className="w-full rounded-xl border border-white/90 bg-white/85 py-4 pl-4 pr-12 text-sm font-medium text-[#0D1B2A] shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all focus:border-[#3B6FF5] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3B6FF5]/30"
                   />
@@ -195,8 +233,8 @@ export default function UpdatePasswordPage() {
                     value={confirmPassword}
                     onChange={(event) => {
                       setConfirmPassword(event.target.value);
-                      window.sessionStorage.setItem(RESET_CONFIRM_PASSWORD_KEY, event.target.value);
                       setErrorMessage('');
+                      setSuccessMessage('');
                     }}
                     className="w-full rounded-xl border border-white/90 bg-white/85 py-4 pl-4 pr-12 text-sm font-medium text-[#0D1B2A] shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all focus:border-[#3B6FF5] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3B6FF5]/30"
                   />
@@ -234,25 +272,24 @@ export default function UpdatePasswordPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-5 pt-1 sm:gap-8">
-                <Link
-                  href="/forgot-password"
-                  onClick={() => {
-                    window.sessionStorage.removeItem(RESET_NEW_PASSWORD_KEY);
-                    window.sessionStorage.removeItem(RESET_CONFIRM_PASSWORD_KEY);
-                  }}
-                  className="flex w-full items-center justify-center rounded-xl bg-[#31005B] px-5 py-4 text-sm font-extrabold tracking-wider text-white shadow-[0_8px_25px_rgba(49,0,91,0.3)] transition-all active:scale-[0.99]"
-                >
-                  <Text>BACK
-                </Text></Link>
+              <div className="pt-1">
                 <button
                   type="submit"
-                  disabled={isContinuing}
+                  disabled={isSubmitting || Boolean(successMessage)}
                   className="w-full cursor-pointer rounded-xl bg-[#3B6FF5] px-5 py-4 text-sm font-extrabold tracking-wider text-white shadow-[0_8px_25px_rgba(59,111,245,0.4)] transition-all hover:bg-[#2B5CE5] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Text>NEXT
+                  <Text>CONFIRM
                 </Text></button>
               </div>
+
+              {successMessage && (
+                <div role="status" className="p-3 sm:p-4 rounded-xl bg-[#059669]/10 border border-[#059669]/30 text-[#059669] text-xs sm:text-sm flex items-center gap-2.5 font-semibold backdrop-blur-md">
+                  <svg className="w-5 h-5 shrink-0 fill-current" viewBox="0 0 20 20" aria-hidden="true">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <span className="min-w-0 break-words"><Text dynamic>{successMessage}</Text></span>
+                </div>
+              )}
             </form>
           </section>
         </div>

@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { getClientIp } from '@/lib/get-client-ip';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 
@@ -11,20 +12,65 @@ const PASSWORD_STRONG_REGEX = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{
 const FACE_MATCH_THRESHOLD = 0.66;
 const TEMPLATE_TOP_MATCHES = 3;
 const USERS_PER_PAGE = 1000;
+const RESET_VERIFICATION_TTL_SECONDS = 5 * 60;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const rateLimits = new Map<string, { count: number; expiresAt: number }>();
 
-type ResetAction = 'check-email' | 'check-password' | 'complete';
+type ResetAction = 'check-email' | 'check-password' | 'verify-face' | 'complete';
 type RequestBody = {
   action?: unknown;
   email?: unknown;
   password?: unknown;
   embedding?: unknown;
   embeddings?: unknown;
+  verificationToken?: unknown;
 };
 
 function responseError(error: string, status: number, code?: string) {
   return Response.json({ error, ...(code ? { code } : {}) }, { status });
+}
+
+function signFaceVerificationToken(authUserId: string, email: string) {
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) throw new Error('Password reset signing key is not configured.');
+  const payload = Buffer.from(JSON.stringify({
+    sub: authUserId,
+    email,
+    exp: Math.floor(Date.now() / 1000) + RESET_VERIFICATION_TTL_SECONDS,
+  })).toString('base64url');
+  const signature = createHmac('sha256', secret).update(payload).digest('base64url');
+  return `${payload}.${signature}`;
+}
+
+function verifyFaceVerificationToken(token: string) {
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) return null;
+  const [payload, signature, extra] = token.split('.');
+  if (!payload || !signature || extra !== undefined) return null;
+  const expected = createHmac('sha256', secret).update(payload).digest();
+  let provided: Buffer;
+  try {
+    provided = Buffer.from(signature, 'base64url');
+  } catch {
+    return null;
+  }
+  if (expected.length !== provided.length || !timingSafeEqual(expected, provided)) return null;
+  try {
+    const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
+      sub?: unknown;
+      email?: unknown;
+      exp?: unknown;
+    };
+    if (
+      typeof claims.sub !== 'string'
+      || typeof claims.email !== 'string'
+      || typeof claims.exp !== 'number'
+      || claims.exp <= Math.floor(Date.now() / 1000)
+    ) return null;
+    return { authUserId: claims.sub, email: claims.email };
+  } catch {
+    return null;
+  }
 }
 
 function withinRateLimit(request: Request, action: ResetAction) {
@@ -112,7 +158,7 @@ export async function POST(request: Request) {
     return responseError('Request body must be valid JSON.', 400);
   }
 
-  if (body.action !== 'check-email' && body.action !== 'check-password' && body.action !== 'complete') {
+  if (body.action !== 'check-email' && body.action !== 'check-password' && body.action !== 'verify-face' && body.action !== 'complete') {
     return responseError('Invalid reset action.', 400);
   }
   const action = body.action as ResetAction;
@@ -155,50 +201,62 @@ export async function POST(request: Request) {
       return Response.json({ ok: true });
     }
 
+    if (action === 'verify-face') {
+      const embeddings = Array.isArray(body.embeddings)
+        ? body.embeddings.every(isNumberArray) ? body.embeddings as number[][] : []
+        : isNumberArray(body.embedding) ? [body.embedding] : [];
+      if (
+        embeddings.length === 0
+        || embeddings.length > 8
+        || embeddings.some((embedding) => embedding.length > 2048)
+      ) {
+        return responseError('Live face data is invalid. Please scan again.', 400, 'EMBEDDING_INVALID');
+      }
+
+      const { data: template, error: templateError } = await admin
+        .from('d3_face_biometric_templates')
+        .select('auth_user_id, embedding_model, descriptors')
+        .eq('auth_user_id', authUser.id)
+        .maybeSingle();
+      if (templateError) {
+        console.error('Password reset template lookup failed.', { code: templateError.code });
+        return responseError('Face template could not be checked. Please try again.', 500, 'TEMPLATE_LOOKUP_FAILED');
+      }
+      if (!template || template.auth_user_id !== authUser.id) {
+        return responseError('Face template is not registered for this email.', 404, 'TEMPLATE_NOT_FOUND');
+      }
+      if (template.embedding_model !== 'insightface-mobilenet-swish' || !Array.isArray(template.descriptors)) {
+        return responseError('The saved face template is not compatible with this scanner.', 409, 'TEMPLATE_INCOMPATIBLE');
+      }
+      const descriptors = template.descriptors.filter(isNumberArray);
+      if (descriptors.length < 5 || descriptors.length > 30) {
+        return responseError('The saved face template is incomplete. Contact HR Admin.', 409, 'TEMPLATE_INVALID');
+      }
+
+      const frameSimilarities = embeddings.map((embedding) => templateSimilarity(embedding, descriptors));
+      frameSimilarities.sort((first, second) => first - second);
+      const middle = Math.floor(frameSimilarities.length / 2);
+      const similarity = frameSimilarities.length % 2 === 0
+        ? (frameSimilarities[middle - 1] + frameSimilarities[middle]) / 2
+        : frameSimilarities[middle];
+      if (similarity < FACE_MATCH_THRESHOLD) {
+        return responseError('Your face does not match the email, please rescan or enter the correct email.', 422, 'FACE_MISMATCH');
+      }
+
+      return Response.json({ ok: true, verificationToken: signFaceVerificationToken(authUser.id, email) });
+    }
+
     if (typeof body.password !== 'string' || !body.password) {
       return responseError('New password are required.', 400, 'NEW_PASSWORD_REQUIRED');
     }
     const passwordError = validPassword(body.password);
     if (passwordError) return responseError(passwordError, 400, 'PASSWORD_INVALID');
-    const embeddings = Array.isArray(body.embeddings)
-      ? body.embeddings.every(isNumberArray) ? body.embeddings as number[][] : []
-      : isNumberArray(body.embedding) ? [body.embedding] : [];
-    if (
-      embeddings.length === 0
-      || embeddings.length > 8
-      || embeddings.some((embedding) => embedding.length > 2048)
-    ) {
-      return responseError('Live face data is invalid. Please scan again.', 400, 'EMBEDDING_INVALID');
+    if (typeof body.verificationToken !== 'string') {
+      return responseError('Complete face verification before resetting your password.', 403, 'FACE_VERIFICATION_REQUIRED');
     }
-
-    const { data: template, error: templateError } = await admin
-      .from('d3_face_biometric_templates')
-      .select('auth_user_id, embedding_model, descriptors')
-      .eq('auth_user_id', authUser.id)
-      .maybeSingle();
-    if (templateError) {
-      console.error('Password reset template lookup failed.', { code: templateError.code });
-      return responseError('Face template could not be checked. Please try again.', 500, 'TEMPLATE_LOOKUP_FAILED');
-    }
-    if (!template || template.auth_user_id !== authUser.id) {
-      return responseError('Face template is not registered for this email.', 404, 'TEMPLATE_NOT_FOUND');
-    }
-    if (template.embedding_model !== 'insightface-mobilenet-swish' || !Array.isArray(template.descriptors)) {
-      return responseError('The saved face template is not compatible with this scanner.', 409, 'TEMPLATE_INCOMPATIBLE');
-    }
-    const descriptors = template.descriptors.filter(isNumberArray);
-    if (descriptors.length < 5 || descriptors.length > 30) {
-      return responseError('The saved face template is incomplete. Contact HR Admin.', 409, 'TEMPLATE_INVALID');
-    }
-
-    const frameSimilarities = embeddings.map((embedding) => templateSimilarity(embedding, descriptors));
-    frameSimilarities.sort((first, second) => first - second);
-    const middle = Math.floor(frameSimilarities.length / 2);
-    const similarity = frameSimilarities.length % 2 === 0
-      ? (frameSimilarities[middle - 1] + frameSimilarities[middle]) / 2
-      : frameSimilarities[middle];
-    if (similarity < FACE_MATCH_THRESHOLD) {
-      return responseError('Your face does not match the email, please rescan or enter the correct email.', 422, 'FACE_MISMATCH');
+    const faceVerification = verifyFaceVerificationToken(body.verificationToken);
+    if (!faceVerification || faceVerification.authUserId !== authUser.id || faceVerification.email !== email) {
+      return responseError('Face verification expired. Please verify your face again.', 403, 'FACE_VERIFICATION_EXPIRED');
     }
 
     // Registration creates b2_register.id with the Auth UUID. The existing

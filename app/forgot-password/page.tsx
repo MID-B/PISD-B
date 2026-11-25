@@ -4,7 +4,7 @@ import { Text, LanguageInput } from '@/components/language';
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { RESET_CONFIRM_PASSWORD_KEY, RESET_EMAIL_KEY, RESET_NEW_PASSWORD_KEY, RESET_EMAIL_REGEX } from './resetFlow';
+import { RESET_CONFIRM_PASSWORD_KEY, RESET_EMAIL_KEY, RESET_EMAIL_VERIFIED_KEY, RESET_FACE_VERIFICATION_TOKEN_KEY, RESET_NEW_PASSWORD_KEY, RESET_EMAIL_REGEX } from './resetFlow';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -35,6 +35,8 @@ export default function ForgotPasswordPage() {
     }
 
     setIsChecking(true);
+    window.sessionStorage.removeItem(RESET_EMAIL_VERIFIED_KEY);
+    window.sessionStorage.removeItem(RESET_FACE_VERIFICATION_TOKEN_KEY);
     try {
       const response = await fetch('/api/password-reset', {
         method: 'POST',
@@ -48,7 +50,11 @@ export default function ForgotPasswordPage() {
       }
 
       window.localStorage.setItem(RESET_EMAIL_KEY, normalizedEmail);
-      router.push('/forgot-password/update-password');
+      window.sessionStorage.setItem(RESET_EMAIL_VERIFIED_KEY, normalizedEmail);
+      window.sessionStorage.removeItem(RESET_FACE_VERIFICATION_TOKEN_KEY);
+      window.sessionStorage.removeItem(RESET_NEW_PASSWORD_KEY);
+      window.sessionStorage.removeItem(RESET_CONFIRM_PASSWORD_KEY);
+      router.push('/forgot-password/face-verification');
     } catch {
       setErrorMessage('Unable to check email. Check your connection and try again.');
     } finally {
@@ -121,8 +127,10 @@ export default function ForgotPasswordPage() {
                     setEmail(event.target.value);
                     setErrorMessage('');
                     window.localStorage.setItem(RESET_EMAIL_KEY, event.target.value);
+                    window.sessionStorage.removeItem(RESET_EMAIL_VERIFIED_KEY);
                     window.sessionStorage.removeItem(RESET_NEW_PASSWORD_KEY);
                     window.sessionStorage.removeItem(RESET_CONFIRM_PASSWORD_KEY);
+                    window.sessionStorage.removeItem(RESET_FACE_VERIFICATION_TOKEN_KEY);
                   }}
                   className="w-full rounded-xl border border-white/90 bg-white/70 px-4.5 py-3.5 text-sm font-medium text-[#0D1B2A] shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all placeholder:text-[#64748B] focus:border-[#3B6FF5] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#3B6FF5]/30"
                 />
@@ -144,6 +152,8 @@ export default function ForgotPasswordPage() {
                     window.localStorage.removeItem(RESET_EMAIL_KEY);
                     window.sessionStorage.removeItem(RESET_NEW_PASSWORD_KEY);
                     window.sessionStorage.removeItem(RESET_CONFIRM_PASSWORD_KEY);
+                    window.sessionStorage.removeItem(RESET_EMAIL_VERIFIED_KEY);
+                    window.sessionStorage.removeItem(RESET_FACE_VERIFICATION_TOKEN_KEY);
                   }}
                   className="flex w-full items-center justify-center rounded-xl bg-[#31005B] px-5 py-4 text-sm font-extrabold tracking-wider text-white shadow-[0_8px_25px_rgba(49,0,91,0.3)] transition-all active:scale-[0.99]"
                 >
