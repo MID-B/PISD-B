@@ -5,7 +5,11 @@ export const runtime = 'nodejs';
 
 const EMAIL_REGEX = /^[^\s@]+@andima\.co\.id$/i;
 const PASSWORD_STRONG_REGEX = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]).+$/;
-const FACE_MATCH_THRESHOLD = 0.7;
+// Match the more camera-tolerant HRMS attendance matcher. We still require
+// multiple supporting template samples (median of the nearest three), rather
+// than accepting a match from a single best descriptor.
+const FACE_MATCH_THRESHOLD = 0.66;
+const TEMPLATE_TOP_MATCHES = 3;
 const USERS_PER_PAGE = 1000;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const rateLimits = new Map<string, { count: number; expiresAt: number }>();
@@ -16,6 +20,7 @@ type RequestBody = {
   email?: unknown;
   password?: unknown;
   embedding?: unknown;
+  embeddings?: unknown;
 };
 
 function responseError(error: string, status: number, code?: string) {
@@ -77,9 +82,13 @@ function templateSimilarity(embedding: number[], descriptors: number[][]) {
     .filter((descriptor) => descriptor.length === embedding.length)
     .map((descriptor) => cosineSimilarity(embedding, descriptor))
     .sort((first, second) => second - first)
-    .slice(0, 5);
+    .slice(0, TEMPLATE_TOP_MATCHES)
+    .sort((first, second) => first - second);
   if (scores.length === 0) return 0;
-  return scores.reduce((total, score) => total + score, 0) / scores.length;
+  const middle = Math.floor(scores.length / 2);
+  return scores.length % 2 === 0
+    ? (scores[middle - 1] + scores[middle]) / 2
+    : scores[middle];
 }
 
 function validPassword(password: string) {
@@ -151,7 +160,14 @@ export async function POST(request: Request) {
     }
     const passwordError = validPassword(body.password);
     if (passwordError) return responseError(passwordError, 400, 'PASSWORD_INVALID');
-    if (!isNumberArray(body.embedding) || body.embedding.length > 2048) {
+    const embeddings = Array.isArray(body.embeddings)
+      ? body.embeddings.every(isNumberArray) ? body.embeddings as number[][] : []
+      : isNumberArray(body.embedding) ? [body.embedding] : [];
+    if (
+      embeddings.length === 0
+      || embeddings.length > 8
+      || embeddings.some((embedding) => embedding.length > 2048)
+    ) {
       return responseError('Live face data is invalid. Please scan again.', 400, 'EMBEDDING_INVALID');
     }
 
@@ -175,7 +191,12 @@ export async function POST(request: Request) {
       return responseError('The saved face template is incomplete. Contact HR Admin.', 409, 'TEMPLATE_INVALID');
     }
 
-    const similarity = templateSimilarity(body.embedding, descriptors);
+    const frameSimilarities = embeddings.map((embedding) => templateSimilarity(embedding, descriptors));
+    frameSimilarities.sort((first, second) => first - second);
+    const middle = Math.floor(frameSimilarities.length / 2);
+    const similarity = frameSimilarities.length % 2 === 0
+      ? (frameSimilarities[middle - 1] + frameSimilarities[middle]) / 2
+      : frameSimilarities[middle];
     if (similarity < FACE_MATCH_THRESHOLD) {
       return responseError('Your face does not match the email, please rescan or enter the correct email.', 422, 'FACE_MISMATCH');
     }

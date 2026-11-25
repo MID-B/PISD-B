@@ -25,12 +25,15 @@ type HumanModel = {
   detect: (video: HTMLVideoElement) => Promise<FaceResult>;
 };
 
-const REQUIRED_CHALLENGES = 3;
-const CHALLENGE_HOLD_DURATION_MS = 450;
-const BLINK_CONFIRMATION_FRAMES = 2;
+const REQUIRED_CHALLENGES = 2;
+const REQUIRED_MATCH_FRAMES = 5;
+const CHALLENGE_HOLD_DURATION_MS = 250;
+const BLINK_CONFIRMATION_FRAMES = 1;
 const degreesToRadians = (degrees: number) => degrees * (Math.PI / 180);
-const TURN_YAW_THRESHOLD = degreesToRadians(12);
-const TILT_PITCH_THRESHOLD = degreesToRadians(10);
+const TURN_YAW_THRESHOLD = degreesToRadians(8);
+const TILT_PITCH_THRESHOLD = degreesToRadians(7);
+const CENTER_YAW_THRESHOLD = degreesToRadians(10);
+const CENTER_PITCH_THRESHOLD = degreesToRadians(10);
 
 const challengeDetails: Record<ChallengeId, { label: string; helper: string }> = {
   left: { label: 'Hadap kiri', helper: 'Putar wajah sedikit ke kiri.' },
@@ -62,6 +65,8 @@ export default function FaceVerificationPage() {
   const humanRef = useRef<HumanModel | null>(null);
   const frameRef = useRef<number | null>(null);
   const latestEmbeddingRef = useRef<number[] | null>(null);
+  const verificationEmbeddingsRef = useRef<number[][]>([]);
+  const verificationStartedRef = useRef(false);
   const detectingRef = useRef(false);
   const challengeOrderRef = useRef<ChallengeId[]>([]);
   const completedRef = useRef<ChallengeId[]>([]);
@@ -90,7 +95,7 @@ export default function FaceVerificationPage() {
     detectingRef.current = false;
   }, []);
 
-  const completePasswordReset = useCallback(async (embedding: number[]) => {
+  const completePasswordReset = useCallback(async (embeddings: number[][]) => {
     stopCamera();
     setScanState('submitting');
     setFaceStatus('Wajah terdeteksi. Memeriksa kecocokan…');
@@ -109,7 +114,7 @@ export default function FaceVerificationPage() {
       const response = await fetch('/api/password-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'complete', email, password, embedding }),
+        body: JSON.stringify({ action: 'complete', email, password, embeddings }),
       });
       const result = await response.json() as { error?: string; code?: string };
       if (!response.ok) {
@@ -139,6 +144,7 @@ export default function FaceVerificationPage() {
     const face = result.face[0];
     const gestures = result.gesture.map((entry) => String(entry.gesture));
     if (result.face.length !== 1 || !face) {
+      verificationEmbeddingsRef.current = [];
       setFaceStatus(result.face.length > 1 ? 'Hanya satu wajah boleh terlihat.' : 'Posisikan satu wajah ke dalam bingkai kamera.');
       challengeStartedAtRef.current = null;
       challengeFramesRef.current = 0;
@@ -147,19 +153,14 @@ export default function FaceVerificationPage() {
 
     const confidence = Math.round((face.faceScore ?? face.boxScore ?? 0) * 100);
     if (confidence < 60) {
+      verificationEmbeddingsRef.current = [];
       setFaceStatus('Pencahayaan atau fokus kamera belum cukup jelas.');
       challengeStartedAtRef.current = null;
       challengeFramesRef.current = 0;
       return;
     }
-    if ((face.live ?? 0) < 0.6) {
-      setFaceStatus('Tunggu kamera membaca wajah dengan jelas.');
-      challengeStartedAtRef.current = null;
-      challengeFramesRef.current = 0;
-      return;
-    }
-
     if (!isNumberArray(face.embedding)) {
+      verificationEmbeddingsRef.current = [];
       setFaceStatus('Model belum menghasilkan data wajah. Pastikan kamera dan model selesai dimuat.');
       challengeStartedAtRef.current = null;
       challengeFramesRef.current = 0;
@@ -169,10 +170,25 @@ export default function FaceVerificationPage() {
     latestEmbeddingRef.current = face.embedding;
     setFaceStatus('Wajah terlihat. Ikuti instruksi di kamera.');
     const target = challengeOrderRef.current.find((challenge) => !completedRef.current.includes(challenge));
-    if (!target) return;
-
     const yaw = face.rotation?.angle.yaw ?? 0;
     const pitch = face.rotation?.angle.pitch ?? 0;
+    if (!target) {
+      const centered = Math.abs(yaw) <= CENTER_YAW_THRESHOLD && Math.abs(pitch) <= CENTER_PITCH_THRESHOLD;
+      if (centered && (face.live ?? 0) >= 0.6 && !verificationStartedRef.current) {
+        verificationEmbeddingsRef.current = [...verificationEmbeddingsRef.current, face.embedding]
+          .slice(-REQUIRED_MATCH_FRAMES);
+        setFaceStatus(`Wajah stabil. Memeriksa kecocokan (${verificationEmbeddingsRef.current.length}/${REQUIRED_MATCH_FRAMES})…`);
+        if (verificationEmbeddingsRef.current.length >= REQUIRED_MATCH_FRAMES) {
+          verificationStartedRef.current = true;
+          void completePasswordReset(verificationEmbeddingsRef.current);
+        }
+      } else if (!centered || (face.live ?? 0) < 0.6) {
+        verificationEmbeddingsRef.current = [];
+        setFaceStatus('Hadap lurus ke kamera dan tahan sebentar.');
+      }
+      return;
+    }
+
     const horizontalDirection = yaw >= TURN_YAW_THRESHOLD
       ? 'positive'
       : yaw <= -TURN_YAW_THRESHOLD ? 'negative' : null;
@@ -221,14 +237,8 @@ export default function FaceVerificationPage() {
       const nextTarget = challengeOrderRef.current.find((challenge) => !nextCompleted.includes(challenge));
       if (nextTarget) setPrompt(`${challengeDetails[nextTarget].label}: ${challengeDetails[nextTarget].helper}`);
       else {
-        const embedding = latestEmbeddingRef.current;
-        if (embedding) void completePasswordReset(embedding);
-        else {
-          stopCamera();
-          setScanState('failed');
-          setModalMessage('The camera could not read your face. Please rescan.');
-          setModalState('failed');
-        }
+        verificationEmbeddingsRef.current = [];
+        setPrompt('Hadap lurus ke kamera dan tahan sebentar.');
       }
     }
   }, [completePasswordReset, stopCamera]);
@@ -258,6 +268,8 @@ export default function FaceVerificationPage() {
     setModalMessage('');
     setErrorMessage('');
     latestEmbeddingRef.current = null;
+    verificationEmbeddingsRef.current = [];
+    verificationStartedRef.current = false;
     setCompletedChallenges([]);
     completedRef.current = [];
     challengeStartedAtRef.current = null;
@@ -283,7 +295,12 @@ export default function FaceVerificationPage() {
         // export map for importing the browser file by its package name.
         import('../../../../node_modules/@vladmandic/human/dist/human.esm.js'),
         navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          video: {
+            facingMode: 'user',
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 },
+          },
           audio: false,
         }),
       ]);
