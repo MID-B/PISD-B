@@ -130,7 +130,13 @@ export default function DashboardShell({ activePage, headerActions, children }: 
   const [logoutError, setLogoutError] = useState('');
   const [profile, setProfile] = useState<HeaderProfile>({ name: 'Memuat…', position: '' });
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 768) {
+      setIsSidebarOpen(true);
+    }
+  }, []);
 
 
   async function handleLogout() {
@@ -260,23 +266,23 @@ export default function DashboardShell({ activePage, headerActions, children }: 
   const initials = firstName.charAt(0).toUpperCase();
 
   return (
-    <main style={{ width: "100vw", height: "100vh", display: "flex", background: "#000", overflow: "hidden", margin: 0, padding: 0, boxSizing: "border-box" }}>
+    <main className="relative flex h-dvh w-screen overflow-hidden bg-black m-0 p-0 box-border">
+
+      {/* BACKDROP BLUR SAAT SIDEBAR DIBUKA DI HP */}
+      {isSidebarOpen && (
+        <div
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
+          className="fixed inset-0 z-30 bg-slate-900/45 backdrop-blur-[2px] md:hidden"
+        />
+      )}
 
       {/* SIDEBAR */}
-      <aside style={{
-        width: isSidebarOpen ? "250px" : "0px",
-        height: "100vh",
-        flexShrink: 0,
-        position: "relative",
-        padding: isSidebarOpen ? "24px 16px" : "0px",
-        background: "#0f2038",
-        color: "#fff",
-        display: "flex",
-        flexDirection: "column",
-        boxSizing: "border-box",
-        overflow: "hidden",
-        transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease"
-      }}>
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex h-dvh shrink-0 flex-col bg-[#0f2038] text-white overflow-hidden box-border md:relative ${
+          isSidebarOpen ? "w-[250px] px-4 py-6" : "w-0 p-0"
+        }`}
+      >
         
         {/* HANYA TAMPILKAN KONTEN JIKA SIDEBAR DIBUKA */}
         {isSidebarOpen && (
@@ -344,12 +350,17 @@ export default function DashboardShell({ activePage, headerActions, children }: 
                     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                       <Link
                         href="/dashboard"
+                        onClick={() => {
+                          if (typeof window !== "undefined" && window.innerWidth < 768) {
+                            setIsSidebarOpen(false);
+                          }
+                        }}
                         style={
                           activePage === 'dashboard'
                             ? { backgroundColor: "#B0C6D4", color: "#45556C" }
                             : undefined
                         }
-                        className={`flex items-center gap-2.5 py-2 px-3.5 text-sm rounded-xl transition-all ${
+                        className={`flex items-center gap-2.5 py-2 px-3.5 text-sm rounded-xl ${
                           activePage === 'dashboard'
                             ? 'font-semibold'
                             : 'text-white hover:bg-white/5 pl-7'
@@ -366,12 +377,17 @@ export default function DashboardShell({ activePage, headerActions, children }: 
 
                       <Link
                         href="/dashboard/sales-performance"
+                        onClick={() => {
+                          if (typeof window !== "undefined" && window.innerWidth < 768) {
+                            setIsSidebarOpen(false);
+                          }
+                        }}
                         style={
                           activePage === 'sales-performance'
                             ? { backgroundColor: "#B0C6D4", color: "#45556C" }
                             : undefined
                         }
-                        className={`flex items-center gap-2.5 py-2 px-3.5 text-sm rounded-xl transition-all ${
+                        className={`flex items-center gap-2.5 py-2 px-3.5 text-sm rounded-xl ${
                           activePage === 'sales-performance'
                             ? 'font-semibold'
                             : 'text-white hover:bg-white/5 pl-7'
@@ -388,12 +404,17 @@ export default function DashboardShell({ activePage, headerActions, children }: 
 
                       <Link
                         href="/dashboard/issue-board"
+                        onClick={() => {
+                          if (typeof window !== "undefined" && window.innerWidth < 768) {
+                            setIsSidebarOpen(false);
+                          }
+                        }}
                         style={
                           activePage === 'issue-board'
                             ? { backgroundColor: "#B0C6D4", color: "#45556C" }
                             : undefined
                         }
-                        className={`flex items-center gap-2.5 py-2 px-3.5 text-sm rounded-xl transition-all ${
+                        className={`flex items-center gap-2.5 py-2 px-3.5 text-sm rounded-xl ${
                           activePage === 'issue-board'
                             ? 'font-semibold'
                             : 'text-white hover:bg-white/5 pl-7'
@@ -433,55 +454,53 @@ export default function DashboardShell({ activePage, headerActions, children }: 
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <section style={{ flex: 1, height: "100vh", background: "#ffffff", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" }}>
+      <section className="flex h-dvh min-w-0 flex-1 flex-col overflow-hidden bg-white box-border">
 
         {/* TOP BAR / HEADER */}
-        <header style={{ width: "100%", height: "56px", padding: "0 24px", background: "#ffffff", borderBottom: "1px solid #e2e8f0", color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxSizing: "border-box", gap: "12px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+        <header className="flex h-14 w-full shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 sm:px-6 text-slate-900 box-border">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
 
-            {/* TAMBAHAN BARU: Tombol Toggle Sidebar */}
-            <button type="button"
+            {/* Tombol Toggle Sidebar */}
+            <button
+              type="button"
               onClick={() => setIsSidebarOpen((prev) => !prev)}
               aria-label={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
               title={isSidebarOpen ? "Tutup Sidebar" : "Buka Sidebar"}
-              style={{width: "34px", height: "34px", borderRadius: "8px", border: "none",  background: "#3B6FF5", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "background-color 0.2s ease", }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#2558DC")}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#3B6FF5")}
+              className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-lg border-0 bg-[#3B6FF5] text-white cursor-pointer transition-colors hover:bg-[#2558DC]"
             >
               <HamburgerIcon />
             </button>
 
-            <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a", whiteSpace: "nowrap" }}>
+            <span className="hidden sm:inline text-[13px] font-extrabold text-slate-900 whitespace-nowrap">
               ANDIMA MID
             </span>
-            <span style={{ color: "#e2e8f0", fontSize: "16px", fontWeight: 300 }}>|</span>
-            <nav aria-label="Breadcrumb" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", whiteSpace: "nowrap" }}>
+            <span className="hidden sm:inline text-base font-light text-slate-200">|</span>
+            <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-xs whitespace-nowrap">
               <Link
                 href="/dashboard"
-                style={{ fontWeight: 600, color: "#334155", textDecoration: "none" }}
-                className="hover:text-[#0f172a] transition-colors"
+                className="font-semibold text-slate-700 no-underline hover:text-slate-900 transition-colors"
               >
                 MID
               </Link>
-              <span style={{ color: "#94a3b8", fontWeight: 600 }}>/</span>
-              <span style={{ fontWeight: 600, color: "#334155" }}>
+              <span className="font-semibold text-slate-400">/</span>
+              <span className="truncate font-semibold text-slate-700">
                 <Text dynamic>{breadcrumbLabels[activePage]}</Text>
               </span>
             </nav>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             {headerActions}
             <LanguageSwitcher />
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }} aria-label={`Profil: ${profile.name}, ${profile.position}`} aria-live="polite">
-              <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#bbf7d0", color: "#166534", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800 }}>
+            <div className="flex items-center gap-2" aria-label={`Profil: ${profile.name}, ${profile.position}`} aria-live="polite">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-200 text-xs font-extrabold text-green-800">
                 {initials}
               </div>
-              <div style={{ lineHeight: "1.2" }}>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#0f172a", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={profile.name}>
+              <div className="hidden md:block leading-[1.2]">
+                <div className="max-w-[160px] truncate text-[11px] font-bold text-slate-900" title={profile.name}>
                   {firstName}
                 </div>
-                <div style={{ fontSize: "9px", color: "#64748b", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={profile.position}>
+                <div className="max-w-[160px] truncate text-[9px] text-slate-500" title={profile.position}>
                   <Text dynamic>{profile.position}</Text>
                 </div>
               </div>
@@ -490,9 +509,12 @@ export default function DashboardShell({ activePage, headerActions, children }: 
         </header>
 
         {/* KONTEN HALAMAN */}
-        <main style={{flex: 1, minHeight: 0, padding: activePage === 'dashboard' ? "8px" : "24px",
-            overflowY: activePage === 'dashboard' ? "hidden" : "auto", boxSizing: "border-box", background: "#f1f3fc",
-          }}
+        <main
+          className={`min-h-0 flex-1 bg-[#f1f3fc] box-border ${
+            activePage === "dashboard"
+              ? "overflow-y-auto lg:overflow-hidden p-2"
+              : "overflow-y-auto p-3 sm:p-6"
+          }`}
         >
           {children}
         </main>

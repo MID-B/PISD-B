@@ -2,7 +2,7 @@
 
 import { Text, LanguageInput } from '@/components/language';
 import { LanguageSwitcher } from '@/components/language';
-import React, { Suspense, useState, useEffect } from "react";
+import React, { Suspense, useState, useEffect, useRef } from "react";
 import LogActivity from '@/app/smki/log-activity';
 import HistoryPagination from '@/components/history-pagination';
 import { useRouter, useSearchParams } from "next/navigation";
@@ -11,6 +11,10 @@ import { getLoginDestination } from "@/lib/loginDestination";
 import { IT_DEPARTMENT_ID } from '@/lib/activity';
 import { logoutWithActivity, trackActivity, trackActivityAndWait, } 
 from '@/query/activity';
+
+/* FONT HELPERS */
+const FONT_HEADING = "'Poppins', sans-serif";
+const FONT_BODY = "'Inter', sans-serif";
 
 /* MASTER DATA OPTIONS */
 const DEPARTMENT_OPTIONS = [
@@ -101,12 +105,31 @@ const DIRECTOR_DEPARTMENTS = [
   "Commercial & Customer Success",
 ];
 
+const PER_PAGE_OPTIONS = [10, 20, 50, 100, 150] as const;
+
 function isValidPositionForDepartment(position: string, department: string): boolean {
   if (!department || department === "All") return true;
   if (position === "Director") {
     return DIRECTOR_DEPARTMENTS.includes(department);
   }
   return VALID_POSITION_DEPARTMENTS[position] === department;
+}
+
+/* HELPER PAGINATION: < 1 2 ... halaman terakhir > */
+function getPaginationRange(currentPage: number, totalPages: number): (number | "...")[] {
+  if (totalPages <= 3) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  if (currentPage <= 2) {
+    return [1, 2, "...", totalPages];
+  }
+
+  if (currentPage >= totalPages - 1) {
+    return [1, "...", totalPages - 1, totalPages];
+  }
+
+  return [1, "...", currentPage, "...", totalPages];
 }
 
 /* TYPES */
@@ -237,14 +260,18 @@ function SmkiDashboard() {
   const [selectedPosition, setSelectedPosition] = useState<string>("All");
   const [selectedStatus, setSelectedStatus] = useState<string>("All");
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  const [openFilterDropdown, setOpenFilterDropdown] = useState<"department" | "position" | "status" | null>(null);
+  const filterDropdownsRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [requestedPageNum, setCurrentPageNum] = useState<number>(1);
-  const itemsPerPage = 8;
+  const [itemsPerPage, setItemsPerPage] = useState<number | "all">(10);
+  const [isPerPageOpen, setIsPerPageOpen] = useState<boolean>(false);
+  const perPageDropdownRef = useRef<HTMLDivElement>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
 
   const [isSmkiOpen, setIsSmkiOpen] = useState<boolean>(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const requestedTab = searchParams.get("tab");
   const activeTab = requestedTab === "log-activity" || requestedTab === "log-login"
     ? "log-activity" : "account-maintains";
@@ -256,6 +283,8 @@ function SmkiDashboard() {
 
   // State untuk Modal Edit
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [openEditDropdown, setOpenEditDropdown] = useState<"employmentStatus" | "department" | "position" | null>(null);
+  const editDropdownsRef = useRef<HTMLDivElement>(null);
   const [editForm, setEditForm] = useState<{
     name: string;
     email: string;
@@ -278,6 +307,31 @@ function SmkiDashboard() {
   const [statusConfirmEmployee, setStatusConfirmEmployee] = useState<Employee | null>(null);
   const [deleteConfirmEmployee, setDeleteConfirmEmployee] = useState<Employee | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
+
+  /* Buka sidebar otomatis di layar desktop (≥ 768px), dan tetap tertutup di HP (< 768px) */
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 768) {
+      setIsSidebarOpen(true);
+    }
+  }, []);
+
+  /* Tutup dropdown per halaman saat klik di luar area */
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (perPageDropdownRef.current && !perPageDropdownRef.current.contains(target)) {
+        setIsPerPageOpen(false);
+      }
+      if (filterDropdownsRef.current && !filterDropdownsRef.current.contains(target)) {
+        setOpenFilterDropdown(null);
+      }
+      if (editDropdownsRef.current && !editDropdownsRef.current.contains(target)) {
+        setOpenEditDropdown(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   /* 1. FETCH DATA KARYAWAN DARI TABEL SUPABASE b2_register */
   const fetchEmployeesFromSupabase = async () => {
@@ -458,11 +512,27 @@ function SmkiDashboard() {
     return (b.isActive === a.isActive) ? 0 : b.isActive ? 1 : -1;
   });
 
-  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage) || 1;
+  /* LOGIKA PAGINATION */
+  const isShowAll = itemsPerPage === "all";
+  const effectiveItemsPerPage = isShowAll
+    ? Math.max(1, filteredEmployees.length)
+    : itemsPerPage;
+
+  const totalPages = isShowAll
+    ? 1
+    : Math.ceil(filteredEmployees.length / effectiveItemsPerPage) || 1;
   const currentPageNum = Math.max(1, Math.min(requestedPageNum, totalPages));
-  const indexOfLastItem = currentPageNum * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentEmployees = filteredEmployees.slice(indexOfFirstItem, indexOfLastItem);
+  const indexOfLastItem = isShowAll
+    ? filteredEmployees.length
+    : currentPageNum * effectiveItemsPerPage;
+  const indexOfFirstItem = isShowAll
+    ? 0
+    : indexOfLastItem - effectiveItemsPerPage;
+  const currentEmployees = isShowAll
+    ? filteredEmployees
+    : filteredEmployees.slice(indexOfFirstItem, indexOfLastItem);
+
+  const paginationItems = getPaginationRange(currentPageNum, totalPages);
 
 
   const handleOpenStatusConfirm = (emp: Employee) => {
@@ -508,8 +578,12 @@ function SmkiDashboard() {
       );
 
       // Pesan Sukses Aktivasi/Deaktivasi
-      setSuccessMessage(willBeActive ? `Akun ${statusConfirmEmployee.name} berhasil diaktifkan.` : `Akun ${statusConfirmEmployee.name} berhasil dinonaktifkan.`);
-      setTimeout(() => setSuccessMessage(""), 4000);
+      setSuccessMessage(
+        willBeActive
+          ? `Account ${statusConfirmEmployee.name} has been successfully activated.`
+          : `Account ${statusConfirmEmployee.name} has been successfully deactivated.`
+      );
+      setTimeout(() => setSuccessMessage(""), 5000);
 
     } catch (err) {
       alert("Terjadi kesalahan sistem saat memperbarui status.");
@@ -551,8 +625,8 @@ function SmkiDashboard() {
 
       setEmployees((prev) => prev.filter((emp) => emp.id !== targetId));
 
-      setSuccessMessage(`Karyawan ${deleteConfirmEmployee.name} berhasil dihapus.`);
-      setTimeout(() => setSuccessMessage(""), 4000);
+      setSuccessMessage(`Employee ${deleteConfirmEmployee.name} has been permanently deleted.`);
+      setTimeout(() => setSuccessMessage(""), 5000);
 
     } catch (err) {
       alert("Terjadi kesalahan sistem saat menghapus data.");
@@ -670,8 +744,8 @@ function SmkiDashboard() {
       setEditingEmployee(null);
 
       // Notifikasi Pesan Sukses Edit Karyawan
-      setSuccessMessage(`Data akun ${editForm.name.trim()} berhasil diperbarui.`);
-      setTimeout(() => setSuccessMessage(""), 4000);
+      setSuccessMessage(`Account ${editForm.name.trim()} has been successfully updated.`);
+      setTimeout(() => setSuccessMessage(""), 5000);
 
     } catch (err) {
       setErrorMessage("Terjadi kesalahan sistem saat menyimpan data.");
@@ -680,45 +754,49 @@ function SmkiDashboard() {
 
   if (isLoading) {
     return (
-      <div style={{ background: "#07111f", color: "#fff", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif" }}>
+      <div style={{ background: "#07111f", color: "#fff", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_HEADING }}>
         <Text>Loading Dashboard IT...
       </Text></div>
     );
   }
 
   return (
-    <main style={{ width: "100vw", height: "100vh", display: "flex", background: "#000", overflow: "hidden", fontFamily: "Arial, Helvetica, sans-serif", margin: 0, padding: 0, boxSizing: "border-box" }}>
+    <main style={{ width: "100vw", height: "100vh", display: "flex", background: "#000", overflow: "hidden", fontFamily: FONT_BODY, margin: 0, padding: 0, boxSizing: "border-box", position: "relative" }}>
 
-      {/* SIDEBAR */}
-      <aside style={{
-        width: isSidebarOpen ? "250px" : "0px",
-        height: "100vh",
-        flexShrink: 0,
-        position: "relative",
-        padding: isSidebarOpen ? "24px 16px" : "0px",
-        background: "#0f2038",
-        color: "#fff",
-        display: "flex",
-        flexDirection: "column",
-        boxSizing: "border-box",
-        overflow: "hidden",
-        transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease"
-      }}>
+      {/* BACKDROP BLUR MOBILE: KLIK DI LUAR SIDEBAR UNTUK MENUTUP */}
+      {isSidebarOpen && (
+        <div
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-slate-900/50 backdrop-blur-[2px] md:hidden"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* SIDEBAR RESPONSIVE */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 md:static md:z-auto h-screen shrink-0 bg-[#0f2038] text-white flex flex-col box-border overflow-hidden transition-all duration-300 ease-in-out ${
+          isSidebarOpen
+            ? "w-[250px] px-4 py-6 translate-x-0"
+            : "w-0 p-0 -translate-x-full md:translate-x-0"
+        }`}
+      >
 
         {isSidebarOpen && (
           <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", overflow: "hidden" }}>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingBottom: "18px", borderBottom: "1px solid rgba(255,255,255,0.1)", whiteSpace: "nowrap" }}>
-              <div style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "transparent" }}>
-                <img
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png"
-                  alt="Logo ANDIMA"
-                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                />
-              </div>
-              <div>
-                <div style={{ color: "#ffffff", fontSize: "15px", fontWeight: 800, letterSpacing: "0.4px", lineHeight: "1.1" }}>ANDIMA</div>
-                <div style={{ color: "#94a3b8", fontSize: "11px", marginTop: "2px" }}><Text>Logistics Suite</Text></div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "18px", borderBottom: "1px solid rgba(255,255,255,0.1)", whiteSpace: "nowrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: "transparent" }}>
+                  <img
+                    src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png"
+                    alt="Logo ANDIMA"
+                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                  />
+                </div>
+                <div>
+                  <div style={{ color: "#ffffff", fontSize: "15px", fontWeight: 800, letterSpacing: "0.4px", lineHeight: "1.1", fontFamily: FONT_HEADING }}>ANDIMA</div>
+                  <div style={{ color: "#94a3b8", fontSize: "11px", marginTop: "2px", fontFamily: FONT_BODY }}><Text>Logistics Suite</Text></div>
+                </div>
               </div>
             </div>
 
@@ -740,6 +818,7 @@ function SmkiDashboard() {
                     justifyContent: "space-between",
                     fontSize: "14px",
                     fontWeight: 700,
+                    fontFamily: FONT_HEADING,
                     cursor: "pointer",
                     textAlign: "left",
                   }}
@@ -767,7 +846,10 @@ function SmkiDashboard() {
                     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                       <button
                         type="button"
-                        onClick={() => router.push('/smki/dashboard')}
+                        onClick={() => {
+                          router.push('/smki/dashboard');
+                          if (window.innerWidth < 768) setIsSidebarOpen(false);
+                        }}
                         style={{
                           width: "100%",
                           padding: "8px 14px",
@@ -781,6 +863,7 @@ function SmkiDashboard() {
                           gap: "10px",
                           fontSize: "13px",
                           fontWeight: activeTab === "account-maintains" ? 600 : 500,
+                          fontFamily: FONT_BODY,
                           cursor: "pointer",
                           textAlign: "left",
                         }}
@@ -793,7 +876,10 @@ function SmkiDashboard() {
 
                       <button
                         type="button"
-                        onClick={() => router.push('/smki/dashboard?tab=log-activity')}
+                        onClick={() => {
+                          router.push('/smki/dashboard?tab=log-activity');
+                          if (window.innerWidth < 768) setIsSidebarOpen(false);
+                        }}
                         style={{
                           width: "100%",
                           padding: "8px 14px",
@@ -807,6 +893,7 @@ function SmkiDashboard() {
                           gap: "10px",
                           fontSize: "13px",
                           fontWeight: activeTab === "log-activity" ? 600 : 500,
+                          fontFamily: FONT_BODY,
                           cursor: "pointer",
                           textAlign: "left",
                         }}
@@ -826,7 +913,7 @@ function SmkiDashboard() {
               onClick={handleLogout}
               style={{
                 width: "100%", height: "44px", borderRadius: "22px", border: "2px solid #f43f5e", background: "transparent", color: "#f43f5e", display: "flex",
-                alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "15px", fontWeight: 700, marginTop: "auto", transition: "all 0.2s ease",
+                alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "15px", fontWeight: 700, fontFamily: FONT_HEADING, marginTop: "auto", transition: "all 0.2s ease",
               }}
             >
               <Text>Logout
@@ -836,10 +923,11 @@ function SmkiDashboard() {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <section style={{ flex: 1, height: "100vh", background: "#ffffff", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" }}>
+      <section style={{ flex: 1, minWidth: 0, height: "100vh", background: "#ffffff", display: "flex", flexDirection: "column", overflow: "hidden", boxSizing: "border-box" }}>
 
-        <header style={{ width: "100%", height: "56px", padding: "0 24px", background: "#ffffff", borderBottom: "1px solid #e2e8f0", color: "#0f172a", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, boxSizing: "border-box", gap: "12px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+        {/* RESPONSIVE HEADER */}
+        <header className="w-full min-h-[56px] px-3 sm:px-6 py-2 sm:py-0 bg-white border-b border-slate-200 text-slate-900 flex items-center justify-between shrink-0 box-border gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setIsSidebarOpen((prev) => !prev)}
@@ -851,37 +939,40 @@ function SmkiDashboard() {
               <HamburgerIcon />
             </button>
 
-            <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f172a", whiteSpace: "nowrap" }}>
+            <span
+              style={{ fontFamily: FONT_HEADING }}
+              className="text-xs sm:text-[13px] font-extrabold text-slate-900 whitespace-nowrap truncate"
+            >
               ANDIMA SMKI
             </span>
-            <span style={{ color: "#e2e8f0", fontSize: "16px", fontWeight: 300 }}>|</span>
-            <nav aria-label="Breadcrumb" style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", whiteSpace: "nowrap" }}>
-              <button
-                type="button"
-                onClick={() => router.push('/smki/dashboard')}
-                style={{border: 0, background: "transparent", padding: 0, fontSize: "12px", fontWeight: 600, color: "#334155", cursor: "pointer",}}
-                className="hover:text-[#0f172a] transition-colors"
-              >
+
+            <span className="hidden sm:inline text-slate-200 text-base font-light">|</span>
+
+            <nav aria-label="Breadcrumb" className="hidden sm:flex items-center gap-1.5 text-xs whitespace-nowrap">
+              <span style={{ fontWeight: 600, color: "#334155", fontFamily: FONT_HEADING }}>
                 SMKI
-              </button>
+              </span>
               <span style={{ color: "#94a3b8", fontWeight: 600 }}>/</span>
-              <span style={{ fontWeight: 600, color: "#334155" }}>
+              <span style={{ fontWeight: 600, color: "#334155", fontFamily: FONT_HEADING }}>
                 <Text dynamic>{activeTab === "log-activity" ? "Log Activity" : "Account Maintains"}</Text>
               </span>
             </nav>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <LanguageSwitcher />
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#bbf7d0", color: "#166534", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800 }}>
+            <div className="flex items-center gap-2">
+              <div
+                style={{ fontFamily: FONT_HEADING }}
+                className="w-7 h-7 rounded-full bg-green-200 text-green-800 flex items-center justify-center text-xs font-extrabold shrink-0"
+              >
                 IT
               </div>
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#0f172a", lineHeight: "1.2" }}>
+              <div className="hidden xs:block sm:block">
+                <div style={{ fontFamily: FONT_HEADING }} className="text-[11px] font-bold text-slate-900 leading-tight max-w-[90px] sm:max-w-none truncate">
                   {currentUserFullName}
                 </div>
-                <div style={{ fontSize: "9px", color: "#64748b" }}><Text>Information Technology</Text></div>
+                <div className="hidden md:block text-[9px] text-slate-500"><Text>Information Technology</Text></div>
               </div>
             </div>
           </div>
@@ -891,11 +982,32 @@ function SmkiDashboard() {
         {activeTab === "account-maintains" && (
           <div className="flex-1 overflow-y-auto box-border p-3 sm:p-4 lg:px-6 lg:py-5">
 
-            {/* Banner Sukses Global */}
+            {/* Banner Sukses Kanan Atas di Bawah Header (5 Detik) */}
             {successMessage && (
-              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#16a34a", padding: "12px 16px", borderRadius: "12px", fontSize: "13px", fontWeight: 600, marginBottom: "16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-                <span><Text dynamic>{successMessage}</Text></span>
-                <button onClick={() => setSuccessMessage("")} style={{ background: "transparent", border: 0, color: "#16a34a", fontWeight: "bold", cursor: "pointer", flexShrink: 0 }}>✕</button>
+              <div
+                role="status"
+                className="fixed right-3 sm:right-6 top-[68px] z-50 w-[calc(100vw-24px)] max-w-[380px] rounded-2xl border border-[#86efac] bg-[#ecfdf5] px-5 py-4 shadow-lg"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div
+                      style={{ fontFamily: FONT_HEADING }}
+                      className="text-[13px] font-extrabold uppercase tracking-wide text-[#064e3b]"
+                    >
+                      SUCCEED
+                    </div>
+                    <p className="mt-1 mb-0 text-[13px] font-medium leading-snug text-[#047857]">
+                      <Text dynamic>{successMessage}</Text>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSuccessMessage("")}
+                    className="text-xs font-bold text-[#047857] hover:text-[#064e3b] cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             )}
 
@@ -929,71 +1041,117 @@ function SmkiDashboard() {
                   )}
                 </div>
 
-                {/* 2. Filter Department */}
-                <select
-                  value={selectedDepartment}
-                  onChange={(e) => {
-                    const newDept = e.target.value;
-                    const directorAllowedDepts = [
-                      "Human Capital & Culture",
-                      "Finance, Accounting & Tax",
-                      "Commercial & Customer Success",
-                    ];
-                    const isCurrentPosValid =
-                      newDept === "All" ||
-                      selectedPosition === "All" ||
-                      (selectedPosition === "Director"
-                        ? directorAllowedDepts.includes(newDept)
-                        : VALID_POSITION_DEPARTMENTS[selectedPosition] === newDept);
+                <div ref={filterDropdownsRef} className="contents">
+                  {(
+                    [
+                      {
+                        key: "department",
+                        value: selectedDepartment,
+                        allLabel: <Text>All Departement</Text>,
+                        options: DEPARTMENT_OPTIONS,
+                        isDynamic: true,
+                        menuClass: "min-w-full w-max max-w-[230px]",
+                        onSelect: (val: string) => {
+                          setSelectedDepartment(val);
+                          setCurrentPageNum(1);
+                          if (!isValidPositionForDepartment(selectedPosition, val)) {
+                            setSelectedPosition("All");
+                          }
+                        },
+                      },
+                      {
+                        key: "position",
+                        value: selectedPosition,
+                        allLabel: <Text>All Position</Text>,
+                        options: POSITION_OPTIONS.filter((pos) =>
+                          isValidPositionForDepartment(pos, selectedDepartment)
+                        ),
+                        isDynamic: true,
+                        menuClass: "max-h-60 min-w-full w-max max-w-[230px] overflow-y-auto",
+                        onSelect: (val: string) => {
+                          setSelectedPosition(val);
+                          setCurrentPageNum(1);
+                        },
+                      },
+                      {
+                        key: "status",
+                        value: selectedStatus,
+                        allLabel: <Text>All Status</Text>,
+                        options: ["Active", "Inactive"],
+                        isDynamic: false,
+                        menuClass: "min-w-full w-max max-w-[180px]",
+                        onSelect: (val: string) => {
+                          setSelectedStatus(val);
+                          setCurrentPageNum(1);
+                        },
+                      },
+                    ] as const
+                  ).map((filter) => {
+                    const isOpen = openFilterDropdown === filter.key;
+                    const renderLabel = (opt: string) =>
+                      opt === "All" ? (
+                        filter.allLabel
+                      ) : filter.isDynamic ? (
+                        <Text dynamic>{opt}</Text>
+                      ) : (
+                        <Text>{opt}</Text>
+                      );
 
-                    setSelectedDepartment(newDept);
-                    setCurrentPageNum(1);
-                    if (!isCurrentPosValid) {
-                      setSelectedPosition("All");
-                    }
-                  }}
-                  className="h-9 px-2 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 basis-[calc(50%-0.375rem)] sm:basis-0 min-w-0 truncate"
-                >
-                  <option value="All"><Text>All Departement</Text></option>
-                  {DEPARTMENT_OPTIONS.map((dept) => (
-                    <option key={dept} value={dept}><Text dynamic>{dept}</Text></option>
-                  ))}
-                </select>
+                    return (
+                      <div
+                        key={filter.key}
+                        className="relative shrink flex-1 basis-[calc(50%-0.375rem)] sm:basis-0 min-w-0"
+                      >
+                        <button
+                          type="button"
+                          aria-haspopup="listbox"
+                          aria-expanded={isOpen}
+                          onClick={() => setOpenFilterDropdown(isOpen ? null : filter.key)}
+                          className={`flex h-9 w-full items-center justify-between gap-1.5 rounded-xl border px-2.5 text-[11px] font-medium text-slate-700 outline-none transition-colors cursor-pointer shadow-2xs ${
+                            isOpen
+                              ? "border-slate-300 bg-[#D9E2EC]"
+                              : "border-slate-200 bg-white hover:border-slate-300 hover:bg-[#D9E2EC]"
+                          }`}
+                        >
+                          <span className="truncate">{renderLabel(filter.value)}</span>
+                          <span className="shrink-0 text-slate-500">
+                            <ChevronDownIcon isOpen={isOpen} />
+                          </span>
+                        </button>
 
-                {/* 3. Filter Position */}
-                <select
-                  value={selectedPosition}
-                  onChange={(e) => { setSelectedPosition(e.target.value); setCurrentPageNum(1); }}
-                  className="h-9 px-2 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 basis-[calc(50%-0.375rem)] sm:basis-0 min-w-0 truncate"
-                >
-                  <option value="All"><Text>All Position</Text></option>
-                  {POSITION_OPTIONS
-                    .filter((pos) => {
-                      if (selectedDepartment === "All") return true;
-                      if (pos === "Director") {
-                        return [
-                          "Human Capital & Culture",
-                          "Finance, Accounting & Tax",
-                          "Commercial & Customer Success",
-                        ].includes(selectedDepartment);
-                      }
-                      return VALID_POSITION_DEPARTMENTS[pos] === selectedDepartment;
-                    })
-                    .map((pos) => (
-                      <option key={pos} value={pos}><Text dynamic>{pos}</Text></option>
-                    ))}
-                </select>
-
-                {/* 4. Filter Status */}
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPageNum(1); }}
-                  className="h-9 px-1.5 bg-white text-[11px] font-medium text-slate-700 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-400 cursor-pointer shadow-2xs shrink flex-1 basis-[calc(50%-0.375rem)] sm:basis-0 min-w-0 truncate"
-                >
-                  <option value="All"><Text>All Status</Text></option>
-                  <option value="Active"><Text>Active</Text></option>
-                  <option value="Inactive"><Text>Inactive</Text></option>
-                </select>
+                        {isOpen && (
+                          <div
+                            role="listbox"
+                            className={`absolute left-0 top-full z-30 mt-1.5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg ${filter.menuClass}`}
+                          >
+                            {["All", ...filter.options].map((opt) => {
+                              const isSelected = filter.value === opt;
+                              return (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={isSelected}
+                                  onClick={() => {
+                                    filter.onSelect(opt);
+                                    setOpenFilterDropdown(null);
+                                  }}
+                                  className={`flex w-full items-center px-3.5 py-2 text-left text-[11px] transition-colors cursor-pointer border-b border-slate-100 last:border-b-0 ${
+                                    isSelected
+                                      ? "bg-[#D9E2EC] font-bold text-slate-900"
+                                      : "bg-white font-medium text-slate-700 hover:bg-[#D9E2EC] active:bg-[#D9E2EC]"
+                                  }`}
+                                >
+                                  {renderLabel(opt)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
 
                 {/* 5. Button Reset */}
                 <button
@@ -1013,6 +1171,7 @@ function SmkiDashboard() {
               <button
                 type="button"
                 onClick={() => router.push('/register')}
+                style={{ fontFamily: FONT_HEADING }}
                 className="h-9 px-3 flex items-center justify-center gap-1.5 text-[11px] font-bold text-white bg-[#055be5] hover:bg-[#0344b0] active:scale-95 rounded-xl transition-all shadow-md shrink-0 cursor-pointer whitespace-nowrap w-full xl:w-auto xl:ml-1"
               >
                 <svg viewBox="0 0 24 24" style={{ width: "16px", height: "16px", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round", strokeLinejoin: "round" }}>
@@ -1023,64 +1182,197 @@ function SmkiDashboard() {
               </button>
             </div>
 
-            {/* TABEL DATA KARYAWAN */}
-            <div style={{ background: "#ffffff", borderRadius: "6px", border: "1px solid #e2e8f0", overflowX: "auto", overflowY: "hidden", width: "100%" }}>
-              <div style={{ minWidth: "760px" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.1fr 1.1fr 0.8fr", alignItems: "center", padding: "10px 16px", background: "#f8fafc", color: "#64748b", fontSize: "11px", fontWeight: 800, letterSpacing: "0.5px", borderBottom: "1px solid #e2e8f0" }}>
-                  <div><Text>EMPLOYEE'S NAME</Text></div>
-                  <div><Text>E-MAIL</Text></div>
-                  <div><Text>DEPARTMENT</Text></div>
-                  <div><Text>POSITION</Text></div>
-                  <div style={{ textAlign: "center" }}><Text>ACTION</Text></div>
+            {/* FRAME UTAMA: TABEL DATA KARYAWAN + FOOTER PAGINATION DI DALAMNYA */}
+            <div className="w-full rounded-[6px] border border-slate-200 bg-white">
+              
+              {/* AREA SCROLL HORIZONTAL KHUSUS ISI TABEL */}
+              <div className="w-full overflow-x-auto rounded-t-[6px]">
+                <div style={{ minWidth: "760px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.1fr 1.1fr 0.8fr", alignItems: "center", padding: "10px 16px", background: "#f8fafc", color: "#64748b", fontSize: "11px", fontWeight: 700, fontFamily: FONT_HEADING, letterSpacing: "0.5px", borderBottom: "1px solid #e2e8f0" }}>
+                    <div><Text>EMPLOYEE'S NAME</Text></div>
+                    <div><Text>E-MAIL</Text></div>
+                    <div><Text>DEPARTMENT</Text></div>
+                    <div><Text>POSITION</Text></div>
+                    <div style={{ textAlign: "center" }}><Text>ACTION</Text></div>
+                  </div>
+
+                  {currentEmployees.length > 0 ? (
+                    currentEmployees.map((employee) => (
+                      <div key={employee.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.1fr 1.1fr 0.8fr", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #f1f5f9", fontSize: "12px", fontFamily: FONT_BODY, color: !employee.isActive ? "#94a3b8" : "#1e293b", background: "#ffffff" }}>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 600 }}>
+                          <span style={{ width: "26px", height: "26px", borderRadius: "50%", background: "#cbd5e1", color: "#334155", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, fontFamily: FONT_HEADING, flexShrink: 0 }}>
+                            {employee.initial}
+                          </span>
+                          <span>{employee.name}</span>
+                        </div>
+
+                        <div style={{ color: "#64748b", wordBreak: "break-all", paddingRight: "8px" }}>{employee.email}</div>
+
+                        <div style={{ fontWeight: 500, color: "#334155" }}>
+                          <Text dynamic>{employee.department}</Text>
+                        </div>
+
+                        <div style={{ fontWeight: 500, color: "#334155" }}>
+                          <Text dynamic>{employee.position}</Text>
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+                          <button onClick={() => handleOpenEdit(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }} title="Edit">
+                            <EditIcon />
+                          </button>
+                          <button onClick={() => handleOpenStatusConfirm(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }} title={employee.isActive ? "Deactivate" : "Activate"}>
+                            <DisableIcon active={employee.isActive} />
+                          </button>
+                          <button onClick={() => handleOpenDeleteConfirm(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }} title="Delete Employee">
+                            <DeleteIcon />
+                          </button>
+                        </div>
+
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ padding: "24px", textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
+                      <Text>No employees found.
+                      </Text></div>
+                  )}
+                </div>
+              </div>
+
+              {/* FOOTER PAGINATION MENYATU DI DALAM FRAME TABEL */}
+              <footer className="flex shrink-0 flex-col items-center justify-between gap-3 rounded-b-[6px] border-t border-slate-200 bg-white px-3 py-3 sm:flex-row sm:flex-wrap sm:px-4">
+                {/* KIRI: Page X of Y | per halaman [Custom Dropdown Rounded #D9E2EC] */}
+                <div className="flex flex-wrap items-center justify-center gap-2.5 text-[12px] text-slate-500 sm:justify-start">
+                  <p role="status" className="m-0">
+                    Page{" "}
+                    <span className="font-bold text-slate-800">{currentPageNum}</span> of{" "}
+                    <span className="font-bold text-slate-800">{totalPages}</span>
+                  </p>
+
+                  <span aria-hidden="true" className="h-3.5 w-[1px] bg-slate-200" />
+
+                  <span className="font-medium text-slate-500"><Text>per halaman</Text></span>
+
+                  {/* CUSTOM DROPDOWN ROUNDED #D9E2EC */}
+                  <div ref={perPageDropdownRef} className="relative">
+                    <button
+                      type="button"
+                      aria-haspopup="listbox"
+                      aria-expanded={isPerPageOpen}
+                      aria-label="Jumlah baris per halaman"
+                      onClick={() => setIsPerPageOpen((prev) => !prev)}
+                      className={`flex h-8 sm:h-9 min-w-[68px] items-center justify-between gap-2 rounded-lg border px-3 text-[12px] font-semibold text-slate-700 outline-none transition-colors cursor-pointer ${
+                        isPerPageOpen
+                          ? "border-slate-300 bg-[#D9E2EC]"
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-[#D9E2EC]"
+                      }`}
+                    >
+                      <span>{itemsPerPage === "all" ? "All" : itemsPerPage}</span>
+                      <ChevronDownIcon isOpen={isPerPageOpen} />
+                    </button>
+
+                    {isPerPageOpen && (
+                      <div
+                        role="listbox"
+                        className="absolute bottom-full left-0 z-30 mb-1.5 w-24 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+                      >
+                        {PER_PAGE_OPTIONS.map((option) => {
+                          const isSelected = itemsPerPage === option;
+                          return (
+                            <button
+                              key={option}
+                              type="button"
+                              role="option"
+                              aria-selected={isSelected}
+                              onClick={() => {
+                                setItemsPerPage(option);
+                                setCurrentPageNum(1);
+                                setIsPerPageOpen(false);
+                              }}
+                              className={`flex w-full items-center px-3.5 py-2 text-left text-[12px] transition-colors cursor-pointer border-b border-slate-100 last:border-b-0 ${
+                                isSelected
+                                  ? "bg-[#D9E2EC] font-bold text-slate-900"
+                                  : "bg-white font-medium text-slate-700 hover:bg-[#D9E2EC] active:bg-[#D9E2EC]"
+                              }`}
+                            >
+                              {option}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {currentEmployees.length > 0 ? (
-                  currentEmployees.map((employee) => (
-                    <div key={employee.id} style={{ display: "grid", gridTemplateColumns: "1.3fr 1.3fr 1.1fr 1.1fr 0.8fr", alignItems: "center", padding: "12px 16px", borderBottom: "1px solid #f1f5f9", fontSize: "12px", color: !employee.isActive ? "#94a3b8" : "#1e293b", background: "#ffffff" }}>
+                {/* KANAN: Kapsul Navigasi Halaman (< 1 2 ... halaman terakhir >) */}
+                <nav aria-label="Pagination Account Maintains" className="inline-flex max-w-full flex-wrap items-center justify-center gap-1 rounded-2xl sm:rounded-full border border-slate-200 bg-white px-2 py-1 sm:px-2.5">
+                  <button
+                    type="button"
+                    aria-label="Halaman sebelumnya"
+                    disabled={currentPageNum <= 1}
+                    onClick={() => setCurrentPageNum((prev) => Math.max(1, prev - 1))}
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5 fill-none stroke-current stroke-[2.2]"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="m15 18-6-6 6-6" />
+                    </svg>
+                  </button>
 
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 700 }}>
-                        <span style={{ width: "26px", height: "26px", borderRadius: "50%", background: "#cbd5e1", color: "#334155", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, flexShrink: 0 }}>
-                          {employee.initial}
+                  {paginationItems.map((item, idx) => {
+                    if (item === "...") {
+                      return (
+                        <span
+                          key={`ellipsis-${idx}`}
+                          className="flex h-7 w-6 items-center justify-center text-[12px] font-medium text-slate-400 select-none"
+                        >
+                          ...
                         </span>
-                        <span>{employee.name}</span>
-                      </div>
+                      );
+                    }
 
-                      <div style={{ color: "#64748b", wordBreak: "break-all", paddingRight: "8px" }}>{employee.email}</div>
+                    const isActive = item === currentPageNum;
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        aria-current={isActive ? "page" : undefined}
+                        onClick={() => setCurrentPageNum(item)}
+                        className={`flex h-7 min-w-[28px] px-1.5 items-center justify-center rounded-full text-[12px] transition-colors cursor-pointer ${
+                          isActive
+                            ? "bg-[#3B6FF5] font-bold text-white"
+                            : "font-medium text-slate-600 hover:bg-slate-100"
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    );
+                  })}
 
-                      <div style={{ fontWeight: 600, color: "#334155" }}>
-                        <Text dynamic>{employee.department}</Text>
-                      </div>
+                  <button
+                    type="button"
+                    aria-label="Halaman berikutnya"
+                    disabled={currentPageNum >= totalPages}
+                    onClick={() => setCurrentPageNum((prev) => Math.min(totalPages, prev + 1))}
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-3.5 w-3.5 fill-none stroke-current stroke-[2.2]"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </button>
+                </nav>
+              </footer>
 
-                      <div style={{ fontWeight: 600, color: "#334155" }}>
-                        <Text dynamic>{employee.position}</Text>
-                      </div>
-
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
-                        <button onClick={() => handleOpenEdit(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }} title="Edit">
-                          <EditIcon />
-                        </button>
-                        <button onClick={() => handleOpenStatusConfirm(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }} title={employee.isActive ? "Deactivate" : "Activate"}>
-                          <DisableIcon active={employee.isActive} />
-                        </button>
-                        <button onClick={() => handleOpenDeleteConfirm(employee)} style={{ border: 0, background: "transparent", cursor: "pointer", padding: 0 }} title="Delete Employee">
-                          <DeleteIcon />
-                        </button>
-                      </div>
-
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ padding: "24px", textAlign: "center", color: "#94a3b8", fontSize: "12px" }}>
-                    <Text>No employees found.
-                    </Text></div>
-                )}
-              </div>
             </div>
-
-            <footer className="mt-3 flex shrink-0 flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 sm:flex-row sm:flex-wrap sm:justify-between sm:px-4">
-              <p role="status" className="text-[11px] text-slate-500 text-center sm:text-left"><Text>Menampilkan </Text><Text dynamic>{filteredEmployees.length ? indexOfFirstItem + 1 : 0}</Text><Text>&ndash;</Text>{Math.min(indexOfLastItem, filteredEmployees.length)} <Text>dari </Text>{filteredEmployees.length} <Text>akun</Text></p>
-              <HistoryPagination page={currentPageNum} totalPages={totalPages} onChange={setCurrentPageNum} label="Pagination Account Maintains" />
-            </footer>
           </div>
         )}
       </section>
@@ -1094,7 +1386,7 @@ function SmkiDashboard() {
           >
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
+              <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, fontFamily: FONT_HEADING, color: "#0f172a" }}>
                 <Text>Edit Account (</Text>{editingEmployee.employeeId})
               </h3>
               <button
@@ -1170,7 +1462,7 @@ function SmkiDashboard() {
               style={{ display: "flex", flexDirection: "column", gap: "14px" }}
             >
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Full Name</Text></label>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 600, fontFamily: FONT_HEADING, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Full Name</Text></label>
                 <LanguageInput
                   type="text"
                   value={editForm.name}
@@ -1184,7 +1476,7 @@ function SmkiDashboard() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Email Address</Text></label>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 600, fontFamily: FONT_HEADING, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Email Address</Text></label>
                 <LanguageInput
                   type="text"
                   value={editForm.email}
@@ -1198,7 +1490,7 @@ function SmkiDashboard() {
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Phone Number</Text></label>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 600, fontFamily: FONT_HEADING, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Phone Number</Text></label>
                 <LanguageInput
                   type="text"
                   placeholder="Max. 12 digits (e.g. 08123456789)"
@@ -1212,70 +1504,231 @@ function SmkiDashboard() {
                 {fieldErrors.phone && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}><Text dynamic>{fieldErrors.phone}</Text></span>}
               </div>
 
-              <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Employment Status</Text></label>
-                <select
-                  value={editForm.employmentStatus}
-                  onChange={(e) => {
-                    setEditForm({ ...editForm, employmentStatus: e.target.value as "Probation" | "Permanent" });
-                    setFieldErrors((prev) => ({ ...prev, employmentStatus: "" }));
-                  }}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: fieldErrors.employmentStatus ? "1px solid #ef4444" : "1px solid #cbd5e1", fontSize: "13px", background: "#fff", boxSizing: "border-box" }}
-                >
-                  <option value="Probation"><Text>Probation</Text></option>
-                  <option value="Permanent"><Text>Permanent</Text></option>
-                </select>
-                {fieldErrors.employmentStatus && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}><Text dynamic>{fieldErrors.employmentStatus}</Text></span>}
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", alignItems: "start" }}>
+              <div ref={editDropdownsRef} className="flex flex-col gap-[14px]">
+                {/* CUSTOM DROPDOWN EMPLOYMENT STATUS */}
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Department</Text></label>
-                  <select
-                    value={editForm.department}
-                    onChange={(e) => {
-                      const newDept = e.target.value;
-                      const availablePositions = POSITION_OPTIONS.filter((pos) =>
-                        isValidPositionForDepartment(pos, newDept)
-                      );
-                      const newPos = availablePositions.includes(editForm.position) ? editForm.position : "";
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 600, fontFamily: FONT_HEADING, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>
+                    <Text>Employment Status</Text>
+                  </label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      aria-haspopup="listbox"
+                      aria-expanded={openEditDropdown === "employmentStatus"}
+                      onClick={() =>
+                        setOpenEditDropdown((prev) =>
+                          prev === "employmentStatus" ? null : "employmentStatus"
+                        )
+                      }
+                      className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left text-[13px] text-slate-800 outline-none transition-colors cursor-pointer ${
+                        fieldErrors.employmentStatus
+                          ? "border-red-500 bg-white"
+                          : openEditDropdown === "employmentStatus"
+                          ? "border-slate-400 bg-[#D9E2EC]"
+                          : "border-slate-300 bg-white hover:bg-[#D9E2EC]"
+                      }`}
+                    >
+                      <span><Text>{editForm.employmentStatus}</Text></span>
+                      <ChevronDownIcon isOpen={openEditDropdown === "employmentStatus"} />
+                    </button>
 
-                      setEditForm({ ...editForm, department: newDept, position: newPos });
-                      setFieldErrors((prev) => ({ ...prev, department: "", position: "" }));
-                    }}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: fieldErrors.department ? "1px solid #ef4444" : "1px solid #cbd5e1", fontSize: "13px", background: "#fff", boxSizing: "border-box" }}
-                  >
-                    <option value=""><Text>Select Department</Text></option>
-                    {DEPARTMENT_OPTIONS.map((dept) => (
-                      <option key={dept} value={dept}><Text dynamic>{dept}</Text></option>
-                    ))}
-                  </select>
-                  {fieldErrors.department && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}><Text dynamic>{fieldErrors.department}</Text></span>}
+                    {openEditDropdown === "employmentStatus" && (
+                      <div
+                        role="listbox"
+                        className="absolute left-0 top-full z-30 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+                      >
+                        {(["Probation", "Permanent"] as const).map((statusOpt) => {
+                          const isSelected = editForm.employmentStatus === statusOpt;
+                          return (
+                            <button
+                              key={statusOpt}
+                              type="button"
+                              role="option"
+                              aria-selected={isSelected}
+                              onClick={() => {
+                                setEditForm({ ...editForm, employmentStatus: statusOpt });
+                                setFieldErrors((prev) => ({ ...prev, employmentStatus: "" }));
+                                setOpenEditDropdown(null);
+                              }}
+                              className={`flex w-full items-center px-3.5 py-2.5 text-left text-[13px] transition-colors cursor-pointer border-b border-slate-100 last:border-b-0 ${
+                                isSelected
+                                  ? "bg-[#D9E2EC] font-bold text-slate-900"
+                                  : "bg-white font-medium text-slate-700 hover:bg-[#D9E2EC] active:bg-[#D9E2EC]"
+                              }`}
+                            >
+                              <Text>{statusOpt}</Text>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  {fieldErrors.employmentStatus && (
+                    <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>
+                      <Text dynamic>{fieldErrors.employmentStatus}</Text>
+                    </span>
+                  )}
                 </div>
 
-                <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}><Text>Position</Text></label>
-                  <select
-                    value={editForm.position}
-                    onChange={(e) => {
-                      setEditForm({ ...editForm, position: e.target.value });
-                      setFieldErrors((prev) => ({ ...prev, position: "" }));
-                    }}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: fieldErrors.position ? "1px solid #ef4444" : "1px solid #cbd5e1", fontSize: "13px", background: "#fff", boxSizing: "border-box" }}
-                  >
-                    <option value=""><Text>Select Position</Text></option>
-                    {POSITION_OPTIONS
-                      .filter((pos) => isValidPositionForDepartment(pos, editForm.department))
-                      .map((pos) => (
-                        <option key={pos} value={pos}><Text dynamic>{pos}</Text></option>
-                      ))}
-                  </select>
-                  {fieldErrors.position && <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}><Text dynamic>{fieldErrors.position}</Text></span>}
+                {/* CUSTOM DROPDOWN DEPARTMENT & POSITION */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, fontFamily: FONT_HEADING, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>
+                      <Text>Department</Text>
+                    </label>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        aria-haspopup="listbox"
+                        aria-expanded={openEditDropdown === "department"}
+                        onClick={() =>
+                          setOpenEditDropdown((prev) =>
+                            prev === "department" ? null : "department"
+                          )
+                        }
+                        className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-[13px] outline-none transition-colors cursor-pointer ${
+                          fieldErrors.department
+                            ? "border-red-500 bg-white"
+                            : openEditDropdown === "department"
+                            ? "border-slate-400 bg-[#D9E2EC]"
+                            : "border-slate-300 bg-white hover:bg-[#D9E2EC]"
+                        }`}
+                      >
+                        <span className={`truncate ${editForm.department ? "text-slate-800" : "text-slate-400"}`}>
+                          {editForm.department ? (
+                            <Text dynamic>{editForm.department}</Text>
+                          ) : (
+                            <Text>Select Department</Text>
+                          )}
+                        </span>
+                        <span className="shrink-0">
+                          <ChevronDownIcon isOpen={openEditDropdown === "department"} />
+                        </span>
+                      </button>
+
+                      {openEditDropdown === "department" && (
+                        <div
+                          role="listbox"
+                          className="absolute left-0 top-full z-30 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg"
+                        >
+                          {DEPARTMENT_OPTIONS.map((dept) => {
+                            const isSelected = editForm.department === dept;
+                            return (
+                              <button
+                                key={dept}
+                                type="button"
+                                role="option"
+                                aria-selected={isSelected}
+                                onClick={() => {
+                                  const availablePositions = POSITION_OPTIONS.filter((pos) =>
+                                    isValidPositionForDepartment(pos, dept)
+                                  );
+                                  const newPos = availablePositions.includes(editForm.position)
+                                    ? editForm.position
+                                    : "";
+
+                                  setEditForm({ ...editForm, department: dept, position: newPos });
+                                  setFieldErrors((prev) => ({ ...prev, department: "", position: "" }));
+                                  setOpenEditDropdown(null);
+                                }}
+                                className={`flex w-full items-center px-3.5 py-2.5 text-left text-[13px] transition-colors cursor-pointer border-b border-slate-100 last:border-b-0 ${
+                                  isSelected
+                                    ? "bg-[#D9E2EC] font-bold text-slate-900"
+                                    : "bg-white font-medium text-slate-700 hover:bg-[#D9E2EC] active:bg-[#D9E2EC]"
+                                }`}
+                              >
+                                <Text dynamic>{dept}</Text>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    {fieldErrors.department && (
+                      <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>
+                        <Text dynamic>{fieldErrors.department}</Text>
+                      </span>
+                    )}
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, fontFamily: FONT_HEADING, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>
+                      <Text>Position</Text>
+                    </label>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        aria-haspopup="listbox"
+                        aria-expanded={openEditDropdown === "position"}
+                        onClick={() =>
+                          setOpenEditDropdown((prev) =>
+                            prev === "position" ? null : "position"
+                          )
+                        }
+                        className={`flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-[13px] outline-none transition-colors cursor-pointer ${
+                          fieldErrors.position
+                            ? "border-red-500 bg-white"
+                            : openEditDropdown === "position"
+                            ? "border-slate-400 bg-[#D9E2EC]"
+                            : "border-slate-300 bg-white hover:bg-[#D9E2EC]"
+                        }`}
+                      >
+                        <span className={`truncate ${editForm.position ? "text-slate-800" : "text-slate-400"}`}>
+                          {editForm.position ? (
+                            <Text dynamic>{editForm.position}</Text>
+                          ) : (
+                            <Text>Select Position</Text>
+                          )}
+                        </span>
+                        <span className="shrink-0">
+                          <ChevronDownIcon isOpen={openEditDropdown === "position"} />
+                        </span>
+                      </button>
+
+                      {openEditDropdown === "position" && (
+                        <div
+                          role="listbox"
+                          className="absolute left-0 top-full z-30 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg"
+                        >
+                          {POSITION_OPTIONS.filter((pos) =>
+                            isValidPositionForDepartment(pos, editForm.department)
+                          ).map((pos) => {
+                            const isSelected = editForm.position === pos;
+                            return (
+                              <button
+                                key={pos}
+                                type="button"
+                                role="option"
+                                aria-selected={isSelected}
+                                onClick={() => {
+                                  setEditForm({ ...editForm, position: pos });
+                                  setFieldErrors((prev) => ({ ...prev, position: "" }));
+                                  setOpenEditDropdown(null);
+                                }}
+                                className={`flex w-full items-center px-3.5 py-2.5 text-left text-[13px] transition-colors cursor-pointer border-b border-slate-100 last:border-b-0 ${
+                                  isSelected
+                                    ? "bg-[#D9E2EC] font-bold text-slate-900"
+                                    : "bg-white font-medium text-slate-700 hover:bg-[#D9E2EC] active:bg-[#D9E2EC]"
+                                }`}
+                              >
+                                <Text dynamic>{pos}</Text>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    {fieldErrors.position && (
+                      <span style={{ color: "#ef4444", fontSize: "11px", fontWeight: 600, marginTop: "4px", display: "block" }}>
+                        <Text dynamic>{fieldErrors.position}</Text>
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 600, fontFamily: FONT_HEADING, color: "#475569", textTransform: "uppercase", marginBottom: "4px" }}>
                   <Text>Reset Password (Optional)
                 </Text></label>
                 <LanguageInput
@@ -1315,13 +1768,13 @@ function SmkiDashboard() {
                     setEditingEmployee(null);
                     setFieldErrors({});
                   }}
-                  style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: "#1e293b", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
+                  style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: "#1e293b", color: "#ffffff", fontSize: "14px", fontWeight: 600, fontFamily: FONT_HEADING, cursor: "pointer" }}
                 >
                   <Text>Cancel
                 </Text></button>
                 <button
                   type="submit"
-                  style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: "#3B6FF5", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
+                  style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: "#3B6FF5", color: "#ffffff", fontSize: "14px", fontWeight: 600, fontFamily: FONT_HEADING, cursor: "pointer" }}
                 >
                   <Text>Edit User
                 </Text></button>
@@ -1333,35 +1786,40 @@ function SmkiDashboard() {
 
       {/* CONFIRMATION STATUS */}
       {statusConfirmEmployee && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60 }}>
-          <div style={{ width: "100%", maxWidth: "420px", background: "#ffffff", borderRadius: "16px", padding: "28px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", textAlign: "center", boxSizing: "border-box" }}>
-            <div style={{ width: "50px", height: "50px", borderRadius: "50%", background: statusConfirmEmployee.isActive ? "#fee2e2" : "#dbeafe", color: statusConfirmEmployee.isActive ? "#ef4444" : "#3B6FF5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px auto" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}>
+          <div style={{ width: "100%", maxWidth: "400px", background: "#ffffff", border: "2.5px solid #D9364F", borderRadius: "20px", padding: "32px 28px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.12)", textAlign: "center", boxSizing: "border-box" }}>
+            <div style={{ width: "54px", height: "54px", borderRadius: "50%", background: statusConfirmEmployee.isActive ? "#fee2e2" : "#dbeafe", color: statusConfirmEmployee.isActive ? "#D9364F" : "#155DFC", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px auto" }}>
               <DisableIcon active={!statusConfirmEmployee.isActive} />
             </div>
 
-            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
-              <Text dynamic>{statusConfirmEmployee.isActive ? "Deactivate Employee?" : "Activate Employee?"}</Text>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "20px", fontWeight: 700, fontFamily: FONT_HEADING, color: "#0f172a" }}>
+              <Text dynamic>
+                {statusConfirmEmployee.isActive
+                  ? "Confirm To Deactivate?"
+                  : "Confirm To Activate?"}
+              </Text>
             </h3>
 
             <p style={{ fontSize: "13px", color: "#64748b", lineHeight: "1.5", margin: "0 0 24px 0" }}>
-              <Text>Are you sure you want to </Text><Text dynamic>{statusConfirmEmployee.isActive ? "deactivate" : "reactivate"}</Text>{" "}
+              <Text>Are you sure you want to </Text>
+              <Text dynamic>{statusConfirmEmployee.isActive ? "deactivate" : "activate"}</Text>{" "}
               <b>{statusConfirmEmployee.name}</b> ({statusConfirmEmployee.employeeId})?
             </p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              <button
-                type="button"
-                onClick={() => setStatusConfirmEmployee(null)}
-                style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: "#1e293b", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
-              >
-                <Text>Cancel
-              </Text></button>
+            <div style={{ display: "flex", justifyContent: "center", gap: "14px" }}>
               <button
                 type="button"
                 onClick={handleConfirmToggleStatus}
-                style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: statusConfirmEmployee.isActive ? "#ef4444" : "#3B6FF5", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
+                style={{ minWidth: "112px", padding: "10px 24px", borderRadius: "10px", border: 0, background: "#155DFC", color: "#ffffff", fontSize: "14px", fontWeight: 600, fontFamily: FONT_HEADING, cursor: "pointer" }}
               >
-                <Text dynamic>{statusConfirmEmployee.isActive ? "Yes, Deactivate" : "Yes, Activate"}</Text>
+                <Text>Yes</Text>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusConfirmEmployee(null)}
+                style={{ minWidth: "112px", padding: "10px 24px", borderRadius: "10px", border: 0, background: "#D9364F", color: "#ffffff", fontSize: "14px", fontWeight: 600, fontFamily: FONT_HEADING, cursor: "pointer" }}
+              >
+                <Text>No</Text>
               </button>
             </div>
           </div>
@@ -1370,35 +1828,36 @@ function SmkiDashboard() {
 
       {/* CONFIRMATION DELETE */}
       {deleteConfirmEmployee && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60 }}>
-          <div style={{ width: "100%", maxWidth: "420px", background: "#ffffff", borderRadius: "16px", padding: "28px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", textAlign: "center", boxSizing: "border-box" }}>
-            <div style={{ width: "50px", height: "50px", borderRadius: "50%", background: "#fee2e2", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px auto" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: "16px" }}>
+          <div style={{ width: "100%", maxWidth: "400px", background: "#ffffff", border: "2.5px solid #D9364F", borderRadius: "20px", padding: "32px 28px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.12)", textAlign: "center", boxSizing: "border-box" }}>
+            <div style={{ width: "54px", height: "54px", borderRadius: "50%", background: "#fee2e2", color: "#D9364F", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px auto" }}>
               <DeleteIcon />
             </div>
 
-            <h3 style={{ margin: "0 0 8px 0", fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>
-              <Text>Delete Employee?
-            </Text></h3>
+            <h3 style={{ margin: "0 0 8px 0", fontSize: "20px", fontWeight: 700, fontFamily: FONT_HEADING, color: "#0f172a" }}>
+              <Text dynamic>Confirm To Delete?</Text>
+            </h3>
 
             <p style={{ fontSize: "13px", color: "#64748b", lineHeight: "1.5", margin: "0 0 24px 0" }}>
-              <Text>Are you sure you want to permanently delete employee </Text><b>{deleteConfirmEmployee.name}</b> ({deleteConfirmEmployee.employeeId})?
+              <Text dynamic>Are you sure you want to permanently delete</Text>{" "}
+              <b>{deleteConfirmEmployee.name}</b> ({deleteConfirmEmployee.employeeId})?
             </p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-              <button
-                type="button"
-                onClick={() => setDeleteConfirmEmployee(null)}
-                style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: "#1e293b", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
-              >
-                <Text>Cancel
-              </Text></button>
+            <div style={{ display: "flex", justifyContent: "center", gap: "14px" }}>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                style={{ padding: "12px 20px", borderRadius: "12px", border: 0, background: "#ef4444", color: "#ffffff", fontSize: "14px", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(239,68,68,0.35)" }}
+                style={{ minWidth: "112px", padding: "10px 24px", borderRadius: "10px", border: 0, background: "#155DFC", color: "#ffffff", fontSize: "14px", fontWeight: 600, fontFamily: FONT_HEADING, cursor: "pointer" }}
               >
-                <Text>Yes, Delete
-              </Text></button>
+                <Text>Yes</Text>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmEmployee(null)}
+                style={{ minWidth: "112px", padding: "10px 24px", borderRadius: "10px", border: 0, background: "#D9364F", color: "#ffffff", fontSize: "14px", fontWeight: 600, fontFamily: FONT_HEADING, cursor: "pointer" }}
+              >
+                <Text>No</Text>
+              </button>
             </div>
           </div>
         </div>
@@ -1410,7 +1869,7 @@ function SmkiDashboard() {
 
 export default function SmkiPage() {
   return (
-    <Suspense fallback={<main className="flex h-screen items-center justify-center bg-[#07111f] text-white"><Text>Loading Dashboard IT...</Text></main>}>
+    <Suspense fallback={<main className="flex h-screen items-center justify-center bg-[#07111f] text-white" style={{ fontFamily: FONT_HEADING }}><Text>Loading Dashboard IT...</Text></main>}>
       <SmkiDashboard />
     </Suspense>
   );

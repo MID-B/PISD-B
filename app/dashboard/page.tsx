@@ -321,59 +321,59 @@ export default function SalesPerformance() {
 
   return (
     <DashboardShell activePage="dashboard">
-      <div className="flex flex-col gap-1.5 h-full min-h-0 max-h-full p-1 bg-slate-100/80 rounded-xl text-xs overflow-y-auto overflow-x-hidden lg:overflow-hidden select-none">
-        <div className="grid grid-cols-2 sm:grid-cols-6 lg:grid-cols-5 gap-2 shrink-0">
-          <div className="col-span-1 sm:col-span-2 lg:col-span-1 bg-gradient-to-br from-emerald-50 to-emerald-100/60 p-2.5 2xl:p-3.5 rounded-xl border border-emerald-200/60 shadow-2xs flex flex-col justify-between">
+      <div className="flex flex-col gap-3 lg:gap-1.5 min-h-full lg:h-full lg:min-h-0 lg:max-h-full p-2.5 sm:p-3 lg:p-1 pb-6 lg:pb-1 bg-slate-100/80 rounded-xl text-xs overflow-y-auto overflow-x-hidden lg:overflow-hidden select-none">
+        <div className="grid grid-cols-2 sm:grid-cols-6 lg:grid-cols-5 gap-2.5 lg:gap-2 shrink-0">
+          <div className="col-span-1 sm:col-span-2 lg:col-span-1 bg-gradient-to-br from-emerald-50 to-emerald-100/60 p-3 lg:p-2.5 2xl:p-3.5 rounded-2xl lg:rounded-xl border border-emerald-200/60 shadow-2xs flex flex-col justify-between">
             <span className="text-[10px] lg:text-[9px] 2xl:text-xs font-bold text-emerald-700 uppercase tracking-wide"><Text>Total Profit</Text></span>
-            <span className="text-xs sm:text-sm 2xl:text-xl font-extrabold text-emerald-900 mt-1 truncate">{formatRupiah(totalProfitVal)}</span>
+            <span className="text-sm sm:text-base lg:text-sm 2xl:text-xl font-extrabold text-emerald-900 mt-1 truncate">{formatRupiah(totalProfitVal)}</span>
           </div>
 
-          <div className="col-span-1 sm:col-span-2 lg:col-span-1 bg-gradient-to-br from-amber-50 to-amber-100/60 p-2.5 2xl:p-3.5 rounded-xl border border-amber-200/60 shadow-2xs flex flex-col justify-between">
+          <div className="col-span-1 sm:col-span-2 lg:col-span-1 bg-gradient-to-br from-amber-50 to-amber-100/60 p-3 lg:p-2.5 2xl:p-3.5 rounded-2xl lg:rounded-xl border border-amber-200/60 shadow-2xs flex flex-col justify-between">
             <span className="text-[10px] lg:text-[9px] 2xl:text-xs font-bold text-amber-700 uppercase tracking-wide"><Text>Outstanding Pay</Text></span>
-            <span className="text-xs sm:text-sm 2xl:text-xl font-extrabold text-amber-900 mt-1 truncate">{formatRupiah(totalOutstandingVal)}</span>
+            <span className="text-sm sm:text-base lg:text-sm 2xl:text-xl font-extrabold text-amber-900 mt-1 truncate">{formatRupiah(totalOutstandingVal)}</span>
           </div>
 
-          <div className="col-span-1 sm:col-span-2 lg:col-span-1 bg-gradient-to-br from-rose-50 to-rose-100/60 p-2.5 2xl:p-3.5 rounded-xl border border-rose-200/60 shadow-2xs flex flex-col justify-between">
+          <div className="col-span-1 sm:col-span-2 lg:col-span-1 bg-gradient-to-br from-rose-50 to-rose-100/60 p-3 lg:p-2.5 2xl:p-3.5 rounded-2xl lg:rounded-xl border border-rose-200/60 shadow-2xs flex flex-col justify-between">
             <span className="text-[10px] lg:text-[9px] 2xl:text-xs font-bold text-rose-700 uppercase tracking-wide"><Text>Urgent Issues</Text></span>
-            <span className="text-xs sm:text-sm 2xl:text-xl font-extrabold text-rose-900 mt-1 truncate">{urgentCount} <Text>Issue</Text></span>
+            <span className="text-sm sm:text-base lg:text-sm 2xl:text-xl font-extrabold text-rose-900 mt-1 truncate">{urgentCount} <Text>Issue</Text></span>
           </div>
 
-          <div className="col-span-1 sm:col-span-3 lg:col-span-1 bg-gradient-to-br from-blue-50 to-blue-100/60 p-2.5 2xl:p-3.5 rounded-xl border border-blue-200/60 shadow-2xs flex flex-col justify-between">
+          <div className="col-span-1 sm:col-span-3 lg:col-span-1 bg-gradient-to-br from-blue-50 to-blue-100/60 p-3 lg:p-2.5 2xl:p-3.5 rounded-2xl lg:rounded-xl border border-blue-200/60 shadow-2xs flex flex-col justify-between">
             <span className="text-[10px] lg:text-[9px] 2xl:text-xs font-bold text-blue-700 uppercase tracking-wide"><Text>Active Customers</Text></span>
-            <span className="text-xs sm:text-sm 2xl:text-xl font-extrabold text-blue-900 mt-1 truncate">{activeCustomers} <Text>Klien</Text></span>
+            <span className="text-sm sm:text-base lg:text-sm 2xl:text-xl font-extrabold text-blue-900 mt-1 truncate">{activeCustomers} <Text>Klien</Text></span>
           </div>
 
-          <div className="col-span-2 sm:col-span-3 lg:col-span-1 bg-gradient-to-br from-purple-50 to-purple-100/60 p-2.5 2xl:p-3.5 rounded-xl border border-purple-200/60 shadow-2xs flex flex-col justify-between">
+          <div className="col-span-2 sm:col-span-3 lg:col-span-1 bg-gradient-to-br from-purple-50 to-purple-100/60 p-3 lg:p-2.5 2xl:p-3.5 rounded-2xl lg:rounded-xl border border-purple-200/60 shadow-2xs flex flex-col justify-between">
             <span className="text-[10px] lg:text-[9px] 2xl:text-xs font-bold text-purple-700 uppercase tracking-wide"><Text>Total Employees</Text></span>
-            <span className="text-xs sm:text-sm 2xl:text-xl font-extrabold text-purple-900 mt-1 truncate">{totalEmployees} <Text>Orang</Text></span>
+            <span className="text-sm sm:text-base lg:text-sm 2xl:text-xl font-extrabold text-purple-900 mt-1 truncate">{totalEmployees} <Text>Orang</Text></span>
           </div>
         </div>
 
         {/* 2. LAYOUT UTAMA 2 KOLOM (laptop ke atas) / 1 KOLOM MENUMPUK (HP & tablet) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 lg:gap-1 flex-none lg:flex-1 lg:min-h-0 items-stretch lg:overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-1 flex-none lg:flex-1 lg:min-h-0 items-stretch lg:overflow-hidden">
 
           {/* KOLOM KIRI: GRAFIK DASHBOARD UTAMA */}
-          <div className="lg:col-span-6 flex flex-col gap-2 lg:gap-1 min-h-0 lg:overflow-hidden">
+          <div className="lg:col-span-6 flex flex-col gap-3 lg:gap-1 min-w-0 min-h-0 lg:overflow-hidden">
 
             {/* Sales Performance Trend */}
-            <div className="bg-white p-2.5 lg:p-2 rounded-xl shadow-2xs border border-slate-200/80 flex flex-col flex-none lg:flex-1 min-h-0 justify-between overflow-hidden [&_.p-6]:!p-0 [&_.mb-4]:!mb-0 [&_.h-72]:!h-[200px] lg:[&_.h-72]:!h-[120px] 2xl:[&_.h-72]:!h-[160px] [&_h3]:!text-xs lg:[&_h3]:!text-[10px] 2xl:[&_h3]:!text-xs [&_p]:!text-[10px] lg:[&_p]:!text-[8px] 2xl:[&_p]:!text-[10px]">
-              <div className="w-full h-full flex flex-col justify-between overflow-hidden">
+            <div className="bg-white p-3.5 lg:p-2 rounded-2xl lg:rounded-xl shadow-2xs border border-slate-200/80 flex flex-col flex-none lg:flex-1 min-w-0 min-h-0 justify-between overflow-visible lg:overflow-hidden [&_.p-6]:!p-0 [&_.mb-4]:!mb-2 lg:[&_.mb-4]:!mb-0 [&_.h-72]:!h-[230px] sm:[&_.h-72]:!h-[210px] lg:[&_.h-72]:!h-[120px] 2xl:[&_.h-72]:!h-[160px] [&_h3]:!text-xs lg:[&_h3]:!text-[10px] 2xl:[&_h3]:!text-xs [&_p]:!text-[10px] lg:[&_p]:!text-[8px] 2xl:[&_p]:!text-[10px]">
+              <div className="w-full min-w-0 h-auto lg:h-full flex flex-col justify-between overflow-visible lg:overflow-hidden">
                 <SalesPerformanceTrend model={trend} />
               </div>
             </div>
 
             {/* Top Purchasing Clients (Grafik Batang) */}
-            <div className="bg-white p-2.5 2xl:p-3.5 rounded-xl shadow-2xs border border-slate-200/80 flex flex-col flex-none lg:flex-1 min-h-0 justify-between">
-              <div className="flex flex-wrap items-center justify-between gap-1 mb-0.5 shrink-0">
-                <h2 className="text-[10px] 2xl:text-xs font-bold text-slate-800 uppercase tracking-wide"><Text>Top Purchasing Clients</Text></h2>
+            <div className="bg-white p-3.5 lg:p-2.5 2xl:p-3.5 rounded-2xl lg:rounded-xl shadow-2xs border border-slate-200/80 flex flex-col flex-none lg:flex-1 min-w-0 min-h-0 justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-1.5 mb-2 lg:mb-0.5 shrink-0">
+                <h2 className="text-xs lg:text-[10px] 2xl:text-xs font-bold text-slate-800 uppercase tracking-wide"><Text>Top Purchasing Clients</Text></h2>
 
                 {/* KUMPULAN KONTROL FILTER */}
-                <div className="flex flex-wrap items-center gap-1">
+                <div className="flex flex-wrap items-center gap-1.5 lg:gap-1">
                   <div className="relative">
                     <button
                       type="button"
                       onClick={() => setIsTopClientsPeriodOpen(!isTopClientsPeriodOpen)}
-                      className="bg-white text-[10px] lg:text-[9px] 2xl:text-[11px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-3 py-1.5 lg:py-1 cursor-pointer hover:bg-[#C3C6D7] transition-colors flex items-center gap-1 shadow-2xs"
+                      className="bg-white text-[11px] lg:text-[9px] 2xl:text-[11px] font-bold text-slate-700 border border-[#D9E2EC] rounded-full px-3 py-1.5 lg:py-1 cursor-pointer hover:bg-[#D9E2EC] transition-colors flex items-center gap-1 shadow-2xs"
                     >
                       <span>
                         <Text>{{
@@ -388,7 +388,7 @@ export default function SalesPerformance() {
                     </button>
 
                     {isTopClientsPeriodOpen && (
-                      <div className="absolute right-0 top-full mt-1 z-50 min-w-full bg-white border border-[#D9E2EC] rounded-xl shadow-md overflow-hidden py-1">
+                      <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1 z-50 min-w-max bg-white border border-[#D9E2EC] rounded-xl shadow-md overflow-hidden py-1">
                         {[
                           ['3', 'Per 3 Bulan'],
                           ['6', 'Per 6 Bulan'],
@@ -463,19 +463,31 @@ export default function SalesPerformance() {
               ) : topClients.chartData.length === 0 ? (
                 <p className="text-[9px] text-slate-400 py-2 text-center"><Text>Tidak ada data.</Text></p>
               ) : (
-                <div className="min-w-0 w-full h-60 flex-none lg:h-auto lg:flex-1 lg:min-h-[90px]">
+                <div className="min-w-0 w-full h-64 sm:h-60 flex-none lg:h-auto lg:flex-1 lg:min-h-[90px]">
                   <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                    <BarChart data={topClients.chartData} margin={{ top: 5, right: 5, left: isWide ? -15 : -25, bottom: 0 }} barGap={3}>
+                    <BarChart
+                      data={topClients.chartData}
+                      margin={{
+                        top: 8,
+                        right: isCompact ? 8 : 5,
+                        left: isCompact ? -10 : isWide ? -15 : -25,
+                        bottom: isCompact ? 8 : 0,
+                      }}
+                      barGap={3}
+                    >
                       <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
                       <XAxis
                         dataKey="client"
-                        tick={{ fontSize: isWide ? 11 : isCompact ? 9 : 8, fill: '#64748B' }}
+                        tick={{ fontSize: isWide ? 11 : isCompact ? 10 : 8, fill: '#64748B' }}
                         interval={0}
                         tickFormatter={(value: string) =>
                           isCompact && String(value).length > 10 ? `${String(value).substring(0, 10)}…` : value
                         }
                       />
-                      <YAxis tick={{ fontSize: isWide ? 12 : isCompact ? 10 : 9, fill: '#64748B' }} />
+                      <YAxis
+                        width={isCompact ? 42 : 48}
+                        tick={{ fontSize: isWide ? 12 : isCompact ? 10 : 9, fill: '#64748B' }}
+                      />
                       <Tooltip
                         formatter={(val: unknown, name: unknown) => [
                           name === 'revenue' ? `Rp ${String(val)}M` : `${String(val)} Pesanan`,
@@ -493,10 +505,10 @@ export default function SalesPerformance() {
           </div>
 
           {/* KOLOM KANAN: TABEL-TABEL DATA OPERASIONAL */}
-          <div className="lg:col-span-6 flex flex-col gap-2 lg:gap-1 min-h-0 lg:overflow-hidden">
+          <div className="lg:col-span-6 flex flex-col gap-3 lg:gap-1 min-w-0 min-h-0 lg:overflow-hidden">
 
             {/* 1. Outstanding Payments */}
-            <div className="bg-white p-2.5 lg:p-2 2xl:p-3 rounded-xl shadow-2xs border border-[#D9E2EC] flex-none lg:flex-1 min-h-0 overflow-hidden [&_.p-6]:!p-0 [&_.mb-4]:!mb-0.5 [&_table]:!text-[11px] lg:[&_table]:!text-[9px] 2xl:[&_table]:!text-[11px] [&_th]:!py-1 [&_td]:!py-1.5 lg:[&_td]:!py-0.5 2xl:[&_td]:!py-1">
+            <div className="bg-white p-3.5 lg:p-2 2xl:p-3 rounded-2xl lg:rounded-xl shadow-2xs border border-[#D9E2EC] flex-none lg:flex-1 min-w-0 min-h-0 overflow-hidden [&_.p-6]:!p-0 [&_.mb-4]:!mb-0.5 [&_table]:!text-[11px] lg:[&_table]:!text-[9px] 2xl:[&_table]:!text-[11px] [&_th]:!py-1.5 lg:[&_th]:!py-1 [&_td]:!py-2 lg:[&_td]:!py-0.5 2xl:[&_td]:!py-1">
               {/* Header dengan tombol pill biru */}
               <div className="mb-1 flex items-center justify-between gap-2 shrink-0 pr-1">
                 <h3 className="text-[11px] 2xl:text-sm font-bold text-slate-800 uppercase tracking-wide"><Text>Outstanding Payments</Text></h3>
@@ -517,7 +529,7 @@ export default function SalesPerformance() {
             </div>
 
             {/* 2. Issue Board */}
-            <div className="bg-white p-2.5 lg:p-2 2xl:p-3 rounded-xl shadow-2xs border border-[#D9E2EC] flex-none lg:flex-1 min-h-0 overflow-hidden">
+            <div className="bg-white p-3.5 lg:p-2 2xl:p-3 rounded-2xl lg:rounded-xl shadow-2xs border border-[#D9E2EC] flex-none lg:flex-1 min-w-0 min-h-0 overflow-hidden">
               {/* Wrapper ini hanya aktif di HP/tablet (scroll samping). Di laptop ke atas dia "menghilang" (contents) sehingga tampilan sama seperti awal */}
               <div className="w-full overflow-x-auto lg:contents [&_table]:min-w-[34rem] lg:[&_table]:min-w-0 2xl:[&_table]:!text-[11px]">
                 <DashboardIssueTable
@@ -529,7 +541,7 @@ export default function SalesPerformance() {
             </div>
 
             {/* 3. Require Employee & Open Positions */}
-            <div className="bg-white p-2.5 lg:p-2 2xl:p-3 rounded-xl shadow-2xs border border-[#D9E2EC] flex-none lg:flex-1 min-h-0 overflow-hidden">
+            <div className="bg-white p-3.5 lg:p-2 2xl:p-3 rounded-2xl lg:rounded-xl shadow-2xs border border-[#D9E2EC] flex-none lg:flex-1 min-w-0 min-h-0 overflow-hidden">
               <div className="mb-1.5 flex items-center justify-between gap-2 pr-1.5">
                 <h2 className="text-[11px] 2xl:text-sm font-bold text-slate-800 uppercase tracking-wide"><Text>Require Employee & Open Positions</Text></h2>
                 <Link
